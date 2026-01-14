@@ -340,12 +340,24 @@ class ZoteroSentinel:
 
         results = []
 
-        # Strategy 1: Direct API search if connected
+        # Strategy 1: API search if connected
         if self.connected:
             try:
-                # Extract key terms for search
                 search_terms = self._extract_key_terms(query)
-                api_results = self.zot.items(q=search_terms, limit=limit * 2)
+
+                # Use direct API or pyzotero based on connection type
+                if getattr(self, '_use_direct_api', False) or not PYZOTERO_AVAILABLE:
+                    # Direct API search
+                    headers = {"Zotero-API-Key": self.api_key}
+                    url = f"{ZOTERO_API_BASE}/users/{self.user_id}/items?q={search_terms}&limit={limit * 2}"
+                    response = requests.get(url, headers=headers, timeout=30)
+                    if response.status_code == 200:
+                        api_results = response.json()
+                    else:
+                        api_results = []
+                else:
+                    # pyzotero search
+                    api_results = self.zot.items(q=search_terms, limit=limit * 2)
 
                 for item in api_results:
                     data = item.get("data", {})
@@ -734,12 +746,7 @@ def render_sentinel_widget(
 
     status = sentinel.get_connection_status()
 
-    # Connection status
-    if not status["pyzotero_available"]:
-        st.error("pyzotero not installed")
-        st.code("pip install pyzotero", language="bash")
-        return
-
+    # Connection status - check both pyzotero and direct API
     if not status["connected"]:
         if not status["user_id"] or not status["has_api_key"]:
             st.warning("Zotero credentials not configured")
@@ -755,6 +762,9 @@ def render_sentinel_widget(
         return
 
     # Connected - show stats
+    api_mode = "Direct API" if status.get("using_direct_api") else "pyzotero"
+    st.success(f"✓ Connected via {api_mode}")
+
     col1, col2 = st.columns(2)
     with col1:
         st.metric("Library Items", status.get("cached_items", 0))
