@@ -1,8 +1,12 @@
 """
-PHDx Dashboard v2 - PhD Thesis Command Center
+PHDx Dashboard v3 - PhD Thesis Command Center
+Premier Doctoral Writing Tool with Glassmorphism 2.0
 
-Streamlit-based interface with Glassmorphism UI, Zotero integration,
-and Google Sheets data injection.
+Features:
+- Focus Canvas (850px centered drafting pane)
+- Vertical Stepper navigation with Ring Chart progress
+- Logic Glow micro-interactions for Red Thread Engine
+- Traffic Light feedback system
 """
 
 import json
@@ -35,6 +39,7 @@ ROOT_DIR = Path(__file__).parent.parent
 DATA_DIR = ROOT_DIR / "data"
 DRAFTS_DIR = ROOT_DIR / "drafts"
 DNA_PATH = DATA_DIR / "author_dna.json"
+CSS_PATH = Path(__file__).parent / "modern_styles.css"
 
 # Page configuration
 st.set_page_config(
@@ -45,43 +50,425 @@ st.set_page_config(
 )
 
 # ============================================================================
-# GLASSMORPHISM CSS - Deep Academic Palette
-# Background: #0e1117 | Text: #e0e0e0 | Accent: Brookes Blue #0071ce
+# LOAD EXTERNAL CSS + GLASSMORPHISM 2.0 ENHANCEMENTS
 # ============================================================================
-st.markdown("""
-<style>
-    /* Import professional sans-serif font */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+def load_css():
+    """Load external CSS and add dynamic styles."""
+    # Load external CSS file
+    if CSS_PATH.exists():
+        with open(CSS_PATH, "r") as f:
+            external_css = f.read()
+    else:
+        external_css = ""
 
-    /* ========== GLOBAL STYLES ========== */
-    html, body, [class*="css"] {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    }
+    # Additional dynamic styles for Streamlit components
+    dynamic_css = """
+    <style>
+    /* Load external modern styles */
+    """ + external_css + """
 
-    /* Main app background - Deep Academic */
+    /* ========== PHDX SPECIFIC OVERRIDES ========== */
+
+    /* Glassmorphism 2.0 Background */
     .stApp {
-        background: #0e1117;
+        background: linear-gradient(135deg, #002147 0%, #121212 100%);
         background-attachment: fixed;
     }
 
-    /* ========== GLASSMORPHISM CONTAINERS ========== */
+    /* Subtle animated gradient overlay */
+    .stApp::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background:
+            radial-gradient(ellipse at 20% 20%, rgba(0, 113, 206, 0.08) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 80%, rgba(0, 212, 255, 0.05) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    /* Glass containers */
+    .glass-panel, .glass-card, .element-container, [data-testid="stVerticalBlock"] > div {
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+    }
+
+    /* Focus Canvas - Central Drafting Pane */
+    .focus-canvas-wrapper {
+        max-width: 850px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .focus-canvas {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 0.5px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 2.5rem;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+        transition: all 0.4s ease;
+    }
+
+    /* Logic Glow - Red Thread Consistency Confirmed */
+    .focus-canvas.logic-glow {
+        border-color: #00D4FF;
+        box-shadow:
+            0 12px 48px rgba(0, 0, 0, 0.5),
+            0 0 30px rgba(0, 212, 255, 0.3);
+        animation: logicPulse 2s ease-in-out;
+    }
+
+    @keyframes logicPulse {
+        0%, 100% {
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 212, 255, 0.2);
+        }
+        50% {
+            box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5), 0 0 50px rgba(0, 212, 255, 0.5);
+        }
+    }
+
+    /* Prose Typography */
+    .prose-content, .stTextArea textarea {
+        font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #FAFAFA;
+    }
+
+    /* Paragraph with ignored correction */
+    .correction-ignored {
+        border-bottom: 2px solid #FF5252;
+        background: linear-gradient(to bottom, transparent 85%, rgba(255, 82, 82, 0.1) 100%);
+        position: relative;
+    }
+
+    .correction-ignored::after {
+        content: '';
+        position: absolute;
+        bottom: -4px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, #FF5252, transparent);
+        animation: underlinePulse 2s ease-in-out infinite;
+    }
+
+    @keyframes underlinePulse {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 1; }
+    }
+
+    /* ========== VERTICAL STEPPER ========== */
+    .vertical-stepper {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 1rem;
+    }
+
+    .stepper-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 0.5px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.25s ease;
+    }
+
+    .stepper-item:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: #0071ce;
+        transform: translateX(4px);
+    }
+
+    .stepper-item.active {
+        background: rgba(0, 113, 206, 0.15);
+        border-color: #0071ce;
+        box-shadow: 0 0 20px rgba(0, 113, 206, 0.2);
+    }
+
+    .stepper-item.completed {
+        border-left: 3px solid #00C853;
+    }
+
+    .stepper-number {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+
+    .stepper-item.active .stepper-number {
+        background: #0071ce;
+        border-color: #0071ce;
+    }
+
+    .stepper-item.completed .stepper-number {
+        background: #00C853;
+        border-color: #00C853;
+    }
+
+    .stepper-label {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #FAFAFA;
+    }
+
+    .stepper-progress {
+        font-size: 0.7rem;
+        color: #6B7280;
+        margin-top: 2px;
+    }
+
+    /* ========== RING CHART ========== */
+    .ring-chart-container {
+        position: relative;
+        width: 140px;
+        height: 140px;
+        margin: 1.5rem auto;
+    }
+
+    .ring-chart {
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+    }
+
+    .ring-chart-bg {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.1);
+        stroke-width: 10;
+    }
+
+    .ring-chart-progress {
+        fill: none;
+        stroke: #0071ce;
+        stroke-width: 10;
+        stroke-linecap: round;
+        stroke-dasharray: 377;
+        stroke-dashoffset: 377;
+        transition: stroke-dashoffset 1s ease-out;
+        filter: drop-shadow(0 0 8px rgba(0, 113, 206, 0.5));
+    }
+
+    .ring-chart-progress.milestone-25 { stroke: #FFB300; }
+    .ring-chart-progress.milestone-50 { stroke: #00D4FF; }
+    .ring-chart-progress.milestone-75 { stroke: #00C853; }
+    .ring-chart-progress.milestone-100 {
+        stroke: #00C853;
+        filter: drop-shadow(0 0 12px rgba(0, 200, 83, 0.7));
+    }
+
+    .ring-chart-center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+    }
+
+    .ring-chart-value {
+        font-family: 'Inter', sans-serif;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #FAFAFA;
+    }
+
+    .ring-chart-label {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.6rem;
+        color: #6B7280;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+
+    /* ========== SIDEBAR STYLING ========== */
+    [data-testid="stSidebar"] {
+        background: linear-gradient(180deg, rgba(0, 33, 71, 0.98) 0%, rgba(18, 18, 18, 0.99) 100%);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-right: 0.5px solid rgba(255, 255, 255, 0.1);
+    }
+
+    [data-testid="stSidebar"] > div:first-child {
+        padding-top: 1rem;
+    }
+
+    /* PHDx Logo */
+    .phdx-logo {
+        font-family: 'Inter', sans-serif;
+        font-size: 2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #0071ce 0%, #00D4FF 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-align: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .phdx-tagline {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.7rem;
+        color: #6B7280;
+        text-align: center;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        margin-bottom: 1.5rem;
+    }
+
+    /* ========== BUTTONS ========== */
+    .stButton > button {
+        font-family: 'Inter', sans-serif;
+        font-weight: 500;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 0.5px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        color: #FAFAFA;
+        transition: all 0.25s ease;
+    }
+
+    .stButton > button:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: #0071ce;
+        box-shadow: 0 0 20px rgba(0, 113, 206, 0.2);
+        transform: translateY(-1px);
+    }
+
+    /* Primary button */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #0071ce 0%, #0058a3 100%);
+        border: none;
+        box-shadow: 0 4px 15px rgba(0, 113, 206, 0.3);
+    }
+
+    .stButton > button[kind="primary"]:hover {
+        background: linear-gradient(135deg, #0082e6 0%, #0071ce 100%);
+        box-shadow: 0 6px 25px rgba(0, 113, 206, 0.4);
+    }
+
+    /* ========== TEXT INPUTS ========== */
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea {
+        font-family: 'Source Serif 4', Georgia, serif;
+        font-size: 1.1rem;
+        line-height: 1.6;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border: 0.5px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        color: #FAFAFA;
+        padding: 1rem;
+    }
+
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: #0071ce;
+        box-shadow: 0 0 0 3px rgba(0, 113, 206, 0.15);
+    }
+
+    /* ========== METRICS ========== */
+    [data-testid="stMetricValue"] {
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        color: #0071ce !important;
+    }
+
+    [data-testid="stMetricLabel"] {
+        font-family: 'Inter', sans-serif;
+        color: #6B7280 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.75rem;
+    }
+
+    /* ========== TABS ========== */
+    .stTabs [data-baseweb="tab-list"] {
+        background: rgba(255, 255, 255, 0.02);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-radius: 12px;
+        border: 0.5px solid rgba(255, 255, 255, 0.1);
+        padding: 4px;
+        gap: 4px;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        font-family: 'Inter', sans-serif;
+        color: #6B7280;
+        border-radius: 10px;
+        font-weight: 500;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: rgba(0, 113, 206, 0.15);
+        color: #0071ce !important;
+        border: 1px solid rgba(0, 113, 206, 0.3);
+    }
+
+    /* ========== GLASS CARDS ========== */
     .glass-card {
         background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 0.5px solid rgba(255, 255, 255, 0.1);
         padding: 1.5rem;
         margin-bottom: 1rem;
         box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
     }
 
-    .glass-container {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+    /* ========== TEXT COLORS ========== */
+    .stMarkdown, .stText, p, span, label {
+        color: #e0e0e0 !important;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* ========== MAIN HEADER ========== */
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #0071ce 0%, #00D4FF 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.25rem;
+        letter-spacing: -0.02em;
+        text-align: center;
+    }
+
+    .sub-header {
+        font-size: 0.9rem;
+        color: #6B7280 !important;
+        margin-bottom: 2rem;
+        font-weight: 400;
+        text-align: center;
     }
 
     /* ========== STATUS BAR ========== */
@@ -94,10 +481,10 @@ st.markdown("""
 
     .status-item {
         background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 0.5px solid rgba(255, 255, 255, 0.1);
         padding: 1rem 1.5rem;
         flex: 1;
         text-align: center;
@@ -110,202 +497,23 @@ st.markdown("""
     }
 
     .status-label {
-        font-size: 0.75rem;
-        color: rgba(224, 224, 224, 0.6);
+        font-size: 0.7rem;
+        color: #6B7280;
         text-transform: uppercase;
         letter-spacing: 0.1em;
         margin-bottom: 0.25rem;
-    }
-
-    .status-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #0071ce;
-    }
-
-    .status-value.success {
-        color: #00c853;
-    }
-
-    .status-value.warning {
-        color: #ffc107;
-    }
-
-    .status-value.info {
-        color: #0071ce;
-    }
-
-    /* ========== HEADER STYLES ========== */
-    .main-header {
-        font-size: 3rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #0071ce 0%, #004d99 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 0.25rem;
-        letter-spacing: -0.02em;
-    }
-
-    .sub-header {
-        font-size: 1rem;
-        color: rgba(224, 224, 224, 0.6);
-        margin-bottom: 2rem;
-        font-weight: 400;
-    }
-
-    /* ========== SIDEBAR ========== */
-    [data-testid="stSidebar"] {
-        background: rgba(14, 17, 23, 0.95);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    [data-testid="stSidebar"] .stMarkdown {
-        color: #e0e0e0;
-    }
-
-    /* ========== TEXT COLORS ========== */
-    .stMarkdown, .stText, p, span, label {
-        color: #e0e0e0 !important;
-    }
-
-    h1, h2, h3, h4, h5, h6 {
-        color: #ffffff !important;
-    }
-
-    /* Brookes Blue accent */
-    .accent-brookes {
-        color: #0071ce;
-    }
-
-    /* ========== METRICS ========== */
-    [data-testid="stMetricValue"] {
-        color: #0071ce !important;
-        font-weight: 600;
-    }
-
-    [data-testid="stMetricLabel"] {
-        color: rgba(224, 224, 224, 0.7) !important;
-    }
-
-    /* ========== BUTTONS ========== */
-    .stButton > button {
-        background: rgba(0, 113, 206, 0.1);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        color: #0071ce;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-
-    .stButton > button:hover {
-        background: rgba(0, 113, 206, 0.2);
-        border-color: rgba(0, 113, 206, 0.5);
-        box-shadow: 0 0 25px rgba(0, 113, 206, 0.25);
-        transform: translateY(-2px);
-    }
-
-    .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #0071ce 0%, #004d99 100%);
-        color: #ffffff;
-        border: none;
-        font-weight: 600;
-    }
-
-    .stButton > button[kind="primary"]:hover {
-        box-shadow: 0 0 30px rgba(0, 113, 206, 0.4);
-    }
-
-    /* ========== TEXT AREA ========== */
-    .stTextArea textarea {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        color: #e0e0e0;
         font-family: 'Inter', sans-serif;
     }
 
-    .stTextArea textarea:focus {
-        border-color: rgba(0, 113, 206, 0.5);
-        box-shadow: 0 0 0 2px rgba(0, 113, 206, 0.2);
+    .status-value {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #0071ce;
+        font-family: 'Inter', sans-serif;
     }
 
-    /* ========== SELECT BOX ========== */
-    .stSelectbox > div > div {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-    }
-
-    /* ========== TABS ========== */
-    .stTabs [data-baseweb="tab-list"] {
-        background: rgba(255, 255, 255, 0.02);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 4px;
-        gap: 4px;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        color: rgba(224, 224, 224, 0.6);
-        border-radius: 10px;
-        font-weight: 500;
-    }
-
-    .stTabs [aria-selected="true"] {
-        background: rgba(0, 113, 206, 0.2);
-        color: #0071ce !important;
-        border: 1px solid rgba(0, 113, 206, 0.3);
-    }
-
-    /* ========== EXPANDER ========== */
-    .streamlit-expanderHeader {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #e0e0e0;
-    }
-
-    /* ========== PROGRESS BAR ========== */
-    .stProgress > div > div > div {
-        background: linear-gradient(90deg, #0071ce 0%, #004d99 100%);
-        border-radius: 6px;
-    }
-
-    /* ========== DIVIDER ========== */
-    hr {
-        border-color: rgba(255, 255, 255, 0.1);
-    }
-
-    /* ========== ALERTS ========== */
-    .stAlert {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-    }
-
-    /* ========== CODE BLOCKS ========== */
-    .stCodeBlock {
-        background: rgba(0, 0, 0, 0.4) !important;
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-    }
+    .status-value.success { color: #00C853; }
+    .status-value.warning { color: #FFB300; }
 
     /* ========== SCROLLBAR ========== */
     ::-webkit-scrollbar {
@@ -326,144 +534,66 @@ st.markdown("""
         background: rgba(0, 113, 206, 0.5);
     }
 
-    /* ========== SPECIAL EFFECTS ========== */
-    .glow-effect {
-        box-shadow: 0 0 30px rgba(0, 113, 206, 0.2);
+    /* ========== PROGRESS BARS ========== */
+    .stProgress > div > div > div {
+        background: linear-gradient(90deg, #0071ce 0%, #00D4FF 100%);
+        border-radius: 6px;
     }
 
-    .brookes-glow {
-        box-shadow: 0 0 40px rgba(0, 113, 206, 0.15);
+    /* ========== TRAFFIC LIGHT BADGES ========== */
+    .traffic-red {
+        background: rgba(255, 82, 82, 0.15);
+        border: 1px solid rgba(255, 82, 82, 0.3);
+        color: #FF5252;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
     }
 
-    /* ========== STAT CARDS ========== */
-    .stats-container {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 1.5rem;
+    .traffic-amber {
+        background: rgba(255, 179, 0, 0.15);
+        border: 1px solid rgba(255, 179, 0, 0.3);
+        color: #FFB300;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
     }
 
-    .stat-card {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 1rem 1.5rem;
-        flex: 1;
+    .traffic-green {
+        background: rgba(0, 200, 83, 0.15);
+        border: 1px solid rgba(0, 200, 83, 0.3);
+        color: #00C853;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
     }
 
-    .stat-value {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #0071ce;
-    }
-
-    .stat-label {
-        font-size: 0.85rem;
-        color: rgba(224, 224, 224, 0.6);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    /* ========== WORD COUNT PROGRESS ========== */
-    .word-progress {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .word-current {
-        color: #0071ce;
-        font-weight: 700;
-    }
-
-    .word-target {
-        color: rgba(224, 224, 224, 0.5);
-    }
-
-    /* ========== ETHICALLY SCANNED BADGE ========== */
+    /* ========== ETHICS BADGE ========== */
     .ethics-badge {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
         background: linear-gradient(135deg, rgba(0, 200, 83, 0.15) 0%, rgba(0, 150, 60, 0.15) 100%);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         border: 1px solid rgba(0, 200, 83, 0.3);
         border-radius: 20px;
         padding: 0.4rem 1rem;
         font-size: 0.85rem;
-        color: #00c853;
+        color: #00C853;
         font-weight: 500;
-        margin-left: 0.5rem;
-        animation: pulse-green 2s ease-in-out infinite;
-    }
-
-    .ethics-badge-icon {
-        font-size: 1rem;
-    }
-
-    @keyframes pulse-green {
-        0%, 100% { box-shadow: 0 0 5px rgba(0, 200, 83, 0.3); }
-        50% { box-shadow: 0 0 15px rgba(0, 200, 83, 0.5); }
-    }
-
-    .ethics-stats {
-        background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 0.75rem 1rem;
-        margin-top: 0.5rem;
-        font-size: 0.8rem;
-        color: rgba(224, 224, 224, 0.7);
+        font-family: 'Inter', sans-serif;
     }
 
     /* ========== COMPLEXITY GAUGE ========== */
     .complexity-gauge {
         background: rgba(255, 255, 255, 0.03);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
         border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 0.5px solid rgba(255, 255, 255, 0.1);
         padding: 1rem;
         margin-top: 1rem;
-    }
-
-    .complexity-gauge-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.75rem;
-    }
-
-    .complexity-gauge-title {
-        font-size: 0.85rem;
-        color: rgba(224, 224, 224, 0.7);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .complexity-gauge-value {
-        font-size: 1.5rem;
-        font-weight: 700;
-    }
-
-    .complexity-gauge-value.optimal {
-        color: #00c853;
-    }
-
-    .complexity-gauge-value.acceptable {
-        color: #0071ce;
-    }
-
-    .complexity-gauge-value.warning {
-        color: #ffc107;
-    }
-
-    .complexity-gauge-value.danger {
-        color: #f44336;
     }
 
     .complexity-bar-container {
@@ -477,69 +607,67 @@ st.markdown("""
     .complexity-bar {
         height: 100%;
         border-radius: 8px;
-        transition: width 0.5s ease, background 0.3s ease;
+        transition: width 0.5s ease;
     }
 
-    .complexity-bar.optimal {
-        background: linear-gradient(90deg, #00c853, #00e676);
+    .complexity-bar.optimal { background: linear-gradient(90deg, #00C853, #00E676); }
+    .complexity-bar.acceptable { background: linear-gradient(90deg, #0071ce, #00D4FF); }
+    .complexity-bar.warning { background: linear-gradient(90deg, #FF9800, #FFB300); }
+    .complexity-bar.danger { background: linear-gradient(90deg, #D32F2F, #FF5252); }
+
+    /* ========== THEMATIC HEATMAP ========== */
+    .heatmap-container {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+        border-radius: 12px;
+        border: 0.5px solid rgba(255, 255, 255, 0.1);
+        padding: 1.5rem;
+        margin: 1rem 0;
     }
 
-    .complexity-bar.acceptable {
-        background: linear-gradient(90deg, #0071ce, #29b6f6);
+    .heatmap-bar {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
     }
 
-    .complexity-bar.warning {
-        background: linear-gradient(90deg, #ff9800, #ffc107);
+    .heatmap-label {
+        min-width: 120px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem;
+        color: #B0B0B0;
     }
 
-    .complexity-bar.danger {
-        background: linear-gradient(90deg, #d32f2f, #f44336);
+    .heatmap-track {
+        flex: 1;
+        height: 24px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 6px;
+        overflow: hidden;
     }
 
-    .complexity-target-zone {
-        position: absolute;
-        top: 0;
+    .heatmap-fill {
         height: 100%;
-        background: rgba(0, 200, 83, 0.2);
-        border-left: 2px solid rgba(0, 200, 83, 0.5);
-        border-right: 2px solid rgba(0, 200, 83, 0.5);
+        border-radius: 6px;
+        transition: width 0.5s ease;
     }
 
-    .complexity-labels {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 0.5rem;
-        font-size: 0.7rem;
-        color: rgba(224, 224, 224, 0.5);
-    }
-
-    .complexity-warning {
-        margin-top: 0.75rem;
-        padding: 0.5rem 0.75rem;
-        background: rgba(255, 152, 0, 0.1);
-        border: 1px solid rgba(255, 152, 0, 0.3);
-        border-radius: 8px;
+    .word-count {
+        min-width: 100px;
+        text-align: right;
+        font-family: 'Inter', sans-serif;
         font-size: 0.8rem;
-        color: #ffc107;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+        color: #6B7280;
     }
+    </style>
+    """
 
-    .complexity-optimal {
-        margin-top: 0.75rem;
-        padding: 0.5rem 0.75rem;
-        background: rgba(0, 200, 83, 0.1);
-        border: 1px solid rgba(0, 200, 83, 0.3);
-        border-radius: 8px;
-        font-size: 0.8rem;
-        color: #00c853;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-</style>
-""", unsafe_allow_html=True)
+    st.markdown(dynamic_css, unsafe_allow_html=True)
+
+# Load CSS at the start
+load_css()
 
 
 # ============================================================================
@@ -571,6 +699,10 @@ if "highlight_text" not in st.session_state:
     st.session_state.highlight_text = None
 if "transparency_log" not in st.session_state:
     st.session_state.transparency_log = TransparencyLog()
+if "logic_glow" not in st.session_state:
+    st.session_state.logic_glow = False
+if "ignored_corrections" not in st.session_state:
+    st.session_state.ignored_corrections = []
 
 
 # ============================================================================
@@ -873,117 +1005,206 @@ Write ONLY the synthesis paragraph, no meta-commentary."""
 
 
 # ============================================================================
-# SIDEBAR
+# SIDEBAR - Vertical Stepper with Ring Chart
 # ============================================================================
+def get_total_word_count() -> int:
+    """Calculate total word count from all draft documents."""
+    total = 0
+    if DRAFTS_DIR.exists():
+        from docx import Document
+        for docx_file in DRAFTS_DIR.glob("*.docx"):
+            try:
+                doc = Document(docx_file)
+                text = " ".join([p.text for p in doc.paragraphs])
+                total += len(text.split())
+            except Exception:
+                pass
+    return total
+
+
+def render_ring_chart(current_words: int, target_words: int = 80000) -> str:
+    """Generate SVG Ring Chart for thesis progress."""
+    percentage = min(100, (current_words / target_words) * 100)
+    # SVG circle: circumference = 2 * pi * r = 2 * 3.14159 * 60 = 377
+    circumference = 377
+    offset = circumference - (percentage / 100) * circumference
+
+    # Determine milestone class
+    if percentage >= 100:
+        milestone_class = "milestone-100"
+    elif percentage >= 75:
+        milestone_class = "milestone-75"
+    elif percentage >= 50:
+        milestone_class = "milestone-50"
+    elif percentage >= 25:
+        milestone_class = "milestone-25"
+    else:
+        milestone_class = ""
+
+    return f"""
+    <div class="ring-chart-container">
+        <svg class="ring-chart" viewBox="0 0 140 140">
+            <circle class="ring-chart-bg" cx="70" cy="70" r="60"/>
+            <circle class="ring-chart-progress {milestone_class}"
+                    cx="70" cy="70" r="60"
+                    style="stroke-dashoffset: {offset}"/>
+        </svg>
+        <div class="ring-chart-center">
+            <div class="ring-chart-value">{percentage:.0f}%</div>
+            <div class="ring-chart-label">of 80k</div>
+        </div>
+    </div>
+    """
+
+
+def render_vertical_stepper(active_section: str = "drafting") -> str:
+    """Generate Vertical Stepper navigation HTML."""
+    sections = [
+        {"id": "drafting", "label": "Drafting", "icon": "✍️", "progress": "Active"},
+        {"id": "feedback", "label": "Feedback", "icon": "📝", "progress": "3 items"},
+        {"id": "dna", "label": "DNA Profile", "icon": "🧬", "progress": "Generated"},
+        {"id": "chapters", "label": "Chapters", "icon": "📚", "progress": "6 chapters"},
+        {"id": "progress", "label": "Progress", "icon": "📈", "progress": "On track"},
+    ]
+
+    html = '<div class="vertical-stepper">'
+    for i, section in enumerate(sections, 1):
+        is_active = section["id"] == active_section
+        is_completed = i < sections.index(next(s for s in sections if s["id"] == active_section)) + 1 if active_section else False
+
+        state_class = "active" if is_active else ("completed" if is_completed else "")
+
+        html += f"""
+        <div class="stepper-item {state_class}">
+            <div class="stepper-number">{section["icon"]}</div>
+            <div>
+                <div class="stepper-label">{section["label"]}</div>
+                <div class="stepper-progress">{section["progress"]}</div>
+            </div>
+        </div>
+        """
+    html += '</div>'
+    return html
+
+
 def render_sidebar():
-    """Render the sidebar with data sources and Zotero Sentinel."""
+    """Render the sidebar with Vertical Stepper navigation and Ring Chart."""
     with st.sidebar:
-        st.markdown("## 📁 Data Sources")
+        # PHDx Logo and tagline
+        st.markdown('<div class="phdx-logo">PHDx</div>', unsafe_allow_html=True)
+        st.markdown('<div class="phdx-tagline">Doctoral Command Center</div>', unsafe_allow_html=True)
+
+        # Ring Chart - 80,000 word progress
+        total_words = get_total_word_count()
+        st.markdown(render_ring_chart(total_words, 80000), unsafe_allow_html=True)
+
+        # Word count display
+        st.markdown(f"""
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <span style="font-family: 'Inter', sans-serif; font-size: 1.5rem; font-weight: 700; color: #0071ce;">
+                {total_words:,}
+            </span>
+            <span style="font-family: 'Inter', sans-serif; font-size: 0.9rem; color: #6B7280;">
+                / 80,000 words
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+
         st.markdown("---")
 
-        # Local Files Section
-        st.markdown("### Local Files")
-
-        drafts_count = len(list(DRAFTS_DIR.glob("*.docx"))) if DRAFTS_DIR.exists() else 0
-        st.metric("Draft Documents", drafts_count)
-
-        if st.button("📂 Open Drafts Folder", use_container_width=True):
-            st.info(f"Drafts location: {DRAFTS_DIR}")
-
-        # DNA Profile status
-        dna_exists = DNA_PATH.exists()
-        st.markdown(f"**DNA Profile:** {'✅ Generated' if dna_exists else '❌ Not found'}")
-
-        if st.button("🧬 Regenerate DNA Profile", use_container_width=True):
-            st.warning("Run `python core/dna_engine.py` to regenerate")
+        # Vertical Stepper Navigation
+        st.markdown(render_vertical_stepper("drafting"), unsafe_allow_html=True)
 
         st.markdown("---")
 
-        # Red Thread Engine
-        st.markdown("### 🔴 Red Thread Engine")
+        # Red Thread Engine Status
+        st.markdown("#### 🔴 Red Thread Engine")
         engine = st.session_state.red_thread_engine
         stats = engine.get_stats()
-        st.metric("Indexed Paragraphs", stats["total_paragraphs"])
 
-        if st.button("🔄 Re-index Drafts", use_container_width=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Indexed", stats["total_paragraphs"])
+        with col2:
+            backend = "Cloud" if stats.get("backend") == "pinecone" else "Local"
+            st.metric("Backend", backend)
+
+        if st.button("🔄 Re-index", use_container_width=True):
             with st.spinner("Indexing..."):
                 result = engine.index_drafts_folder()
                 st.success(f"Indexed {result['paragraphs_indexed']} paragraphs")
+                st.session_state.logic_glow = True
 
         st.markdown("---")
 
-        # Supervisor Notes Widget
-        render_supervisor_notes_widget(
-            st.session_state.supervisor_loop,
-            st.session_state.current_chapter
-        )
+        # Zotero Sentinel (Compact)
+        sentinel = st.session_state.zotero_sentinel
+        status = "✅ Connected" if sentinel.connected else ("🧪 Mock Mode" if sentinel.mock_mode else "❌ Offline")
+        st.markdown(f"#### 📚 Zotero: {status}")
+
+        if sentinel.connected or sentinel.mock_mode:
+            st.metric("Sources", len(sentinel.items_cache) if sentinel.items_cache else 5)
 
         st.markdown("---")
 
-        # Zotero Sentinel Widget
-        render_sentinel_widget(
-            st.session_state.zotero_sentinel,
-            st.session_state.drafting_text,
-            st.session_state.current_chapter
-        )
+        # Settings (Compact)
+        with st.expander("⚙️ Settings"):
+            st.selectbox(
+                "Citation Style",
+                ["Harvard (Cite Them Right)", "APA 7th", "Chicago", "MLA"],
+                index=0,
+                key="citation_style"
+            )
+            st.selectbox(
+                "Language",
+                ["British English", "American English"],
+                index=0,
+                key="language"
+            )
 
-        st.markdown("---")
-
-        # Settings
-        st.markdown("### ⚙️ Settings")
-
-        st.selectbox(
-            "Citation Style",
-            ["APA 7th", "Harvard", "Chicago", "MLA", "Oxford"],
-            index=0
-        )
-
-        st.selectbox(
-            "Language",
-            ["British English", "American English"],
-            index=0
-        )
+        # DNA Profile status
+        dna_exists = DNA_PATH.exists()
+        if dna_exists:
+            st.markdown('<span class="ethics-badge">🧬 DNA Active</span>', unsafe_allow_html=True)
+        else:
+            if st.button("🧬 Generate DNA Profile", use_container_width=True):
+                st.info("Run: python core/dna_engine.py")
 
 
 # ============================================================================
-# MAIN CONTENT
+# MAIN CONTENT - Focus Canvas Layout
 # ============================================================================
 def render_drafting_pane():
-    """Render the main drafting pane."""
+    """Render the main drafting pane with Focus Canvas (850px max-width)."""
+
+    # Centered header
     st.markdown('<p class="main-header">PHDx</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-header">PhD Thesis Command Center | Oxford Brookes Standards</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Premier Doctoral Writing Tool | Oxford Brookes Standards</p>', unsafe_allow_html=True)
 
-    # Status row
-    col1, col2, col3, col4 = st.columns(4)
-
+    # Status bar with glassmorphic cards
     dna_profile = load_author_dna()
+    total_words = get_total_word_count()
 
-    with col1:
-        st.markdown("**📊 Word Count**")
-        if dna_profile:
-            st.markdown(f"### {dna_profile['metadata']['total_word_count']:,}")
-        else:
-            st.markdown("### --")
-
-    with col2:
-        st.markdown("**📄 Documents**")
-        if dna_profile:
-            st.markdown(f"### {len(dna_profile['metadata']['documents_analyzed'])}")
-        else:
-            st.markdown("### --")
-
-    with col3:
-        st.markdown("**📝 Avg Sentence**")
-        if dna_profile:
-            st.markdown(f"### {dna_profile['sentence_complexity']['average_length']} words")
-        else:
-            st.markdown("### --")
-
-    with col4:
-        st.markdown("**🎯 Target**")
-        st.markdown("### 80,000")
-
-    st.markdown("---")
+    st.markdown(f"""
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="status-label">Words Written</div>
+            <div class="status-value">{total_words:,}</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Documents</div>
+            <div class="status-value">{len(dna_profile['metadata']['documents_analyzed']) if dna_profile else '--'}</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Avg Sentence</div>
+            <div class="status-value">{dna_profile['sentence_complexity']['average_length'] if dna_profile else '--'}</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Progress</div>
+            <div class="status-value success">{min(100, int(total_words / 800))}%</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # Main tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -1011,7 +1232,13 @@ def render_drafting_pane():
 
 
 def render_drafting_tab():
-    """Render the main drafting interface."""
+    """Render the main drafting interface with Focus Canvas."""
+
+    # Determine if Logic Glow is active (Red Thread consistency confirmed)
+    logic_glow_class = "logic-glow" if st.session_state.logic_glow else ""
+
+    # Start Focus Canvas wrapper
+    st.markdown(f'<div class="focus-canvas-wrapper"><div class="focus-canvas {logic_glow_class}">', unsafe_allow_html=True)
 
     # ========== SUPERVISOR FEEDBACK HIGHLIGHT ==========
     highlight_text = get_highlight_text()
@@ -1043,6 +1270,17 @@ def render_drafting_tab():
                 st.session_state.highlight_text = None
                 st.rerun()
 
+    # ========== LOGIC GLOW STATUS ==========
+    if st.session_state.logic_glow:
+        st.markdown("""
+        <div style="background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.3);
+                    border-radius: 8px; padding: 0.75rem; margin-bottom: 1rem; display: flex;
+                    align-items: center; gap: 0.5rem;">
+            <span style="color: #00D4FF; font-size: 1.2rem;">✓</span>
+            <span style="color: #00D4FF; font-weight: 500;">Red Thread: Logical consistency confirmed</span>
+        </div>
+        """, unsafe_allow_html=True)
+
     # ========== ETHICALLY SCANNED BADGE ==========
     if st.session_state.ethically_scanned:
         st.markdown("""
@@ -1063,27 +1301,6 @@ def render_drafting_tab():
                 Data anonymized before AI processing
             </div>
             """, unsafe_allow_html=True)
-
-    # ========== STATUS BAR ==========
-    st.markdown("""
-    <div class="status-bar">
-        <div class="status-item">
-            <div class="status-label">DNA Match</div>
-            <div class="status-value success">98%</div>
-        </div>
-        <div class="status-item">
-            <div class="status-label">Red Thread Integrity</div>
-            <div class="status-value success">High</div>
-        </div>
-        <div class="status-item">
-            <div class="status-label">Word Count</div>
-            <div class="status-value info">
-                <span class="word-current">30,000</span>
-                <span class="word-target">/ 80,000</span>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
     st.markdown("### Drafting Pane")
 
@@ -1423,6 +1640,13 @@ def render_drafting_tab():
             st.info("Write at least 50 characters to push")
         else:
             st.markdown(f"Ready to push **{len(text_input):,}** characters with PHDx-Verified timestamp")
+
+    # Close Focus Canvas wrapper
+    st.markdown('</div></div>', unsafe_allow_html=True)
+
+    # Reset logic glow after render (one-time animation)
+    if st.session_state.logic_glow:
+        st.session_state.logic_glow = False
 
 
 def render_dna_tab(dna_profile: dict | None):

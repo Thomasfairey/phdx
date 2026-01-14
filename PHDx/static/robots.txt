@@ -1,0 +1,150 @@
+# PHDx - robots.txt
+# =================
+# Protects thesis drafts and research data from LLM scraping
+# Last updated: 2026-01-14
+
+# Standard Search Engines (allowed for discovery)
+User-agent: Googlebot
+Allow: /
+Disallow: /data/
+Disallow: /drafts/
+Disallow: /feedback/
+Disallow: /_stcore/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /data/
+Disallow: /drafts/
+Disallow: /feedback/
+Disallow: /_stcore/
+
+# ===========================================
+# LLM SCRAPERS - BLOCK ALL ACCESS
+# ===========================================
+
+# OpenAI GPTBot (ChatGPT training)
+User-agent: GPTBot
+Disallow: /
+
+# OpenAI ChatGPT user requests
+User-agent: ChatGPT-User
+Disallow: /
+
+# Google Bard/Gemini
+User-agent: Google-Extended
+Disallow: /
+
+# Anthropic Claude training
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+# Common Crawl (used by many LLMs)
+User-agent: CCBot
+Disallow: /
+
+# Cohere AI
+User-agent: cohere-ai
+Disallow: /
+
+# Meta AI (Facebook)
+User-agent: FacebookBot
+Disallow: /
+
+User-agent: Meta-ExternalAgent
+Disallow: /
+
+User-agent: Meta-ExternalFetcher
+Disallow: /
+
+# Perplexity AI
+User-agent: PerplexityBot
+Disallow: /
+
+# ByteDance/TikTok
+User-agent: Bytespider
+Disallow: /
+
+# Siri/Apple AI
+User-agent: Applebot-Extended
+Disallow: /
+
+# Amazon Alexa
+User-agent: amazonbot
+Disallow: /
+
+# AI training data scrapers
+User-agent: Diffbot
+Disallow: /
+
+User-agent: img2dataset
+Disallow: /
+
+User-agent: omgili
+Disallow: /
+
+User-agent: omgilibot
+Disallow: /
+
+# AI2 (Allen Institute)
+User-agent: AI2Bot
+Disallow: /
+
+User-agent: Ai2Bot-Dolma
+Disallow: /
+
+# Hugging Face
+User-agent: HuggingFaceBot
+Disallow: /
+
+# StabilityAI
+User-agent: StabilityAI
+Disallow: /
+
+# Scrapy and other generic scrapers
+User-agent: Scrapy
+Disallow: /
+
+User-agent: scrapy
+Disallow: /
+
+# Generic scraper user agents
+User-agent: *bot*
+Disallow: /data/
+Disallow: /drafts/
+Disallow: /feedback/
+
+User-agent: *crawler*
+Disallow: /data/
+Disallow: /drafts/
+Disallow: /feedback/
+
+User-agent: *spider*
+Disallow: /data/
+Disallow: /drafts/
+Disallow: /feedback/
+
+# ===========================================
+# CATCH-ALL FOR THESIS DATA PROTECTION
+# ===========================================
+
+# Default rule: Allow access to main app, block sensitive directories
+User-agent: *
+Allow: /
+Disallow: /data/
+Disallow: /drafts/
+Disallow: /feedback/
+Disallow: /core/
+Disallow: /_stcore/
+Disallow: /*.json$
+Disallow: /*.csv$
+Disallow: /*.docx$
+Disallow: /*.pdf$
+
+# Crawl delay for all bots
+Crawl-delay: 10
+
+# Sitemap (uncomment when available)
+# Sitemap: https://phdx.ai/sitemap.xml
