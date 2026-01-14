@@ -1,0 +1,24 @@
+# PHDx - PhD Thesis Command Center
+# Phase 1: Foundation Dependencies
+
+# UI Framework
+streamlit>=1.28.0
+
+# AI/LLM
+anthropic>=0.18.0
+
+# Google Integration (Drive, Docs)
+google-api-python-client>=2.100.0
+google-auth-oauthlib>=1.1.0
+
+# Document Processing
+python-docx>=1.1.0
+
+# Data Analysis
+pandas>=2.1.0
+
+# Environment Configuration
+python-dotenv>=1.0.0
+
+# NLP Processing
+spacy>=3.7.0
