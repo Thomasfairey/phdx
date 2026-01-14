@@ -84,14 +84,31 @@ def load_docx_files(drafts_dir: Path = DRAFTS_DIR) -> list[dict]:
 
     Returns:
         List of dicts with 'filename' and 'content' keys.
+        Returns empty list with friendly message if folder is empty.
     """
     documents = []
 
     if not drafts_dir.exists():
         print(f"Drafts directory not found: {drafts_dir}")
+        drafts_dir.mkdir(parents=True, exist_ok=True)
+        print("Created empty drafts directory.")
         return documents
 
-    for docx_file in drafts_dir.glob("*.docx"):
+    docx_files = list(drafts_dir.glob("*.docx"))
+
+    # Empty Directory Grace - friendly message instead of error
+    if not docx_files:
+        print("\n" + "=" * 60)
+        print("Waiting for your first 30k words...")
+        print("=" * 60)
+        print("\nTo get started:")
+        print("  1. Add your thesis chapter drafts (.docx) to the /drafts folder")
+        print("  2. Re-run the DNA Engine to analyze your writing style")
+        print(f"\nDrafts folder: {drafts_dir}")
+        print("=" * 60 + "\n")
+        return documents
+
+    for docx_file in docx_files:
         try:
             doc = Document(docx_file)
             full_text = []
@@ -213,17 +230,57 @@ def extract_transition_vocabulary(text: str) -> dict:
     }
 
 
+def chunk_text_for_analysis(text: str, chunk_size: int = 2000) -> list[str]:
+    """
+    Split text into chunks of approximately chunk_size words.
+
+    This prevents 'Context Window Exceeded' errors when processing
+    long PhD chapters with Claude.
+
+    Args:
+        text: The full text to chunk
+        chunk_size: Target words per chunk (default: 2000)
+
+    Returns:
+        List of text chunks
+    """
+    words = text.split()
+    chunks = []
+
+    for i in range(0, len(words), chunk_size):
+        chunk = " ".join(words[i:i + chunk_size])
+        chunks.append(chunk)
+
+    return chunks
+
+
 def analyze_with_claude(combined_text: str, client: anthropic.Anthropic) -> dict:
     """
     Use Claude 3.5 Sonnet to perform deep linguistic analysis.
 
+    Token Safety: Chunks text into 2,000-word blocks to prevent
+    'Context Window Exceeded' errors with long PhD chapters.
+
     Returns:
         Dict with Claude's analysis of the writing style.
     """
-    # Truncate if too long (keeping ~100k tokens worth)
-    max_chars = 300000
-    if len(combined_text) > max_chars:
-        combined_text = combined_text[:max_chars] + "\n[Text truncated for analysis...]"
+    # Token Safety: Chunk text into 2,000-word blocks
+    word_count = len(combined_text.split())
+    MAX_WORDS_FOR_SINGLE_ANALYSIS = 8000  # ~10k tokens
+
+    if word_count > MAX_WORDS_FOR_SINGLE_ANALYSIS:
+        print(f"  Text too long ({word_count:,} words). Chunking into 2,000-word blocks...")
+        chunks = chunk_text_for_analysis(combined_text, chunk_size=2000)
+        print(f"  Created {len(chunks)} chunks for analysis")
+
+        # Sample representative chunks (first, middle, last)
+        if len(chunks) > 4:
+            sample_indices = [0, len(chunks) // 3, 2 * len(chunks) // 3, -1]
+            sampled_chunks = [chunks[i] for i in sample_indices if i < len(chunks)]
+            combined_text = "\n\n[...section break...]\n\n".join(sampled_chunks)
+            print(f"  Sampled {len(sampled_chunks)} representative chunks")
+        else:
+            combined_text = "\n\n[...section break...]\n\n".join(chunks[:4])
 
     # Ethics scrubbing: Anonymize text before sending to AI
     scrub_result = scrub_text(combined_text)

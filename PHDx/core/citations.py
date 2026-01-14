@@ -326,7 +326,13 @@ class ZoteroSentinel:
         return items
 
     def _connect(self) -> bool:
-        """Establish connection to Zotero (pyzotero or direct API)."""
+        """
+        Establish connection to Zotero (pyzotero or direct API).
+
+        API Robustness: Handles 403 Forbidden errors with helpful message.
+        """
+        self.connection_error = None  # Reset error state
+
         # Try pyzotero first if available
         if PYZOTERO_AVAILABLE:
             try:
@@ -340,22 +346,71 @@ class ZoteroSentinel:
                 self._use_direct_api = False
                 return True
             except Exception as e:
-                print(f"pyzotero connection failed: {e}")
+                error_str = str(e).lower()
+                # Check for 403 Forbidden
+                if "403" in error_str or "forbidden" in error_str:
+                    self.connection_error = "forbidden"
+                    print("=" * 60)
+                    print("Invalid Zotero API Key. Please check your PHDx .env file.")
+                    print("=" * 60)
+                    print("\nTo fix this:")
+                    print("  1. Go to https://www.zotero.org/settings/keys")
+                    print("  2. Create a new API key with library read access")
+                    print("  3. Update ZOTERO_API_KEY in your PHDx/.env file")
+                    print("=" * 60)
+                else:
+                    print(f"pyzotero connection failed: {e}")
 
         # Fall back to direct API
         try:
             headers = {"Zotero-API-Key": self.api_key}
             url = f"{ZOTERO_API_BASE}/users/{self.user_id}/items/top?limit=1"
             response = requests.get(url, headers=headers, timeout=10)
+
             if response.status_code == 200:
                 self.connected = True
                 self._use_direct_api = True
                 return True
+
+            # API Robustness: Handle 403 Forbidden specifically
+            elif response.status_code == 403:
+                self.connection_error = "forbidden"
+                self.connected = False
+                print("\n" + "=" * 60)
+                print("Invalid Zotero API Key. Please check your PHDx .env file.")
+                print("=" * 60)
+                print("\nTo fix this:")
+                print("  1. Go to https://www.zotero.org/settings/keys")
+                print("  2. Create a new API key with library read access")
+                print("  3. Update ZOTERO_API_KEY in your PHDx/.env file")
+                print("=" * 60 + "\n")
+                return False
+
+            elif response.status_code == 404:
+                self.connection_error = "user_not_found"
+                print(f"Zotero user ID not found: {self.user_id}")
+                self.connected = False
+                return False
+
             else:
                 print(f"Zotero API error: {response.status_code}")
                 self.connected = False
                 return False
+
+        except requests.exceptions.Timeout:
+            self.connection_error = "timeout"
+            print("Zotero API connection timed out. Check your internet connection.")
+            self.connected = False
+            return False
+
+        except requests.exceptions.ConnectionError:
+            self.connection_error = "network"
+            print("Network error connecting to Zotero. Check your internet connection.")
+            self.connected = False
+            return False
+
         except Exception as e:
+            self.connection_error = "unknown"
             print(f"Zotero direct API connection failed: {e}")
             self.connected = False
             return False
@@ -392,7 +447,8 @@ class ZoteroSentinel:
             "pyzotero_available": PYZOTERO_AVAILABLE,
             "using_direct_api": getattr(self, '_use_direct_api', False),
             "cached_items": len(self.items_cache),
-            "last_fetch": self.last_fetch
+            "last_fetch": self.last_fetch,
+            "connection_error": getattr(self, 'connection_error', None)
         }
 
     def _parse_creators(self, creators: list) -> dict:
@@ -989,11 +1045,29 @@ def render_sentinel_widget(
 
     # Connection status - check both pyzotero and direct API
     elif not status["connected"]:
-        if not status["user_id"] or not status["has_api_key"]:
+        # API Robustness: Handle 403 Forbidden error specifically
+        if status.get("connection_error") == "forbidden":
+            st.error("🔒 **Invalid Zotero API Key**")
+            st.markdown("Please check your PHDx `.env` file.")
+            st.markdown("**To fix this:**")
+            st.markdown("1. Go to [Zotero API Keys](https://www.zotero.org/settings/keys)")
+            st.markdown("2. Create a new key with library read access")
+            st.markdown("3. Update `ZOTERO_API_KEY` in your `.env` file")
+
+        elif not status["user_id"] or not status["has_api_key"]:
             st.warning("Zotero credentials not configured")
             st.markdown("Add to `.env`:")
             st.code("ZOTERO_USER_ID=your_user_id\nZOTERO_API_KEY=your_api_key", language="bash")
             st.markdown("[Get your API key](https://www.zotero.org/settings/keys)")
+
+        elif status.get("connection_error") == "timeout":
+            st.error("⏱️ Connection timed out")
+            st.caption("Check your internet connection and try again.")
+
+        elif status.get("connection_error") == "network":
+            st.error("🌐 Network error")
+            st.caption("Unable to reach Zotero servers.")
+
         else:
             st.error("Connection failed")
 

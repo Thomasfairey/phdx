@@ -144,14 +144,34 @@ class RedThreadEngine:
         stats = {
             "files_processed": 0,
             "paragraphs_indexed": 0,
-            "files": []
+            "files": [],
+            "waiting_for_content": False
         }
 
         if not drafts_dir.exists():
             print(f"Drafts directory not found: {drafts_dir}")
+            drafts_dir.mkdir(parents=True, exist_ok=True)
+            stats["waiting_for_content"] = True
             return stats
 
-        for docx_file in drafts_dir.glob("*.docx"):
+        docx_files = list(drafts_dir.glob("*.docx"))
+
+        # Empty Directory Grace - friendly message instead of error
+        if not docx_files:
+            print("\n" + "=" * 60)
+            print("Waiting for your first 30k words...")
+            print("=" * 60)
+            print("\nThe Red Thread Engine needs thesis content to check for")
+            print("logical contradictions and maintain argument consistency.")
+            print("\nTo get started:")
+            print("  1. Add your thesis chapter drafts (.docx) to the /drafts folder")
+            print("  2. Re-run indexing to build your semantic corpus")
+            print(f"\nDrafts folder: {drafts_dir}")
+            print("=" * 60 + "\n")
+            stats["waiting_for_content"] = True
+            return stats
+
+        for docx_file in docx_files:
             count = self.index_document(docx_file)
             stats["files_processed"] += 1
             stats["paragraphs_indexed"] += count
@@ -654,8 +674,26 @@ Return ONLY valid JSON."""
         Wrapper for verify_consistency that formats output for Streamlit UI.
 
         Returns a simplified report optimized for display.
+        Includes thematic threshold warning when similarity < 50%.
         """
         full_report = self.verify_consistency(new_draft_text)
+
+        # Calculate average similarity from related sections
+        related_sections = full_report.get("related_sections", [])
+        avg_similarity = 0
+        if related_sections:
+            avg_similarity = sum(s.get("similarity", 0) for s in related_sections) / len(related_sections)
+            avg_similarity = round(avg_similarity * 100, 1)  # Convert to percentage
+
+        # Thematic Threshold Warning - trigger when similarity < 50%
+        low_consistency_warning = None
+        if avg_similarity < 50 and related_sections:
+            low_consistency_warning = {
+                "triggered": True,
+                "message": "Low Argument Consistency detected. Check Chapter 2 for contradictions.",
+                "avg_similarity": avg_similarity,
+                "recommendation": "Your new text may be diverging from your thesis argument. Review your Literature Review chapter to ensure conceptual alignment."
+            }
 
         # Create UI-friendly version
         ui_report = {
@@ -672,6 +710,8 @@ Return ONLY valid JSON."""
             "key_terms": full_report["terminology_analysis"].get("key_terms_new", []),
             "terminology_warnings": full_report["terminology_analysis"].get("potential_shifts", []),
             "related_count": len(full_report["related_sections"]),
+            "avg_similarity_percent": avg_similarity,
+            "low_consistency_warning": low_consistency_warning,
             "full_report": full_report  # Include full report for detailed view
         }
 

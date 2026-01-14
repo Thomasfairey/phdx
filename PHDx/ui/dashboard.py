@@ -1207,19 +1207,54 @@ def render_drafting_tab():
         if st.button("Check for Contradictions", use_container_width=True):
             with st.spinner("Analyzing against your thesis corpus..."):
                 engine = st.session_state.red_thread_engine
-                results = engine.check_continuity(text_input)
 
-                for r in results:
-                    if r.get("type") == "none":
-                        st.success("✓ No contradictions detected")
-                    elif r.get("type") in ["contradiction", "inconsistency", "tension"]:
-                        severity_color = {"high": "🔴", "medium": "🟡", "low": "🟢"}
-                        icon = severity_color.get(r.get("severity", "low"), "⚪")
-                        st.warning(f"{icon} **{r.get('type', 'Issue').title()}**: {r.get('explanation', '')}")
-                        if r.get("suggestion"):
-                            st.info(f"💡 Suggestion: {r['suggestion']}")
-                    elif r.get("status") == "no_context":
-                        st.info(r.get("message", "Index your drafts first"))
+                # Use enhanced UI report with thematic threshold warning
+                ui_report = engine.get_consistency_report_for_ui(text_input)
+
+                # Thematic Threshold Warning - display if similarity < 50%
+                if ui_report.get("low_consistency_warning"):
+                    warning = ui_report["low_consistency_warning"]
+                    st.markdown(f"""
+                    <div style="background: linear-gradient(135deg, rgba(255, 152, 0, 0.2) 0%, rgba(255, 87, 34, 0.2) 100%);
+                                border: 1px solid rgba(255, 152, 0, 0.5);
+                                border-left: 4px solid #ff9800;
+                                border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <span style="font-size: 1.5rem;">⚠️</span>
+                            <strong style="color: #ffc107; font-size: 1.1rem;">{warning['message']}</strong>
+                        </div>
+                        <div style="color: rgba(224, 224, 224, 0.9); font-size: 0.9rem;">
+                            Average similarity: <strong>{warning['avg_similarity']:.1f}%</strong> (below 50% threshold)
+                        </div>
+                        <div style="color: rgba(224, 224, 224, 0.7); font-size: 0.85rem; margin-top: 0.5rem;">
+                            {warning['recommendation']}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                # Show overall score
+                score = ui_report.get("score", 0)
+                score_label = ui_report.get("score_label", "Unknown")
+                score_color = "#00c853" if score >= 80 else "#ffc107" if score >= 50 else "#f44336"
+
+                st.markdown(f"**Consistency Score:** <span style='color: {score_color};'>{score}/100</span> ({score_label})", unsafe_allow_html=True)
+
+                # Show issues
+                if ui_report.get("issue_count", 0) == 0:
+                    st.success("✓ No contradictions detected")
+                else:
+                    for severity in ["high", "medium", "low"]:
+                        issues = ui_report["issues_by_severity"].get(severity, [])
+                        for issue in issues:
+                            severity_icons = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+                            icon = severity_icons.get(severity, "⚪")
+                            st.warning(f"{icon} **{issue.get('type', 'Issue').title()}**: {issue.get('description', '')}")
+                            if issue.get("recommendation"):
+                                st.info(f"💡 {issue['recommendation']}")
+
+                # Show summary
+                if ui_report.get("summary"):
+                    st.caption(ui_report["summary"])
     else:
         st.info("Write at least 100 characters to check for contradictions")
 
