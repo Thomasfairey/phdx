@@ -1513,16 +1513,150 @@ def render_chapters_tab():
 
 
 def render_progress_tab():
-    """Render progress tracking."""
+    """Render progress tracking with Thematic Heatmap."""
     st.markdown("### Thesis Progress")
 
-    # Overall progress
-    total_words = 0
-    target_words = 80000
-    progress = total_words / target_words
+    # Chapter word count targets (typical PhD thesis structure)
+    chapters = [
+        {"name": "Introduction", "short": "Intro", "target": 8000, "color": "#4fc3f7"},
+        {"name": "Literature Review", "short": "Lit Review", "target": 20000, "color": "#81c784"},
+        {"name": "Methodology", "short": "Methods", "target": 15000, "color": "#ffb74d"},
+        {"name": "Results", "short": "Results", "target": 15000, "color": "#ba68c8"},
+        {"name": "Discussion", "short": "Discussion", "target": 15000, "color": "#f06292"},
+        {"name": "Conclusion", "short": "Conclusion", "target": 7000, "color": "#4db6ac"},
+    ]
 
+    # Calculate actual word counts from draft files
+    chapter_keywords = {
+        "Introduction": ["intro", "introduction"],
+        "Literature Review": ["lit", "literature", "review"],
+        "Methodology": ["method", "methodology"],
+        "Results": ["result", "findings", "data"],
+        "Discussion": ["discussion", "analysis"],
+        "Conclusion": ["conclusion", "concluding"],
+    }
+
+    # Scan drafts folder for word counts
+    for chapter in chapters:
+        chapter["words"] = 0
+        keywords = chapter_keywords.get(chapter["name"], [])
+
+        if DRAFTS_DIR.exists():
+            for docx_file in DRAFTS_DIR.glob("*.docx"):
+                filename_lower = docx_file.stem.lower()
+                if any(kw in filename_lower for kw in keywords):
+                    try:
+                        from docx import Document
+                        doc = Document(docx_file)
+                        text = " ".join([p.text for p in doc.paragraphs])
+                        chapter["words"] += len(text.split())
+                    except Exception:
+                        pass
+
+    # Calculate totals
+    total_words = sum(c["words"] for c in chapters)
+    target_words = 80000
+
+    # Overall progress
+    progress = total_words / target_words if target_words > 0 else 0
     st.markdown(f"**Overall: {total_words:,} / {target_words:,} words ({progress*100:.1f}%)**")
-    st.progress(progress)
+    st.progress(min(progress, 1.0))
+
+    # ========== THEMATIC HEATMAP ==========
+    st.markdown("---")
+    st.markdown("#### Thematic Heatmap")
+    st.caption("Chapter progress towards 80,000-word goal")
+
+    # Create horizontal bar chart using HTML/CSS for glassmorphic style
+    heatmap_html = """
+    <style>
+    .heatmap-container {
+        background: rgba(30, 30, 30, 0.6);
+        border-radius: 12px;
+        padding: 1.5rem;
+        backdrop-filter: blur(10px);
+    }
+    .chapter-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+    .chapter-label {
+        width: 100px;
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.9);
+        text-align: right;
+        padding-right: 1rem;
+    }
+    .bar-container {
+        flex: 1;
+        height: 28px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        overflow: hidden;
+        position: relative;
+    }
+    .bar-fill {
+        height: 100%;
+        border-radius: 6px;
+        transition: width 0.5s ease;
+        position: relative;
+    }
+    .bar-text {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.9);
+        font-weight: 500;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+    .target-marker {
+        position: absolute;
+        right: 0;
+        top: 0;
+        height: 100%;
+        width: 2px;
+        background: rgba(255, 255, 255, 0.3);
+    }
+    .word-count {
+        width: 120px;
+        text-align: right;
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.7);
+        padding-left: 0.75rem;
+    }
+    </style>
+    <div class="heatmap-container">
+    """
+
+    for chapter in chapters:
+        percent = (chapter["words"] / chapter["target"] * 100) if chapter["target"] > 0 else 0
+        bar_width = min(percent, 100)  # Cap at 100% visually
+
+        # Color intensity based on progress
+        opacity = 0.4 + (min(percent, 100) / 100) * 0.6
+
+        heatmap_html += f"""
+        <div class="chapter-row">
+            <div class="chapter-label">{chapter["short"]}</div>
+            <div class="bar-container">
+                <div class="bar-fill" style="width: {bar_width}%; background: linear-gradient(90deg, {chapter["color"]}88, {chapter["color"]});">
+                    <span class="bar-text">{percent:.0f}%</span>
+                </div>
+                <div class="target-marker"></div>
+            </div>
+            <div class="word-count">{chapter["words"]:,} / {chapter["target"]:,}</div>
+        </div>
+        """
+
+    heatmap_html += "</div>"
+
+    st.markdown(heatmap_html, unsafe_allow_html=True)
+
+    # Legend
+    st.caption("Bar shows progress toward chapter target. Right edge = 100% of chapter goal.")
 
     # Milestones
     st.markdown("---")
