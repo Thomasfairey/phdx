@@ -1,10 +1,13 @@
 """
 Red Thread Engine - Logical Continuity Checker for PHDx
 
-Uses ChromaDB to index thesis drafts and detect potential logical
+Uses vector embeddings to index thesis drafts and detect potential logical
 contradictions, terminology shifts, and inconsistencies in new writing.
 
-Vector Store: data/chroma_db/
+Supports:
+  - ChromaDB (local development)
+  - Pinecone (cloud deployment on Streamlit Cloud)
+
 Primary Functions:
   - index_existing_chapters(): Index all .docx files from /drafts
   - verify_consistency(): Check new text against 30k+ word corpus
@@ -18,10 +21,11 @@ from pathlib import Path
 from typing import Optional
 
 import anthropic
-import chromadb
-from chromadb.utils import embedding_functions
 from docx import Document
 from dotenv import load_dotenv
+
+# Import vector store abstraction
+from core.vector_store import get_vector_store, VectorStoreBase
 
 # Load environment variables
 load_dotenv()
@@ -43,25 +47,26 @@ class RedThreadEngine:
 
     Uses vector embeddings to find semantically similar passages and
     Claude to analyze potential contradictions.
+
+    Automatically uses Pinecone (cloud) if PINECONE_API_KEY is set,
+    otherwise falls back to ChromaDB (local).
     """
 
-    def __init__(self):
-        """Initialize the Red Thread Engine with ChromaDB."""
-        # Ensure directories exist
-        CHROMA_DIR.mkdir(parents=True, exist_ok=True)
+    def __init__(self, use_local: bool = False):
+        """
+        Initialize the Red Thread Engine.
 
-        # Initialize ChromaDB with persistent storage
-        self.client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+        Args:
+            use_local: Force use of local ChromaDB even if Pinecone is configured
+        """
+        # Initialize vector store (auto-selects Pinecone or ChromaDB)
+        if use_local:
+            from core.vector_store import ChromaVectorStore
+            self.vector_store = ChromaVectorStore(COLLECTION_NAME)
+        else:
+            self.vector_store = get_vector_store(COLLECTION_NAME)
 
-        # Use default embedding function (all-MiniLM-L6-v2)
-        self.embedding_fn = embedding_functions.DefaultEmbeddingFunction()
-
-        # Get or create collection
-        self.collection = self.client.get_or_create_collection(
-            name=COLLECTION_NAME,
-            embedding_function=self.embedding_fn,
-            metadata={"description": "Thesis paragraphs for continuity checking"}
-        )
+        self.backend = self.vector_store.backend
 
         # Initialize Anthropic client if API key available
         api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -121,8 +126,8 @@ class RedThreadEngine:
                 for i, p in enumerate(paragraphs)
             ]
 
-            # Upsert to collection (update if exists, insert if not)
-            self.collection.upsert(
+            # Upsert to vector store (update if exists, insert if not)
+            self.vector_store.upsert(
                 ids=ids,
                 documents=paragraphs,
                 metadatas=metadatas
@@ -200,13 +205,12 @@ class RedThreadEngine:
         Returns:
             List of similar passages with metadata and scores
         """
-        if self.collection.count() == 0:
+        if self.vector_store.count() == 0:
             return []
 
-        results = self.collection.query(
-            query_texts=[text],
-            n_results=min(n_results, self.collection.count()),
-            include=["documents", "metadatas", "distances"]
+        results = self.vector_store.query(
+            query_text=text,
+            n_results=min(n_results, self.vector_store.count())
         )
 
         similar = []
@@ -312,19 +316,13 @@ Respond with ONLY valid JSON, no additional text."""
 
     def get_stats(self) -> dict:
         """Get statistics about the current index."""
-        return {
-            "total_paragraphs": self.collection.count(),
-            "collection_name": COLLECTION_NAME,
-            "storage_path": str(CHROMA_DIR)
-        }
+        stats = self.vector_store.get_stats()
+        stats["total_paragraphs"] = self.vector_store.count()
+        return stats
 
     def clear_index(self):
         """Clear all indexed content."""
-        self.client.delete_collection(COLLECTION_NAME)
-        self.collection = self.client.get_or_create_collection(
-            name=COLLECTION_NAME,
-            embedding_function=self.embedding_fn
-        )
+        self.vector_store.delete_all()
 
     # =========================================================================
     # PRIMARY API FUNCTIONS
@@ -420,8 +418,8 @@ Respond with ONLY valid JSON, no additional text."""
                     for i, p in enumerate(paragraphs)
                 ]
 
-                # Upsert to ChromaDB (update if exists)
-                self.collection.upsert(
+                # Upsert to vector store (update if exists)
+                self.vector_store.upsert(
                     ids=ids,
                     documents=paragraphs,
                     metadatas=metadatas
@@ -518,7 +516,7 @@ Respond with ONLY valid JSON, no additional text."""
             "overall_score": 0,
             "new_text_preview": new_draft_text[:200] + "..." if len(new_draft_text) > 200 else new_draft_text,
             "corpus_stats": {
-                "total_indexed": self.collection.count(),
+                "total_indexed": self.vector_store.count(),
                 "sections_analyzed": 0
             },
             "related_sections": [],
@@ -531,7 +529,7 @@ Respond with ONLY valid JSON, no additional text."""
         }
 
         # Check if we have indexed content
-        if self.collection.count() == 0:
+        if self.vector_store.count() == 0:
             report["status"] = "error"
             report["summary"] = "No indexed content. Run index_existing_chapters() first."
             return report
@@ -544,10 +542,9 @@ Respond with ONLY valid JSON, no additional text."""
 
         # Find semantically related sections (top 10)
         try:
-            results = self.collection.query(
-                query_texts=[new_draft_text],
-                n_results=min(10, self.collection.count()),
-                include=["documents", "metadatas", "distances"]
+            results = self.vector_store.query(
+                query_text=new_draft_text,
+                n_results=min(10, self.vector_store.count())
             )
 
             related_sections = []
