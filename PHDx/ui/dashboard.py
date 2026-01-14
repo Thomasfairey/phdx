@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from core.citations import ZoteroSentinel, render_sentinel_widget
 from core.red_thread import RedThreadEngine
+from core.auditor import BrookesAuditor, GoogleDocsPusher
 
 # Paths
 ROOT_DIR = Path(__file__).parent.parent
@@ -383,6 +384,12 @@ if "zotero_sentinel" not in st.session_state:
     st.session_state.zotero_sentinel = ZoteroSentinel()
 if "red_thread_engine" not in st.session_state:
     st.session_state.red_thread_engine = RedThreadEngine()
+if "brookes_auditor" not in st.session_state:
+    st.session_state.brookes_auditor = BrookesAuditor()
+if "google_docs_pusher" not in st.session_state:
+    st.session_state.google_docs_pusher = GoogleDocsPusher()
+if "audit_report" not in st.session_state:
+    st.session_state.audit_report = None
 
 
 # ============================================================================
@@ -750,6 +757,150 @@ def render_drafting_tab():
                         st.info(r.get("message", "Index your drafts first"))
     else:
         st.info("Write at least 100 characters to check for contradictions")
+
+    # ========== CRITIQUE MODE - OXFORD BROOKES AUDIT ==========
+    st.markdown("---")
+    st.markdown("#### 🎓 Critique Mode - Oxford Brookes Audit")
+    st.markdown("*Evaluate your draft against PhD marking criteria: Originality, Criticality, Rigour*")
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        if st.button("🔍 Audit Draft", use_container_width=True, type="primary",
+                     disabled=len(text_input) < 100):
+            with st.spinner("Evaluating against Oxford Brookes criteria..."):
+                auditor = st.session_state.brookes_auditor
+                report = auditor.audit_draft(text_input, chapter)
+                st.session_state.audit_report = report
+
+    with col2:
+        if st.session_state.audit_report and st.session_state.audit_report.get("status") == "success":
+            grade = st.session_state.audit_report["overall_grade"]
+            level_emoji = {
+                "excellent": "🌟",
+                "good": "✅",
+                "satisfactory": "📊",
+                "needs_improvement": "⚠️",
+                "unsatisfactory": "❌"
+            }
+            emoji = level_emoji.get(grade["level"], "📋")
+            st.success(f"{emoji} Last Audit: **{grade['score']}/100** ({grade['level'].replace('_', ' ').title()})")
+
+    # Display audit report if available
+    if st.session_state.audit_report:
+        report = st.session_state.audit_report
+
+        if report.get("error"):
+            st.error(f"Audit Error: {report['error']}")
+        elif report.get("status") == "success":
+            # Overall grade display
+            grade = report["overall_grade"]
+            level_colors = {
+                "excellent": "#00c853",
+                "good": "#0071ce",
+                "satisfactory": "#ffc107",
+                "needs_improvement": "#ff9800",
+                "unsatisfactory": "#f44336"
+            }
+            color = level_colors.get(grade["level"], "#e0e0e0")
+
+            st.markdown(f"""
+            <div class="glass-card" style="border-left: 4px solid {color};">
+                <h4 style="margin-bottom: 0.5rem;">Overall Grade: <span style="color: {color};">{grade['score']}/100</span></h4>
+                <p style="color: rgba(224, 224, 224, 0.8); margin-bottom: 0.5rem;">{grade['level'].replace('_', ' ').title()}</p>
+                <p style="font-size: 0.9rem;">{grade['descriptor']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Criteria breakdown
+            with st.expander("📊 Criteria Breakdown", expanded=True):
+                scores = report["criteria_scores"]
+
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+                    st.markdown("**Originality (35%)**")
+                    st.metric("Score", f"{scores['originality']['score']}/100")
+                    st.caption(scores['originality']['feedback'])
+
+                with col2:
+                    st.markdown("**Critical Analysis (35%)**")
+                    st.metric("Score", f"{scores['criticality']['score']}/100")
+                    st.caption(scores['criticality']['feedback'])
+
+                with col3:
+                    st.markdown("**Rigour (30%)**")
+                    st.metric("Score", f"{scores['rigour']['score']}/100")
+                    st.caption(scores['rigour']['feedback'])
+
+            # Strengths and improvements
+            with st.expander("💪 Strengths & Areas for Improvement"):
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.markdown("**Strengths:**")
+                    for s in report.get("strengths", []):
+                        st.markdown(f"✓ {s}")
+
+                with col2:
+                    st.markdown("**Areas for Improvement:**")
+                    for a in report.get("areas_for_improvement", []):
+                        st.markdown(f"→ {a}")
+
+            # Recommendations
+            with st.expander("💡 Recommendations"):
+                for i, rec in enumerate(report.get("specific_recommendations", []), 1):
+                    st.markdown(f"{i}. {rec}")
+
+            # Examiner summary
+            with st.expander("📝 Examiner Summary"):
+                st.markdown(report.get("examiner_summary", ""))
+
+    # ========== PUSH TO GOOGLE DOC ==========
+    st.markdown("---")
+    st.markdown("#### 📄 Push to Google Doc")
+
+    # Google Doc ID input
+    doc_id = st.text_input(
+        "Google Doc ID",
+        value=os.getenv("GOOGLE_DOC_ID", ""),
+        placeholder="Enter the Document ID from Google Docs URL",
+        help="Find this in your Google Doc URL: docs.google.com/document/d/{DOC_ID}/edit"
+    )
+
+    section_title = st.text_input(
+        "Section Title (optional)",
+        placeholder="e.g., Chapter 3 Draft - Methodology"
+    )
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        push_disabled = not doc_id or len(text_input) < 50
+        if st.button("📤 Push to Google Doc", use_container_width=True, type="primary",
+                     disabled=push_disabled):
+            with st.spinner("Pushing to Google Doc with PHDx-Verified timestamp..."):
+                pusher = st.session_state.google_docs_pusher
+                result = pusher.push_to_doc(
+                    doc_id=doc_id,
+                    text=text_input,
+                    section_title=section_title,
+                    include_timestamp=True
+                )
+
+                if result["success"]:
+                    st.success(f"✅ Successfully pushed {result['characters_added']:,} characters!")
+                    st.markdown(f"[Open Document]({result['doc_url']})")
+                else:
+                    st.error(f"Failed: {result.get('error', 'Unknown error')}")
+
+    with col2:
+        if not doc_id:
+            st.info("Enter a Google Doc ID to enable push")
+        elif len(text_input) < 50:
+            st.info("Write at least 50 characters to push")
+        else:
+            st.markdown(f"Ready to push **{len(text_input):,}** characters with PHDx-Verified timestamp")
 
 
 def render_dna_tab(dna_profile: dict | None):
