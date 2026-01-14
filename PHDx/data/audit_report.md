@@ -1,6 +1,6 @@
 # PHDx Deep Health Check Report
 
-**Generated:** 2026-01-14 11:07:53
+**Generated:** 2026-01-14 11:35:24
 **Root Directory:** `/home/user/phd/PHDx`
 
 ---
@@ -20,17 +20,19 @@
 nano /home/user/phd/PHDx/.env  # Add missing keys
 ```
 
-## ❌ **[FAILED]** DNA Engine
+## ✅ **[PASSED]** DNA Engine
 
-- ✓ Drafts folder exists: 0 .docx files
-- ✗ DNA Profile: MISSING
--   Status: author_dna.json not generated
-
-**Fix Command:**
-```bash
-# First add .docx files to /home/user/phd/PHDx/drafts, then:
-cd /home/user/phd/PHDx && python core/dna_engine.py
-```
+- ✓ Drafts folder exists: 3 .docx files
+- ✓ DNA Profile: LOADED
+- 
+  ═══ Linguistic Summary ═══
+-   📊 Total Words Analyzed: 1,507
+-   📄 Documents Analyzed: 3
+-   📝 Avg Sentence Length: 19.29 words
+-   🔮 Hedging Density: 7.96/1000 words
+-   🔗 Transition Density: 8.63/1000 words
+-   💭 Top Hedges: arguably, potentially, may
+-   ➡️ Transition Style: contrast, emphasis, addition
 
 ## ❌ **[FAILED]** Zotero Sentinel
 
@@ -43,16 +45,20 @@ cd /home/user/phd/PHDx && python core/dna_engine.py
 # Find it at: https://www.zotero.org/settings/keys
 ```
 
-## ❌ **[FAILED]** Red Thread Engine
+## ✅ **[PASSED]** Red Thread Engine
 
 - ✓ ChromaDB: Installed (v1.4.0)
-- ✗ ChromaDB Test: FAILED
--   Error: Validation error: name: Expected a name containing 3-512 characters from [a-zA-Z0-9._-], starting and ending with a character in [a-zA-Z0-9]. Got: _audit_test_c58bf791
-
-**Fix Command:**
-```bash
-rm -rf /home/user/phd/PHDx/data/chroma_db && pip install --upgrade chromadb
-```
+- ✓ ChromaDB: Initialized
+- ✓ Write Test: SUCCESS
+-   📝 Inserted: "The epistemological foundations of qualitative res..."
+- ✓ Read Test: SUCCESS
+-   🔍 Retrieved: "The epistemological foundations of qualitative res..."
+-   📊 Similarity Score: 44.96%
+- ✓ Cleanup: Test collection removed
+- 
+  Main Collection:
+-   📊 Indexed Paragraphs: 0
+-   ⚠ Collection empty - run indexer
 
 ## ❌ **[FAILED]** Google Bridge
 
@@ -85,6 +91,6 @@ rm -rf /home/user/phd/PHDx/data/chroma_db && pip install --upgrade chromadb
 
 | Status | Count |
 |--------|-------|
-| ✅ Passed | 1 |
-| ❌ Failed | 5 |
+| ✅ Passed | 3 |
+| ❌ Failed | 3 |
 | ⚠️ Warnings | 0 |
