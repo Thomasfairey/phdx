@@ -27,6 +27,7 @@ from core.ethics_utils import (
 )
 from core.supervisor_loop import SupervisorLoop, render_supervisor_notes_widget
 from core.feedback_processor import FeedbackProcessor, render_feedback_tab, get_highlight_text
+from core.transparency import TransparencyLog, render_declaration_export
 
 # Paths
 ROOT_DIR = Path(__file__).parent.parent
@@ -567,6 +568,8 @@ if "feedback_processor" not in st.session_state:
     st.session_state.feedback_processor = FeedbackProcessor()
 if "highlight_text" not in st.session_state:
     st.session_state.highlight_text = None
+if "transparency_log" not in st.session_state:
+    st.session_state.transparency_log = TransparencyLog()
 
 
 # ============================================================================
@@ -1502,6 +1505,10 @@ def render_progress_tab():
     for milestone in milestones:
         icon = "✅" if milestone['done'] else "⬜"
         st.markdown(f"{icon} {milestone['name']}")
+
+    # AI Transparency Declaration Export
+    st.markdown("---")
+    render_declaration_export(st.session_state.transparency_log)
 
 
 # ============================================================================
