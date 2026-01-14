@@ -33,41 +33,101 @@ st.set_page_config(
 )
 
 # ============================================================================
-# GLASSMORPHISM CSS - Deep Charcoal (#121212) + Soft Blue (#00d4ff)
+# GLASSMORPHISM CSS - Deep Academic Palette
+# Background: #0e1117 | Text: #e0e0e0 | Accent: Brookes Blue #0071ce
 # ============================================================================
 st.markdown("""
 <style>
     /* Import professional sans-serif font */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
-    /* Global font and background */
+    /* ========== GLOBAL STYLES ========== */
     html, body, [class*="css"] {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
 
-    /* Main app background - Deep Charcoal */
+    /* Main app background - Deep Academic */
     .stApp {
-        background: linear-gradient(135deg, #121212 0%, #1a1a2e 50%, #16213e 100%);
+        background: #0e1117;
         background-attachment: fixed;
     }
 
-    /* Glassmorphism card effect */
+    /* ========== GLASSMORPHISM CONTAINERS ========== */
     .glass-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-radius: 12px;
         border: 1px solid rgba(255, 255, 255, 0.1);
         padding: 1.5rem;
         margin-bottom: 1rem;
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
     }
 
-    /* Main header styling */
+    .glass-container {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    /* ========== STATUS BAR ========== */
+    .status-bar {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        padding: 0.5rem;
+    }
+
+    .status-item {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 1rem 1.5rem;
+        flex: 1;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+
+    .status-item:hover {
+        border-color: rgba(0, 113, 206, 0.5);
+        box-shadow: 0 0 20px rgba(0, 113, 206, 0.15);
+    }
+
+    .status-label {
+        font-size: 0.75rem;
+        color: rgba(224, 224, 224, 0.6);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 0.25rem;
+    }
+
+    .status-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #0071ce;
+    }
+
+    .status-value.success {
+        color: #00c853;
+    }
+
+    .status-value.warning {
+        color: #ffc107;
+    }
+
+    .status-value.info {
+        color: #0071ce;
+    }
+
+    /* ========== HEADER STYLES ========== */
     .main-header {
         font-size: 3rem;
         font-weight: 700;
-        background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+        background: linear-gradient(135deg, #0071ce 0%, #004d99 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -77,168 +137,193 @@ st.markdown("""
 
     .sub-header {
         font-size: 1rem;
-        color: rgba(255, 255, 255, 0.6);
+        color: rgba(224, 224, 224, 0.6);
         margin-bottom: 2rem;
         font-weight: 400;
     }
 
-    /* Sidebar styling */
+    /* ========== SIDEBAR ========== */
     [data-testid="stSidebar"] {
-        background: rgba(18, 18, 18, 0.95);
-        backdrop-filter: blur(20px);
-        border-right: 1px solid rgba(0, 212, 255, 0.2);
+        background: rgba(14, 17, 23, 0.95);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     [data-testid="stSidebar"] .stMarkdown {
-        color: rgba(255, 255, 255, 0.9);
+        color: #e0e0e0;
     }
 
-    /* Text colors for dark theme */
+    /* ========== TEXT COLORS ========== */
     .stMarkdown, .stText, p, span, label {
-        color: rgba(255, 255, 255, 0.87) !important;
+        color: #e0e0e0 !important;
     }
 
     h1, h2, h3, h4, h5, h6 {
         color: #ffffff !important;
     }
 
-    /* Accent color - Soft Blue */
-    .accent-blue {
-        color: #00d4ff;
+    /* Brookes Blue accent */
+    .accent-brookes {
+        color: #0071ce;
     }
 
-    /* Metric cards */
+    /* ========== METRICS ========== */
     [data-testid="stMetricValue"] {
-        color: #00d4ff !important;
+        color: #0071ce !important;
         font-weight: 600;
     }
 
     [data-testid="stMetricLabel"] {
-        color: rgba(255, 255, 255, 0.7) !important;
+        color: rgba(224, 224, 224, 0.7) !important;
     }
 
-    /* Button styling */
+    /* ========== BUTTONS ========== */
     .stButton > button {
-        background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(0, 168, 204, 0.2) 100%);
-        color: #00d4ff;
-        border: 1px solid rgba(0, 212, 255, 0.4);
-        border-radius: 8px;
+        background: rgba(0, 113, 206, 0.1);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        color: #0071ce;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
         font-weight: 500;
         transition: all 0.3s ease;
-        backdrop-filter: blur(5px);
     }
 
     .stButton > button:hover {
-        background: linear-gradient(135deg, rgba(0, 212, 255, 0.4) 0%, rgba(0, 168, 204, 0.4) 100%);
-        border-color: #00d4ff;
-        box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
-        transform: translateY(-1px);
+        background: rgba(0, 113, 206, 0.2);
+        border-color: rgba(0, 113, 206, 0.5);
+        box-shadow: 0 0 25px rgba(0, 113, 206, 0.25);
+        transform: translateY(-2px);
     }
 
-    /* Primary action button */
     .stButton > button[kind="primary"] {
-        background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
-        color: #121212;
+        background: linear-gradient(135deg, #0071ce 0%, #004d99 100%);
+        color: #ffffff;
         border: none;
         font-weight: 600;
     }
 
-    /* Text area styling */
+    .stButton > button[kind="primary"]:hover {
+        box-shadow: 0 0 30px rgba(0, 113, 206, 0.4);
+    }
+
+    /* ========== TEXT AREA ========== */
     .stTextArea textarea {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(0, 212, 255, 0.3);
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 12px;
-        color: rgba(255, 255, 255, 0.9);
+        color: #e0e0e0;
         font-family: 'Inter', sans-serif;
     }
 
     .stTextArea textarea:focus {
-        border-color: #00d4ff;
-        box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+        border-color: rgba(0, 113, 206, 0.5);
+        box-shadow: 0 0 0 2px rgba(0, 113, 206, 0.2);
     }
 
-    /* Select box styling */
+    /* ========== SELECT BOX ========== */
     .stSelectbox > div > div {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(0, 212, 255, 0.3);
-        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
     }
 
-    /* Tabs styling */
+    /* ========== TABS ========== */
     .stTabs [data-baseweb="tab-list"] {
-        background: rgba(255, 255, 255, 0.03);
+        background: rgba(255, 255, 255, 0.02);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
         border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
         padding: 4px;
         gap: 4px;
     }
 
     .stTabs [data-baseweb="tab"] {
-        color: rgba(255, 255, 255, 0.6);
-        border-radius: 8px;
+        color: rgba(224, 224, 224, 0.6);
+        border-radius: 10px;
         font-weight: 500;
     }
 
     .stTabs [aria-selected="true"] {
-        background: rgba(0, 212, 255, 0.2);
-        color: #00d4ff !important;
+        background: rgba(0, 113, 206, 0.2);
+        color: #0071ce !important;
+        border: 1px solid rgba(0, 113, 206, 0.3);
     }
 
-    /* Expander styling */
+    /* ========== EXPANDER ========== */
     .streamlit-expanderHeader {
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 8px;
-        color: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #e0e0e0;
     }
 
-    /* Progress bar */
+    /* ========== PROGRESS BAR ========== */
     .stProgress > div > div > div {
-        background: linear-gradient(90deg, #00d4ff 0%, #00a8cc 100%);
+        background: linear-gradient(90deg, #0071ce 0%, #004d99 100%);
+        border-radius: 6px;
     }
 
-    /* Divider */
+    /* ========== DIVIDER ========== */
     hr {
-        border-color: rgba(0, 212, 255, 0.2);
+        border-color: rgba(255, 255, 255, 0.1);
     }
 
-    /* Warning/Info boxes */
+    /* ========== ALERTS ========== */
     .stAlert {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(0, 212, 255, 0.3);
-        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
     }
 
-    /* Code blocks */
+    /* ========== CODE BLOCKS ========== */
     .stCodeBlock {
-        background: rgba(0, 0, 0, 0.3) !important;
-        border: 1px solid rgba(0, 212, 255, 0.2);
-        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.4) !important;
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
     }
 
-    /* Scrollbar styling */
+    /* ========== SCROLLBAR ========== */
     ::-webkit-scrollbar {
         width: 8px;
         height: 8px;
     }
 
     ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.05);
+        background: rgba(255, 255, 255, 0.02);
     }
 
     ::-webkit-scrollbar-thumb {
-        background: rgba(0, 212, 255, 0.3);
+        background: rgba(0, 113, 206, 0.3);
         border-radius: 4px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-        background: rgba(0, 212, 255, 0.5);
+        background: rgba(0, 113, 206, 0.5);
     }
 
-    /* Special glow effect for important elements */
+    /* ========== SPECIAL EFFECTS ========== */
     .glow-effect {
-        box-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+        box-shadow: 0 0 30px rgba(0, 113, 206, 0.2);
     }
 
-    /* Stats cards row */
+    .brookes-glow {
+        box-shadow: 0 0 40px rgba(0, 113, 206, 0.15);
+    }
+
+    /* ========== STAT CARDS ========== */
     .stats-container {
         display: flex;
         gap: 1rem;
@@ -246,10 +331,11 @@ st.markdown("""
     }
 
     .stat-card {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
         border-radius: 12px;
-        border: 1px solid rgba(0, 212, 255, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         padding: 1rem 1.5rem;
         flex: 1;
     }
@@ -257,14 +343,30 @@ st.markdown("""
     .stat-value {
         font-size: 2rem;
         font-weight: 700;
-        color: #00d4ff;
+        color: #0071ce;
     }
 
     .stat-label {
         font-size: 0.85rem;
-        color: rgba(255, 255, 255, 0.6);
+        color: rgba(224, 224, 224, 0.6);
         text-transform: uppercase;
         letter-spacing: 0.05em;
+    }
+
+    /* ========== WORD COUNT PROGRESS ========== */
+    .word-progress {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .word-current {
+        color: #0071ce;
+        font-weight: 700;
+    }
+
+    .word-target {
+        color: rgba(224, 224, 224, 0.5);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -516,6 +618,28 @@ def render_drafting_pane():
 
 def render_drafting_tab():
     """Render the main drafting interface."""
+
+    # ========== STATUS BAR ==========
+    st.markdown("""
+    <div class="status-bar">
+        <div class="status-item">
+            <div class="status-label">DNA Match</div>
+            <div class="status-value success">98%</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Red Thread Integrity</div>
+            <div class="status-value success">High</div>
+        </div>
+        <div class="status-item">
+            <div class="status-label">Word Count</div>
+            <div class="status-value info">
+                <span class="word-current">30,000</span>
+                <span class="word-target">/ 80,000</span>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("### Drafting Pane")
 
     # Chapter selector
