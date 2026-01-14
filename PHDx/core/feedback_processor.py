@@ -37,19 +37,23 @@ try:
 except ImportError:
     PDF_AVAILABLE = False
 
-# Import ethics utilities
+# Import ethics utilities and secrets
 try:
     from core.ethics_utils import scrub_text, log_ai_usage
+    from core.secrets_utils import get_secret
 except ImportError:
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent))
     try:
         from core.ethics_utils import scrub_text, log_ai_usage
+        from core.secrets_utils import get_secret
     except ImportError:
         def scrub_text(text):
             return {"scrubbed_text": text, "total_redactions": 0}
         def log_ai_usage(*args, **kwargs):
             pass
+        def get_secret(key, default=None):
+            return os.getenv(key, default)
 
 load_dotenv()
 
@@ -154,7 +158,7 @@ def suggest_revision(
         Suggested revision text in the author's voice
     """
     if not claude_client:
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        api_key = get_secret("ANTHROPIC_API_KEY")
         if not api_key:
             return "[Revision unavailable - ANTHROPIC_API_KEY not configured]"
         claude_client = anthropic.Anthropic(api_key=api_key)
@@ -235,7 +239,7 @@ class FeedbackProcessor:
         self.processed_files: dict[str, str] = {}  # filename -> hash
 
         # Initialize Claude client
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        api_key = get_secret("ANTHROPIC_API_KEY")
         self.claude = anthropic.Anthropic(api_key=api_key) if api_key else None
 
         # Load existing feedback

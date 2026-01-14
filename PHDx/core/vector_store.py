@@ -19,6 +19,28 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
+def get_secret(key: str, default: str = None) -> str:
+    """
+    Get a secret from Streamlit secrets (cloud) or environment variables (local).
+
+    Priority:
+    1. Streamlit secrets (st.secrets) - for Streamlit Cloud deployment
+    2. Environment variables (os.environ) - for local development
+    3. Default value if neither is available
+    """
+    # Try Streamlit secrets first (for cloud deployment)
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        pass
+
+    # Fall back to environment variables
+    return os.getenv(key, default)
+
+
 # Paths
 ROOT_DIR = Path(__file__).parent.parent
 DATA_DIR = ROOT_DIR / "data"
@@ -119,11 +141,11 @@ class PineconeVectorStore(VectorStoreBase):
         from pinecone import Pinecone, ServerlessSpec
         from sentence_transformers import SentenceTransformer
 
-        self.api_key = os.getenv("PINECONE_API_KEY")
+        self.api_key = get_secret("PINECONE_API_KEY")
         if not self.api_key:
-            raise ValueError("PINECONE_API_KEY not set in environment")
+            raise ValueError("PINECONE_API_KEY not set in environment or Streamlit secrets")
 
-        self.index_name = index_name or os.getenv("PINECONE_INDEX", "phdx-thesis")
+        self.index_name = index_name or get_secret("PINECONE_INDEX", "phdx-thesis")
         self.backend = "pinecone"
 
         # Initialize Pinecone
@@ -262,7 +284,7 @@ def get_vector_store(collection_name: str = "thesis_paragraphs") -> VectorStoreB
         store.upsert(ids, documents, metadatas)
         results = store.query("search text")
     """
-    pinecone_key = os.getenv("PINECONE_API_KEY")
+    pinecone_key = get_secret("PINECONE_API_KEY")
 
     if pinecone_key:
         try:

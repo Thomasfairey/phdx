@@ -45,6 +45,20 @@ except ImportError:
 
 load_dotenv()
 
+
+def get_secret(key: str, default: str = None) -> str:
+    """
+    Get a secret from Streamlit secrets (cloud) or environment variables (local).
+    """
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        pass
+    return os.getenv(key, default)
+
+
 # Paths
 ROOT_DIR = Path(__file__).parent.parent
 DATA_DIR = ROOT_DIR / "data"
@@ -255,8 +269,8 @@ class ZoteroSentinel:
             library_type: "user" or "group"
             api_key: Zotero API key (from .env ZOTERO_API_KEY)
         """
-        self.user_id = user_id or os.getenv("ZOTERO_USER_ID")
-        self.api_key = api_key or os.getenv("ZOTERO_API_KEY")
+        self.user_id = user_id or get_secret("ZOTERO_USER_ID")
+        self.api_key = api_key or get_secret("ZOTERO_API_KEY")
         self.library_type = library_type
 
         self.zot = None
@@ -269,7 +283,7 @@ class ZoteroSentinel:
         self.mock_zotero = None
 
         # Initialize Anthropic for relevance analysis
-        anthropic_key = os.getenv("ANTHROPIC_API_KEY")
+        anthropic_key = get_secret("ANTHROPIC_API_KEY")
         self.claude_client = anthropic.Anthropic(api_key=anthropic_key) if anthropic_key else None
 
         # Load cached items

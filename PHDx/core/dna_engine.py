@@ -18,11 +18,13 @@ from dotenv import load_dotenv
 # Import ethics utilities for AI usage logging
 try:
     from core.ethics_utils import log_ai_usage, scrub_text
+    from core.secrets_utils import get_secret
 except ImportError:
     # Fallback for direct execution
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from core.ethics_utils import log_ai_usage, scrub_text
+    from core.secrets_utils import get_secret
 
 # Load environment variables
 load_dotenv()
@@ -386,7 +388,7 @@ def generate_author_dna(drafts_dir: Path = DRAFTS_DIR, output_path: Path = DNA_O
 
     # Claude deep analysis
     print("\n[5/5] Performing deep linguistic analysis with Claude...")
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = get_secret("ANTHROPIC_API_KEY")
 
     if api_key:
         client = anthropic.Anthropic(api_key=api_key)

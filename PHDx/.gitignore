@@ -1,5 +1,6 @@
 # Environment variables (contains credentials)
 .env
+.streamlit/secrets.toml
 
 # Python cache
 __pycache__/

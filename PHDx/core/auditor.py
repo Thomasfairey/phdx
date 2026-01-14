@@ -16,6 +16,14 @@ from typing import Optional
 import anthropic
 from dotenv import load_dotenv
 
+# Import secrets utility
+try:
+    from core.secrets_utils import get_secret
+except ImportError:
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from core.secrets_utils import get_secret
+
 # Load environment variables
 load_dotenv()
 
@@ -140,7 +148,7 @@ class BrookesAuditor:
 
     def __init__(self):
         """Initialize the auditor with Claude client."""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        api_key = get_secret("ANTHROPIC_API_KEY")
         self.claude_client = anthropic.Anthropic(api_key=api_key) if api_key else None
         self.criteria = OXFORD_BROOKES_CRITERIA
 

@@ -28,6 +28,7 @@ from core.ethics_utils import (
 from core.supervisor_loop import SupervisorLoop, render_supervisor_notes_widget
 from core.feedback_processor import FeedbackProcessor, render_feedback_tab, get_highlight_text
 from core.transparency import TransparencyLog, render_declaration_export
+from core.secrets_utils import get_secret
 
 # Paths
 ROOT_DIR = Path(__file__).parent.parent
@@ -777,7 +778,7 @@ def inject_sheets_data() -> dict | None:
         return {"error": "Author DNA profile not found. Run dna_engine.py first."}
 
     # Get Claude client
-    api_key = os.getenv("ANTHROPIC_API_KEY")
+    api_key = get_secret("ANTHROPIC_API_KEY")
     if not api_key:
         return {"error": "ANTHROPIC_API_KEY not configured"}
 

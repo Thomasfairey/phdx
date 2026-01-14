@@ -24,10 +24,12 @@ from dotenv import load_dotenv
 # Import ethics utilities for AI usage logging
 try:
     from core.ethics_utils import log_ai_usage, scrub_text
+    from core.secrets_utils import get_secret
 except ImportError:
     import sys
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from core.ethics_utils import log_ai_usage, scrub_text
+    from core.secrets_utils import get_secret
 
 load_dotenv()
 
@@ -47,7 +49,7 @@ class SupervisorLoop:
 
     def __init__(self):
         """Initialize the supervisor loop with Claude client."""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        api_key = get_secret("ANTHROPIC_API_KEY")
         self.claude_client = anthropic.Anthropic(api_key=api_key) if api_key else None
 
         # Ensure directories exist
