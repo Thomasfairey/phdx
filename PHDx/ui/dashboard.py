@@ -416,6 +416,125 @@ st.markdown("""
         font-size: 0.8rem;
         color: rgba(224, 224, 224, 0.7);
     }
+
+    /* ========== COMPLEXITY GAUGE ========== */
+    .complexity-gauge {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+
+    .complexity-gauge-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .complexity-gauge-title {
+        font-size: 0.85rem;
+        color: rgba(224, 224, 224, 0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .complexity-gauge-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .complexity-gauge-value.optimal {
+        color: #00c853;
+    }
+
+    .complexity-gauge-value.acceptable {
+        color: #0071ce;
+    }
+
+    .complexity-gauge-value.warning {
+        color: #ffc107;
+    }
+
+    .complexity-gauge-value.danger {
+        color: #f44336;
+    }
+
+    .complexity-bar-container {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        height: 12px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .complexity-bar {
+        height: 100%;
+        border-radius: 8px;
+        transition: width 0.5s ease, background 0.3s ease;
+    }
+
+    .complexity-bar.optimal {
+        background: linear-gradient(90deg, #00c853, #00e676);
+    }
+
+    .complexity-bar.acceptable {
+        background: linear-gradient(90deg, #0071ce, #29b6f6);
+    }
+
+    .complexity-bar.warning {
+        background: linear-gradient(90deg, #ff9800, #ffc107);
+    }
+
+    .complexity-bar.danger {
+        background: linear-gradient(90deg, #d32f2f, #f44336);
+    }
+
+    .complexity-target-zone {
+        position: absolute;
+        top: 0;
+        height: 100%;
+        background: rgba(0, 200, 83, 0.2);
+        border-left: 2px solid rgba(0, 200, 83, 0.5);
+        border-right: 2px solid rgba(0, 200, 83, 0.5);
+    }
+
+    .complexity-labels {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 0.5rem;
+        font-size: 0.7rem;
+        color: rgba(224, 224, 224, 0.5);
+    }
+
+    .complexity-warning {
+        margin-top: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        background: rgba(255, 152, 0, 0.1);
+        border: 1px solid rgba(255, 152, 0, 0.3);
+        border-radius: 8px;
+        font-size: 0.8rem;
+        color: #ffc107;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .complexity-optimal {
+        margin-top: 0.75rem;
+        padding: 0.5rem 0.75rem;
+        background: rgba(0, 200, 83, 0.1);
+        border: 1px solid rgba(0, 200, 83, 0.3);
+        border-radius: 8px;
+        font-size: 0.8rem;
+        color: #00c853;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -454,6 +573,178 @@ def load_author_dna() -> dict | None:
         with open(DNA_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
     return None
+
+
+def calculate_flesch_kincaid(text: str) -> dict:
+    """
+    Calculate Flesch-Kincaid Grade Level for text complexity analysis.
+
+    Formula: 0.39 * (words/sentences) + 11.8 * (syllables/words) - 15.59
+
+    PhD target: Grade 14-16 (doctoral level)
+    Warning: Below 10 = too informal
+
+    Returns:
+        dict: {
+            "grade_level": float,
+            "word_count": int,
+            "sentence_count": int,
+            "syllable_count": int,
+            "avg_words_per_sentence": float,
+            "avg_syllables_per_word": float,
+            "status": "optimal" | "acceptable" | "warning" | "danger",
+            "message": str
+        }
+    """
+    import re
+
+    if not text or len(text.strip()) < 50:
+        return {
+            "grade_level": 0,
+            "word_count": 0,
+            "sentence_count": 0,
+            "syllable_count": 0,
+            "avg_words_per_sentence": 0,
+            "avg_syllables_per_word": 0,
+            "status": "warning",
+            "message": "Not enough text to analyze"
+        }
+
+    def count_syllables(word: str) -> int:
+        """Count syllables in a word using vowel patterns."""
+        word = word.lower().strip()
+        if not word:
+            return 0
+
+        # Handle common exceptions
+        if len(word) <= 3:
+            return 1
+
+        # Count vowel groups
+        vowels = "aeiouy"
+        count = 0
+        prev_vowel = False
+
+        for char in word:
+            is_vowel = char in vowels
+            if is_vowel and not prev_vowel:
+                count += 1
+            prev_vowel = is_vowel
+
+        # Adjust for silent e
+        if word.endswith('e') and count > 1:
+            count -= 1
+
+        # Adjust for -le endings
+        if word.endswith('le') and len(word) > 2 and word[-3] not in vowels:
+            count += 1
+
+        # Ensure at least 1 syllable
+        return max(1, count)
+
+    # Clean text
+    clean_text = re.sub(r'[^\w\s.!?]', '', text)
+
+    # Count sentences (split on .!?)
+    sentences = re.split(r'[.!?]+', clean_text)
+    sentences = [s.strip() for s in sentences if s.strip() and len(s.split()) > 2]
+    sentence_count = max(1, len(sentences))
+
+    # Count words
+    words = re.findall(r'\b[a-zA-Z]+\b', clean_text)
+    word_count = len(words)
+
+    if word_count == 0:
+        return {
+            "grade_level": 0,
+            "word_count": 0,
+            "sentence_count": 0,
+            "syllable_count": 0,
+            "avg_words_per_sentence": 0,
+            "avg_syllables_per_word": 0,
+            "status": "warning",
+            "message": "No valid words found"
+        }
+
+    # Count syllables
+    syllable_count = sum(count_syllables(word) for word in words)
+
+    # Calculate averages
+    avg_words_per_sentence = word_count / sentence_count
+    avg_syllables_per_word = syllable_count / word_count
+
+    # Flesch-Kincaid Grade Level formula
+    grade_level = (0.39 * avg_words_per_sentence) + (11.8 * avg_syllables_per_word) - 15.59
+    grade_level = round(max(0, grade_level), 1)
+
+    # Determine status and message for PhD context
+    if 14 <= grade_level <= 16:
+        status = "optimal"
+        message = "Doctoral level complexity - optimal for PhD"
+    elif 12 <= grade_level < 14:
+        status = "acceptable"
+        message = "Graduate level - acceptable, could be more complex"
+    elif 16 < grade_level <= 18:
+        status = "acceptable"
+        message = "Highly complex - consider readability for examiners"
+    elif grade_level <= 10:
+        status = "danger"
+        message = "Tone too informal for Doctoral level"
+    elif grade_level < 12:
+        status = "warning"
+        message = "Below doctoral standard - increase complexity"
+    else:
+        status = "warning"
+        message = "Very high complexity - may hinder comprehension"
+
+    return {
+        "grade_level": grade_level,
+        "word_count": word_count,
+        "sentence_count": sentence_count,
+        "syllable_count": syllable_count,
+        "avg_words_per_sentence": round(avg_words_per_sentence, 1),
+        "avg_syllables_per_word": round(avg_syllables_per_word, 2),
+        "status": status,
+        "message": message
+    }
+
+
+def render_complexity_gauge(text: str):
+    """Render the ComplexityGauge widget for Flesch-Kincaid analysis."""
+    analysis = calculate_flesch_kincaid(text)
+
+    grade = analysis["grade_level"]
+    status = analysis["status"]
+
+    # Calculate bar width (scale: 0-20 grade level)
+    bar_width = min(100, max(0, (grade / 20) * 100))
+
+    # Target zone: 14-16 on 0-20 scale = 70-80%
+    target_left = 70
+    target_width = 10
+
+    st.markdown(f"""
+    <div class="complexity-gauge">
+        <div class="complexity-gauge-header">
+            <span class="complexity-gauge-title">Flesch-Kincaid Grade Level</span>
+            <span class="complexity-gauge-value {status}">{grade}</span>
+        </div>
+        <div class="complexity-bar-container">
+            <div class="complexity-target-zone" style="left: {target_left}%; width: {target_width}%;"></div>
+            <div class="complexity-bar {status}" style="width: {bar_width}%;"></div>
+        </div>
+        <div class="complexity-labels">
+            <span>0 (Simple)</span>
+            <span>10</span>
+            <span>14-16 (PhD)</span>
+            <span>20 (Complex)</span>
+        </div>
+        {"<div class='complexity-warning'>⚠️ " + analysis['message'] + "</div>" if status in ['warning', 'danger'] else ""}
+        {"<div class='complexity-optimal'>✓ " + analysis['message'] + "</div>" if status == 'optimal' else ""}
+    </div>
+    """, unsafe_allow_html=True)
+
+    return analysis
 
 
 def inject_sheets_data() -> dict | None:
@@ -783,6 +1074,30 @@ def render_drafting_tab():
         key="draft_text"
     )
     st.session_state.drafting_text = text_input
+
+    # ========== COMPLEXITY GAUGE ==========
+    # Show Flesch-Kincaid analysis for text complexity
+    if text_input and len(text_input.strip()) >= 50:
+        render_complexity_gauge(text_input)
+    elif text_input and len(text_input.strip()) > 0:
+        st.markdown("""
+        <div class="complexity-gauge" style="opacity: 0.6;">
+            <div class="complexity-gauge-header">
+                <span class="complexity-gauge-title">Flesch-Kincaid Grade Level</span>
+                <span class="complexity-gauge-value" style="color: rgba(224, 224, 224, 0.5);">--</span>
+            </div>
+            <div class="complexity-bar-container">
+                <div class="complexity-target-zone" style="left: 70%; width: 10%;"></div>
+            </div>
+            <div class="complexity-labels">
+                <span>0 (Simple)</span>
+                <span>10</span>
+                <span>14-16 (PhD)</span>
+                <span>20 (Complex)</span>
+            </div>
+            <div class="complexity-warning">⚠️ Write at least 50 characters for complexity analysis</div>
+        </div>
+        """, unsafe_allow_html=True)
 
     # Action buttons row 1
     col1, col2, col3, col4 = st.columns(4)
