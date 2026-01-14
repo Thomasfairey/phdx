@@ -52,6 +52,180 @@ CACHE_DIR = DATA_DIR / "local_cache"
 CITATIONS_CACHE = DATA_DIR / "zotero_cache.json"
 
 
+# =============================================================================
+# MOCK ZOTERO - Synthetic Citation Library
+# =============================================================================
+
+class MockZoteroSource:
+    """A mock Zotero item with .key attribute for compatibility."""
+
+    def __init__(self, data: dict):
+        self.key = data.get("key", "")
+        self._data = data
+
+    def __getitem__(self, key):
+        return self._data.get(key)
+
+    def get(self, key, default=None):
+        return self._data.get(key, default)
+
+
+class MockZotero:
+    """
+    Mock Zotero library for when ZOTERO_API_KEY is not available.
+
+    Provides 5 high-quality synthetic academic sources related to
+    Digital Sovereignty and Urban Governance for testing purposes.
+    """
+
+    # Synthetic academic sources - high-quality references
+    MOCK_SOURCES = [
+        {
+            "key": "ZUBOFF2019",
+            "title": "The Age of Surveillance Capitalism: The Fight for a Human Future at the New Frontier of Power",
+            "creators": [
+                {"creatorType": "author", "firstName": "Shoshana", "lastName": "Zuboff"}
+            ],
+            "year": "2019",
+            "date": "2019",
+            "itemType": "book",
+            "publisher": "PublicAffairs",
+            "place": "New York",
+            "abstractNote": "A comprehensive analysis of surveillance capitalism as a new economic order that claims human experience as free raw material for hidden commercial practices of extraction, prediction, and sales. Zuboff argues this represents an unprecedented form of power that threatens democratic norms and individual autonomy.",
+            "ISBN": "978-1610395694",
+            "tags": ["surveillance capitalism", "digital economy", "privacy", "power", "technology"]
+        },
+        {
+            "key": "FOUCAULT1977",
+            "title": "Discipline and Punish: The Birth of the Prison",
+            "creators": [
+                {"creatorType": "author", "firstName": "Michel", "lastName": "Foucault"}
+            ],
+            "year": "1977",
+            "date": "1977",
+            "itemType": "book",
+            "publisher": "Penguin Books",
+            "place": "London",
+            "edition": "1st English",
+            "abstractNote": "A foundational text examining the emergence of disciplinary society through the lens of penal institutions. Introduces the concept of the panopticon as a metaphor for modern surveillance and normalisation, arguing that power operates through visibility and the internalisation of disciplinary norms.",
+            "ISBN": "978-0140137224",
+            "tags": ["panopticon", "discipline", "power", "surveillance", "governance"]
+        },
+        {
+            "key": "KITCHIN2014",
+            "title": "The real-time city? Big data and smart urbanism",
+            "creators": [
+                {"creatorType": "author", "firstName": "Rob", "lastName": "Kitchin"}
+            ],
+            "year": "2014",
+            "date": "2014",
+            "itemType": "journalArticle",
+            "publicationTitle": "GeoJournal",
+            "volume": "79",
+            "issue": "1",
+            "pages": "1-14",
+            "DOI": "10.1007/s10708-013-9516-8",
+            "abstractNote": "Critically examines the emergence of smart city initiatives and their reliance on big data analytics for urban governance. Argues that while real-time data offers new possibilities for urban management, it raises significant concerns regarding privacy, surveillance, and technocratic governance models.",
+            "tags": ["smart cities", "big data", "urban governance", "surveillance", "real-time analytics"]
+        },
+        {
+            "key": "LYON2007",
+            "title": "Surveillance Studies: An Overview",
+            "creators": [
+                {"creatorType": "author", "firstName": "David", "lastName": "Lyon"}
+            ],
+            "year": "2007",
+            "date": "2007",
+            "itemType": "book",
+            "publisher": "Polity Press",
+            "place": "Cambridge",
+            "abstractNote": "A comprehensive introduction to the field of surveillance studies, examining how contemporary societies have become increasingly monitored through technological systems. Lyon explores the social, political, and ethical implications of surveillance across domains including security, consumption, and digital communications.",
+            "ISBN": "978-0745635927",
+            "tags": ["surveillance studies", "monitoring", "privacy", "security", "society"]
+        },
+        {
+            "key": "COULDRY2019",
+            "title": "The Costs of Connection: How Data Is Colonizing Human Life and Appropriating It for Capitalism",
+            "creators": [
+                {"creatorType": "author", "firstName": "Nick", "lastName": "Couldry"},
+                {"creatorType": "author", "firstName": "Ulises A.", "lastName": "Mejias"}
+            ],
+            "year": "2019",
+            "date": "2019",
+            "itemType": "book",
+            "publisher": "Stanford University Press",
+            "place": "Stanford, CA",
+            "abstractNote": "Develops the concept of 'data colonialism' to describe how technology corporations extract value from human life through data relations. The authors argue that contemporary data practices represent a new phase of colonialism that naturalises the exploitation of human beings for profit.",
+            "ISBN": "978-1503609754",
+            "tags": ["data colonialism", "digital sovereignty", "exploitation", "capitalism", "technology"]
+        }
+    ]
+
+    def __init__(self):
+        """Initialize the mock Zotero library."""
+        self._items = [MockZoteroSource(src) for src in self.MOCK_SOURCES]
+        self._mock_mode_notified = False
+
+    def search(self, query: str, limit: int = 5) -> list[MockZoteroSource]:
+        """
+        Search the mock library for relevant sources.
+
+        Args:
+            query: Search query string
+            limit: Maximum results to return
+
+        Returns:
+            List of MockZoteroSource objects with .key attribute
+        """
+        if not query:
+            return self._items[:limit]
+
+        query_lower = query.lower()
+        keywords = set(query_lower.split())
+
+        # Score each source by keyword matches
+        scored = []
+        for item in self._items:
+            item_text = f"{item['title']} {item['abstractNote']} {' '.join(item.get('tags', []))}".lower()
+            score = sum(1 for kw in keywords if kw in item_text)
+            if score > 0 or not query.strip():
+                scored.append((score, item))
+
+        # Sort by score and return top results
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        # If no matches, return all sources (they're all relevant to the thesis topic)
+        if not scored:
+            return self._items[:limit]
+
+        return [item for _, item in scored[:limit]]
+
+    def get_all_items(self) -> list[MockZoteroSource]:
+        """Return all mock sources."""
+        return self._items
+
+    def num_items(self) -> int:
+        """Return number of items in mock library."""
+        return len(self._items)
+
+
+# Flag to track if mock mode toast has been shown this session
+_MOCK_MODE_TOAST_SHOWN = False
+
+
+def _show_mock_mode_toast():
+    """Show Streamlit toast notification for Mock Mode (once per session)."""
+    global _MOCK_MODE_TOAST_SHOWN
+    if not _MOCK_MODE_TOAST_SHOWN:
+        try:
+            import streamlit as st
+            if hasattr(st, 'toast'):
+                st.toast("⚠️ Using Synthetic Citation Library", icon="📚")
+            _MOCK_MODE_TOAST_SHOWN = True
+        except Exception:
+            pass  # Not in Streamlit context
+
+
 class ZoteroSentinel:
     """
     Intelligent citation assistant that monitors drafting context
@@ -73,6 +247,9 @@ class ZoteroSentinel:
         """
         Initialize Zotero connection.
 
+        If ZOTERO_API_KEY is not available, automatically switches to Mock Mode
+        with a synthetic citation library for testing.
+
         Args:
             user_id: Zotero user ID (from .env ZOTERO_USER_ID)
             library_type: "user" or "group"
@@ -87,6 +264,10 @@ class ZoteroSentinel:
         self.items_cache = []
         self.last_fetch = None
 
+        # Mock Mode - activated when no API key
+        self.mock_mode = False
+        self.mock_zotero = None
+
         # Initialize Anthropic for relevance analysis
         anthropic_key = os.getenv("ANTHROPIC_API_KEY")
         self.claude_client = anthropic.Anthropic(api_key=anthropic_key) if anthropic_key else None
@@ -94,9 +275,55 @@ class ZoteroSentinel:
         # Load cached items
         self._load_cache()
 
-        # Attempt connection if credentials available
-        if self.user_id and self.api_key:
+        # Check if we should use Mock Mode
+        if not self.api_key:
+            self._enable_mock_mode()
+        elif self.user_id and self.api_key:
+            # Attempt real connection
             self._connect()
+
+    def _enable_mock_mode(self):
+        """Enable Mock Mode with synthetic citation library."""
+        self.mock_mode = True
+        self.mock_zotero = MockZotero()
+        self.connected = True  # Mark as "connected" for UI purposes
+
+        # Populate cache with mock sources
+        self.items_cache = self._convert_mock_to_cache()
+        self.last_fetch = datetime.now().isoformat()
+
+        # Show toast notification in Streamlit
+        _show_mock_mode_toast()
+
+    def _convert_mock_to_cache(self) -> list[dict]:
+        """Convert MockZotero sources to cache format."""
+        items = []
+        for src in MockZotero.MOCK_SOURCES:
+            creators = self._parse_creators(src.get("creators", []))
+            items.append({
+                "key": src.get("key", ""),
+                "title": src.get("title", "Untitled"),
+                "creators": creators,
+                "authors": creators["formatted"],
+                "authors_list": creators["list"],
+                "year": src.get("year", ""),
+                "date": src.get("date", ""),
+                "abstract": src.get("abstractNote", ""),
+                "publication": src.get("publicationTitle", ""),
+                "publisher": src.get("publisher", ""),
+                "place": src.get("place", ""),
+                "volume": src.get("volume", ""),
+                "issue": src.get("issue", ""),
+                "pages": src.get("pages", ""),
+                "doi": src.get("DOI", ""),
+                "url": src.get("url", ""),
+                "isbn": src.get("ISBN", ""),
+                "edition": src.get("edition", ""),
+                "tags": src.get("tags", []),
+                "item_type": src.get("itemType", ""),
+                "accessed": src.get("accessDate", "")
+            })
+        return items
 
     def _connect(self) -> bool:
         """Establish connection to Zotero (pyzotero or direct API)."""
@@ -158,6 +385,7 @@ class ZoteroSentinel:
         """Get current connection status."""
         return {
             "connected": self.connected,
+            "mock_mode": self.mock_mode,
             "user_id": self.user_id,
             "library_type": self.library_type,
             "has_api_key": bool(self.api_key),
@@ -746,8 +974,21 @@ def render_sentinel_widget(
 
     status = sentinel.get_connection_status()
 
+    # Check for Mock Mode first
+    if status.get("mock_mode"):
+        # Show Mock Mode indicator with toast
+        st.warning("📚 **Mock Mode Active**")
+        st.caption("Using Synthetic Citation Library")
+
+        # Trigger toast notification
+        if hasattr(st, 'toast'):
+            # Use session state to only show once per session
+            if "mock_mode_toast_shown" not in st.session_state:
+                st.toast("⚠️ Using Synthetic Citation Library", icon="📚")
+                st.session_state.mock_mode_toast_shown = True
+
     # Connection status - check both pyzotero and direct API
-    if not status["connected"]:
+    elif not status["connected"]:
         if not status["user_id"] or not status["has_api_key"]:
             st.warning("Zotero credentials not configured")
             st.markdown("Add to `.env`:")
@@ -761,9 +1002,10 @@ def render_sentinel_widget(
             st.info(f"Using {status['cached_items']} cached items")
         return
 
-    # Connected - show stats
-    api_mode = "Direct API" if status.get("using_direct_api") else "pyzotero"
-    st.success(f"✓ Connected via {api_mode}")
+    # Connected to real Zotero - show stats
+    if not status.get("mock_mode"):
+        api_mode = "Direct API" if status.get("using_direct_api") else "pyzotero"
+        st.success(f"✓ Connected via {api_mode}")
 
     col1, col2 = st.columns(2)
     with col1:
