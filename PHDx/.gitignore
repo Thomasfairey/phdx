@@ -12,6 +12,7 @@ data/zotero_cache.json
 data/supervisor_analysis.json
 data/ai_usage_log.csv
 data/local_cache/
+data/chroma_db/
 
 # IDE
 .idea/
