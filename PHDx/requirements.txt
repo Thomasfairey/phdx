@@ -27,7 +27,7 @@ spacy>=3.7.0
 chromadb>=0.4.0
 
 # Cloud Vector Store (Pinecone - for Streamlit Cloud deployment)
-pinecone-client>=3.0.0
+pinecone>=5.0.0
 sentence-transformers>=2.2.0
 
 # Bibliography Management (Zotero)
