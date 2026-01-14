@@ -1,0 +1,24 @@
+# Environment variables (contains credentials)
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Data and cache files
+data/zotero_cache.json
+data/supervisor_analysis.json
+data/ai_usage_log.csv
+data/local_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
