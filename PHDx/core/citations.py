@@ -19,13 +19,17 @@ from typing import Optional
 import anthropic
 from dotenv import load_dotenv
 
-# Attempt to import pyzotero
+# Attempt to import pyzotero (may fail due to legacy dependency issues)
 try:
     from pyzotero import zotero
     PYZOTERO_AVAILABLE = True
 except ImportError:
     PYZOTERO_AVAILABLE = False
     zotero = None
+
+# Direct API fallback using requests
+import requests
+ZOTERO_API_BASE = "https://api.zotero.org"
 
 # Import ethics utilities for AI usage logging
 try:
@@ -91,27 +95,41 @@ class ZoteroSentinel:
         self._load_cache()
 
         # Attempt connection if credentials available
-        if self.user_id and self.api_key and PYZOTERO_AVAILABLE:
+        if self.user_id and self.api_key:
             self._connect()
 
     def _connect(self) -> bool:
-        """Establish connection to Zotero."""
-        if not PYZOTERO_AVAILABLE:
-            print("pyzotero not installed. Run: pip install pyzotero")
-            return False
+        """Establish connection to Zotero (pyzotero or direct API)."""
+        # Try pyzotero first if available
+        if PYZOTERO_AVAILABLE:
+            try:
+                self.zot = zotero.Zotero(
+                    self.user_id,
+                    self.library_type,
+                    self.api_key
+                )
+                self.zot.num_items()
+                self.connected = True
+                self._use_direct_api = False
+                return True
+            except Exception as e:
+                print(f"pyzotero connection failed: {e}")
 
+        # Fall back to direct API
         try:
-            self.zot = zotero.Zotero(
-                self.user_id,
-                self.library_type,
-                self.api_key
-            )
-            # Test connection by fetching item count
-            self.zot.num_items()
-            self.connected = True
-            return True
+            headers = {"Zotero-API-Key": self.api_key}
+            url = f"{ZOTERO_API_BASE}/users/{self.user_id}/items/top?limit=1"
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                self.connected = True
+                self._use_direct_api = True
+                return True
+            else:
+                print(f"Zotero API error: {response.status_code}")
+                self.connected = False
+                return False
         except Exception as e:
-            print(f"Zotero connection failed: {e}")
+            print(f"Zotero direct API connection failed: {e}")
             self.connected = False
             return False
 
@@ -144,6 +162,7 @@ class ZoteroSentinel:
             "library_type": self.library_type,
             "has_api_key": bool(self.api_key),
             "pyzotero_available": PYZOTERO_AVAILABLE,
+            "using_direct_api": getattr(self, '_use_direct_api', False),
             "cached_items": len(self.items_cache),
             "last_fetch": self.last_fetch
         }
@@ -199,6 +218,33 @@ class ZoteroSentinel:
         else:
             return f"{authors[0]['display']} et al."
 
+    def _fetch_via_direct_api(self, limit: int = 100) -> list[dict]:
+        """Fetch items using direct Zotero API calls."""
+        items = []
+        headers = {"Zotero-API-Key": self.api_key}
+        start = 0
+
+        while True:
+            url = f"{ZOTERO_API_BASE}/users/{self.user_id}/items?start={start}&limit={limit}"
+            response = requests.get(url, headers=headers, timeout=30)
+
+            if response.status_code != 200:
+                break
+
+            batch = response.json()
+            if not batch:
+                break
+
+            items.extend(batch)
+            start += limit
+
+            # Check if we got all items
+            total = int(response.headers.get('Total-Results', 0))
+            if start >= total:
+                break
+
+        return items
+
     def fetch_all_items(self, force_refresh: bool = False) -> list[dict]:
         """
         Fetch all items from Zotero library.
@@ -217,8 +263,11 @@ class ZoteroSentinel:
             return self.items_cache  # Return cached items if any
 
         try:
-            # Fetch all items (Zotero API handles pagination)
-            raw_items = self.zot.everything(self.zot.items())
+            # Fetch items via pyzotero or direct API
+            if getattr(self, '_use_direct_api', False) or not PYZOTERO_AVAILABLE:
+                raw_items = self._fetch_via_direct_api()
+            else:
+                raw_items = self.zot.everything(self.zot.items())
 
             items = []
             for item in raw_items:
