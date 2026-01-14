@@ -22,3 +22,12 @@ python-dotenv>=1.0.0
 
 # NLP Processing
 spacy>=3.7.0
+
+# Vector Database (Red Thread Engine)
+chromadb>=0.4.0
+
+# Bibliography Management (Zotero)
+pyzotero>=1.5.0
+
+# Google Sheets Integration
+gspread>=5.12.0

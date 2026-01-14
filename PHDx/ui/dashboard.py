@@ -1,13 +1,22 @@
 """
-PHDx Dashboard - PhD Thesis Command Center
+PHDx Dashboard v2 - PhD Thesis Command Center
 
-Streamlit-based interface for managing thesis drafts and AI-assisted writing.
+Streamlit-based interface with Glassmorphism UI, Zotero integration,
+and Google Sheets data injection.
 """
 
 import json
+import os
+import sys
 from pathlib import Path
 
 import streamlit as st
+
+# Add core to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from core.citations import ZoteroSentinel, render_sentinel_widget
+from core.red_thread import RedThreadEngine
 
 # Paths
 ROOT_DIR = Path(__file__).parent.parent
@@ -23,39 +32,260 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# ============================================================================
+# GLASSMORPHISM CSS - Deep Charcoal (#121212) + Soft Blue (#00d4ff)
+# ============================================================================
 st.markdown("""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1E3A5F;
-        margin-bottom: 0.5rem;
+    /* Import professional sans-serif font */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    /* Global font and background */
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
+
+    /* Main app background - Deep Charcoal */
+    .stApp {
+        background: linear-gradient(135deg, #121212 0%, #1a1a2e 50%, #16213e 100%);
+        background-attachment: fixed;
+    }
+
+    /* Glassmorphism card effect */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+
+    /* Main header styling */
+    .main-header {
+        font-size: 3rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.25rem;
+        letter-spacing: -0.02em;
+    }
+
     .sub-header {
         font-size: 1rem;
-        color: #666;
+        color: rgba(255, 255, 255, 0.6);
         margin-bottom: 2rem;
+        font-weight: 400;
     }
-    .status-card {
-        background-color: #f8f9fa;
-        border-radius: 10px;
-        padding: 1rem;
-        margin-bottom: 1rem;
+
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {
+        background: rgba(18, 18, 18, 0.95);
+        backdrop-filter: blur(20px);
+        border-right: 1px solid rgba(0, 212, 255, 0.2);
     }
-    .metric-label {
-        font-size: 0.8rem;
-        color: #666;
+
+    [data-testid="stSidebar"] .stMarkdown {
+        color: rgba(255, 255, 255, 0.9);
     }
-    .metric-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: #1E3A5F;
+
+    /* Text colors for dark theme */
+    .stMarkdown, .stText, p, span, label {
+        color: rgba(255, 255, 255, 0.87) !important;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        color: #ffffff !important;
+    }
+
+    /* Accent color - Soft Blue */
+    .accent-blue {
+        color: #00d4ff;
+    }
+
+    /* Metric cards */
+    [data-testid="stMetricValue"] {
+        color: #00d4ff !important;
+        font-weight: 600;
+    }
+
+    [data-testid="stMetricLabel"] {
+        color: rgba(255, 255, 255, 0.7) !important;
+    }
+
+    /* Button styling */
+    .stButton > button {
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.2) 0%, rgba(0, 168, 204, 0.2) 100%);
+        color: #00d4ff;
+        border: 1px solid rgba(0, 212, 255, 0.4);
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(5px);
+    }
+
+    .stButton > button:hover {
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.4) 0%, rgba(0, 168, 204, 0.4) 100%);
+        border-color: #00d4ff;
+        box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+        transform: translateY(-1px);
+    }
+
+    /* Primary action button */
+    .stButton > button[kind="primary"] {
+        background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 100%);
+        color: #121212;
+        border: none;
+        font-weight: 600;
+    }
+
+    /* Text area styling */
+    .stTextArea textarea {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(0, 212, 255, 0.3);
+        border-radius: 12px;
+        color: rgba(255, 255, 255, 0.9);
+        font-family: 'Inter', sans-serif;
+    }
+
+    .stTextArea textarea:focus {
+        border-color: #00d4ff;
+        box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.2);
+    }
+
+    /* Select box styling */
+    .stSelectbox > div > div {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(0, 212, 255, 0.3);
+        border-radius: 8px;
+    }
+
+    /* Tabs styling */
+    .stTabs [data-baseweb="tab-list"] {
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        padding: 4px;
+        gap: 4px;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        color: rgba(255, 255, 255, 0.6);
+        border-radius: 8px;
+        font-weight: 500;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: rgba(0, 212, 255, 0.2);
+        color: #00d4ff !important;
+    }
+
+    /* Expander styling */
+    .streamlit-expanderHeader {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* Progress bar */
+    .stProgress > div > div > div {
+        background: linear-gradient(90deg, #00d4ff 0%, #00a8cc 100%);
+    }
+
+    /* Divider */
+    hr {
+        border-color: rgba(0, 212, 255, 0.2);
+    }
+
+    /* Warning/Info boxes */
+    .stAlert {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(0, 212, 255, 0.3);
+        border-radius: 8px;
+    }
+
+    /* Code blocks */
+    .stCodeBlock {
+        background: rgba(0, 0, 0, 0.3) !important;
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        border-radius: 8px;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(0, 212, 255, 0.3);
+        border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(0, 212, 255, 0.5);
+    }
+
+    /* Special glow effect for important elements */
+    .glow-effect {
+        box-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+    }
+
+    /* Stats cards row */
+    .stats-container {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+        background: rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        border: 1px solid rgba(0, 212, 255, 0.2);
+        padding: 1rem 1.5rem;
+        flex: 1;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #00d4ff;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.6);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
 </style>
 """, unsafe_allow_html=True)
 
 
+# ============================================================================
+# SESSION STATE INITIALIZATION
+# ============================================================================
+if "drafting_text" not in st.session_state:
+    st.session_state.drafting_text = ""
+if "current_chapter" not in st.session_state:
+    st.session_state.current_chapter = "Chapter 1: Introduction"
+if "zotero_sentinel" not in st.session_state:
+    st.session_state.zotero_sentinel = ZoteroSentinel()
+if "red_thread_engine" not in st.session_state:
+    st.session_state.red_thread_engine = RedThreadEngine()
+
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
 def load_author_dna() -> dict | None:
     """Load the author DNA profile if it exists."""
     if DNA_PATH.exists():
@@ -64,8 +294,110 @@ def load_author_dna() -> dict | None:
     return None
 
 
+def inject_sheets_data() -> dict | None:
+    """
+    Pull active row from Google Sheets and generate synthesis.
+
+    Returns synthesized text in author's DNA voice.
+    """
+    import anthropic
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    # Check for Google Sheets credentials
+    sheets_url = os.getenv("GOOGLE_SHEETS_URL")
+    if not sheets_url:
+        return {"error": "GOOGLE_SHEETS_URL not configured in .env"}
+
+    # Load author DNA for voice matching
+    dna = load_author_dna()
+    if not dna:
+        return {"error": "Author DNA profile not found. Run dna_engine.py first."}
+
+    # Get Claude client
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        return {"error": "ANTHROPIC_API_KEY not configured"}
+
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+
+        # Try to connect to Google Sheets
+        creds_path = os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json")
+
+        if not Path(creds_path).exists():
+            return {"error": f"Google credentials not found at {creds_path}"}
+
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets.readonly",
+            "https://www.googleapis.com/auth/drive.readonly"
+        ]
+
+        creds = Credentials.from_service_account_file(creds_path, scopes=scopes)
+        gc = gspread.authorize(creds)
+
+        # Open sheet and get active/first row with data
+        sheet = gc.open_by_url(sheets_url).sheet1
+        records = sheet.get_all_records()
+
+        if not records:
+            return {"error": "No data found in sheet"}
+
+        # Get the first row (or could be configured to get "active" row)
+        active_row = records[0]
+
+        # Prepare DNA context
+        dna_context = json.dumps(dna.get("claude_deep_analysis", {}), indent=2)
+
+        # Generate synthesis with Claude
+        client = anthropic.Anthropic(api_key=api_key)
+
+        prompt = f"""You are writing a critical synthesis for a PhD thesis. You must match the author's unique writing style.
+
+AUTHOR'S WRITING DNA:
+{dna_context}
+
+Linguistic fingerprint:
+- Average sentence length: {dna.get('sentence_complexity', {}).get('average_length', 20)} words
+- Hedging density: {dna.get('hedging_analysis', {}).get('hedging_density_per_1000_words', 5)} per 1000 words
+- Preferred transitions: {', '.join(dna.get('transition_vocabulary', {}).get('preferred_categories', ['contrast', 'addition'])[:3])}
+
+DATA TO SYNTHESIZE:
+{json.dumps(active_row, indent=2)}
+
+Write a 300-word critical synthesis of this data that:
+1. Matches the author's sentence structure and complexity
+2. Uses their characteristic hedging language
+3. Employs their preferred transition vocabulary
+4. Maintains their academic voice and tone
+
+Write ONLY the synthesis paragraph, no meta-commentary."""
+
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        return {
+            "success": True,
+            "data_row": active_row,
+            "synthesis": response.content[0].text
+        }
+
+    except ImportError:
+        return {"error": "gspread not installed. Run: pip install gspread"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ============================================================================
+# SIDEBAR
+# ============================================================================
 def render_sidebar():
-    """Render the sidebar with data source controls."""
+    """Render the sidebar with data sources and Zotero Sentinel."""
     with st.sidebar:
         st.markdown("## 📁 Data Sources")
         st.markdown("---")
@@ -73,7 +405,6 @@ def render_sidebar():
         # Local Files Section
         st.markdown("### Local Files")
 
-        # Drafts folder status
         drafts_count = len(list(DRAFTS_DIR.glob("*.docx"))) if DRAFTS_DIR.exists() else 0
         st.metric("Draft Documents", drafts_count)
 
@@ -89,16 +420,25 @@ def render_sidebar():
 
         st.markdown("---")
 
-        # Google Drive Section
-        st.markdown("### Google Drive")
-        st.markdown("*Coming in Phase 2*")
+        # Red Thread Engine
+        st.markdown("### 🔴 Red Thread Engine")
+        engine = st.session_state.red_thread_engine
+        stats = engine.get_stats()
+        st.metric("Indexed Paragraphs", stats["total_paragraphs"])
 
-        gdrive_connected = False  # Placeholder
-        status_icon = "✅" if gdrive_connected else "❌"
-        st.markdown(f"**Status:** {status_icon} {'Connected' if gdrive_connected else 'Not connected'}")
+        if st.button("🔄 Re-index Drafts", use_container_width=True):
+            with st.spinner("Indexing..."):
+                result = engine.index_drafts_folder()
+                st.success(f"Indexed {result['paragraphs_indexed']} paragraphs")
 
-        if st.button("🔗 Connect Google Drive", use_container_width=True, disabled=True):
-            pass
+        st.markdown("---")
+
+        # Zotero Sentinel Widget
+        render_sentinel_widget(
+            st.session_state.zotero_sentinel,
+            st.session_state.drafting_text,
+            st.session_state.current_chapter
+        )
 
         st.markdown("---")
 
@@ -118,6 +458,9 @@ def render_sidebar():
         )
 
 
+# ============================================================================
+# MAIN CONTENT
+# ============================================================================
 def render_drafting_pane():
     """Render the main drafting pane."""
     st.markdown('<p class="main-header">PHDx</p>', unsafe_allow_html=True)
@@ -179,7 +522,7 @@ def render_drafting_tab():
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        st.selectbox(
+        chapter = st.selectbox(
             "Working on:",
             [
                 "Chapter 1: Introduction",
@@ -190,8 +533,10 @@ def render_drafting_tab():
                 "Chapter 6: Conclusion",
                 "Abstract",
                 "Free Writing"
-            ]
+            ],
+            key="chapter_select"
         )
+        st.session_state.current_chapter = chapter
 
     with col2:
         st.selectbox(
@@ -204,10 +549,12 @@ def render_drafting_tab():
         "Start writing...",
         height=400,
         placeholder="Begin drafting your thesis here. Your writing will be analyzed against your DNA profile for style consistency.",
-        label_visibility="collapsed"
+        label_visibility="collapsed",
+        key="draft_text"
     )
+    st.session_state.drafting_text = text_input
 
-    # Action buttons
+    # Action buttons row 1
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -221,6 +568,64 @@ def render_drafting_tab():
 
     with col4:
         st.button("📤 Export", use_container_width=True)
+
+    # Action buttons row 2 - Thematic Squeeze
+    st.markdown("---")
+    st.markdown("#### 📊 Thematic Squeeze")
+
+    col1, col2 = st.columns([1, 2])
+
+    with col1:
+        if st.button("📥 Inject Data from Sheets", use_container_width=True, type="primary"):
+            with st.spinner("Fetching data and generating synthesis..."):
+                result = inject_sheets_data()
+
+                if result.get("error"):
+                    st.error(result["error"])
+                else:
+                    st.session_state.sheets_synthesis = result
+
+    with col2:
+        if "sheets_synthesis" in st.session_state and st.session_state.sheets_synthesis.get("success"):
+            st.success("Synthesis generated in your Authorial DNA voice!")
+
+    # Display synthesis result
+    if "sheets_synthesis" in st.session_state and st.session_state.sheets_synthesis.get("success"):
+        result = st.session_state.sheets_synthesis
+
+        with st.expander("📋 Source Data Row", expanded=False):
+            st.json(result["data_row"])
+
+        st.markdown("#### Generated Synthesis (300 words, DNA-matched)")
+        st.markdown(f'<div class="glass-card">{result["synthesis"]}</div>', unsafe_allow_html=True)
+
+        if st.button("📋 Copy to Draft", use_container_width=True):
+            st.session_state.drafting_text = result["synthesis"]
+            st.rerun()
+
+    # Red Thread continuity check
+    st.markdown("---")
+    st.markdown("#### 🔴 Continuity Check")
+
+    if text_input and len(text_input) > 100:
+        if st.button("Check for Contradictions", use_container_width=True):
+            with st.spinner("Analyzing against your thesis corpus..."):
+                engine = st.session_state.red_thread_engine
+                results = engine.check_continuity(text_input)
+
+                for r in results:
+                    if r.get("type") == "none":
+                        st.success("✓ No contradictions detected")
+                    elif r.get("type") in ["contradiction", "inconsistency", "tension"]:
+                        severity_color = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+                        icon = severity_color.get(r.get("severity", "low"), "⚪")
+                        st.warning(f"{icon} **{r.get('type', 'Issue').title()}**: {r.get('explanation', '')}")
+                        if r.get("suggestion"):
+                            st.info(f"💡 Suggestion: {r['suggestion']}")
+                    elif r.get("status") == "no_context":
+                        st.info(r.get("message", "Index your drafts first"))
+    else:
+        st.info("Write at least 100 characters to check for contradictions")
 
 
 def render_dna_tab(dna_profile: dict | None):
@@ -341,6 +746,9 @@ def render_progress_tab():
         st.markdown(f"{icon} {milestone['name']}")
 
 
+# ============================================================================
+# MAIN ENTRY POINT
+# ============================================================================
 def main():
     """Main application entry point."""
     render_sidebar()
