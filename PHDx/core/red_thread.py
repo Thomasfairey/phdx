@@ -2,12 +2,18 @@
 Red Thread Engine - Logical Continuity Checker for PHDx
 
 Uses ChromaDB to index thesis drafts and detect potential logical
-contradictions or inconsistencies in new writing.
+contradictions, terminology shifts, and inconsistencies in new writing.
+
+Vector Store: data/chroma_db/
+Primary Functions:
+  - index_existing_chapters(): Index all .docx files from /drafts
+  - verify_consistency(): Check new text against 30k+ word corpus
 """
 
 import json
 import os
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -26,8 +32,9 @@ DRAFTS_DIR = ROOT_DIR / "drafts"
 DATA_DIR = ROOT_DIR / "data"
 CHROMA_DIR = DATA_DIR / "chroma_db"
 
-# Collection name
+# Collection names
 COLLECTION_NAME = "thesis_paragraphs"
+CHAPTERS_COLLECTION = "thesis_chapters"
 
 
 class RedThreadEngine:
@@ -298,6 +305,421 @@ Respond with ONLY valid JSON, no additional text."""
             name=COLLECTION_NAME,
             embedding_function=self.embedding_fn
         )
+
+    # =========================================================================
+    # PRIMARY API FUNCTIONS
+    # =========================================================================
+
+    def index_existing_chapters(self, drafts_dir: Path = DRAFTS_DIR) -> dict:
+        """
+        Index all .docx files from /drafts folder into ChromaDB vector store.
+
+        This function reads all thesis chapter files, extracts paragraphs,
+        generates embeddings, and stores them for semantic search.
+
+        Args:
+            drafts_dir: Path to drafts folder (default: PHDx/drafts/)
+
+        Returns:
+            dict: Indexing report with statistics
+                {
+                    "success": bool,
+                    "timestamp": str,
+                    "total_files": int,
+                    "total_paragraphs": int,
+                    "total_words": int,
+                    "chapters": [
+                        {"filename": str, "paragraphs": int, "words": int}
+                    ],
+                    "storage_path": str
+                }
+        """
+        report = {
+            "success": False,
+            "timestamp": datetime.now().isoformat(),
+            "total_files": 0,
+            "total_paragraphs": 0,
+            "total_words": 0,
+            "chapters": [],
+            "storage_path": str(CHROMA_DIR)
+        }
+
+        # Ensure directories exist
+        CHROMA_DIR.mkdir(parents=True, exist_ok=True)
+
+        if not drafts_dir.exists():
+            drafts_dir.mkdir(parents=True, exist_ok=True)
+            report["error"] = f"Created empty drafts directory at {drafts_dir}"
+            return report
+
+        # Find all .docx files
+        docx_files = list(drafts_dir.glob("*.docx"))
+
+        if not docx_files:
+            report["error"] = "No .docx files found in drafts folder"
+            return report
+
+        print(f"\n{'='*60}")
+        print("PHDx Red Thread Engine - Indexing Chapters")
+        print(f"{'='*60}")
+        print(f"Source: {drafts_dir}")
+        print(f"Storage: {CHROMA_DIR}")
+        print(f"Files found: {len(docx_files)}")
+        print("-" * 60)
+
+        for docx_file in docx_files:
+            try:
+                # Read document
+                doc = Document(docx_file)
+                full_text = "\n\n".join([p.text for p in doc.paragraphs if p.text.strip()])
+
+                # Extract paragraphs
+                paragraphs = self._extract_paragraphs(full_text, min_words=15)
+
+                if not paragraphs:
+                    print(f"  ⚠ {docx_file.name}: No paragraphs extracted")
+                    continue
+
+                # Calculate word count
+                word_count = sum(len(p.split()) for p in paragraphs)
+
+                # Create unique IDs with chapter prefix
+                chapter_name = docx_file.stem
+                ids = [f"{chapter_name}_para_{i}" for i in range(len(paragraphs))]
+
+                # Rich metadata for each paragraph
+                metadatas = [
+                    {
+                        "source_file": docx_file.name,
+                        "chapter": chapter_name,
+                        "paragraph_index": i,
+                        "word_count": len(p.split()),
+                        "char_count": len(p),
+                        "indexed_at": datetime.now().isoformat()
+                    }
+                    for i, p in enumerate(paragraphs)
+                ]
+
+                # Upsert to ChromaDB (update if exists)
+                self.collection.upsert(
+                    ids=ids,
+                    documents=paragraphs,
+                    metadatas=metadatas
+                )
+
+                # Update report
+                report["total_files"] += 1
+                report["total_paragraphs"] += len(paragraphs)
+                report["total_words"] += word_count
+                report["chapters"].append({
+                    "filename": docx_file.name,
+                    "chapter": chapter_name,
+                    "paragraphs": len(paragraphs),
+                    "words": word_count
+                })
+
+                print(f"  ✓ {docx_file.name}: {len(paragraphs)} paragraphs, {word_count:,} words")
+
+            except Exception as e:
+                print(f"  ✗ {docx_file.name}: Error - {e}")
+                report["chapters"].append({
+                    "filename": docx_file.name,
+                    "error": str(e)
+                })
+
+        report["success"] = report["total_paragraphs"] > 0
+
+        print("-" * 60)
+        print(f"Total: {report['total_paragraphs']} paragraphs, {report['total_words']:,} words")
+        print(f"{'='*60}\n")
+
+        return report
+
+    def verify_consistency(self, new_draft_text: str) -> dict:
+        """
+        Verify consistency of new draft text against existing 30k+ word corpus.
+
+        This function:
+        1. Searches the vector store for semantically related sections
+        2. Uses Claude to identify contradictions or terminology shifts
+        3. Returns a detailed Consistency Report JSON
+
+        Args:
+            new_draft_text: The new text to verify against existing corpus
+
+        Returns:
+            dict: Consistency Report
+                {
+                    "report_id": str,
+                    "timestamp": str,
+                    "status": "consistent" | "issues_found" | "error",
+                    "overall_score": float (0-100),
+                    "new_text_preview": str,
+                    "corpus_stats": {
+                        "total_indexed": int,
+                        "sections_analyzed": int
+                    },
+                    "related_sections": [
+                        {
+                            "text": str,
+                            "source": str,
+                            "similarity": float
+                        }
+                    ],
+                    "issues": [
+                        {
+                            "type": "contradiction" | "terminology_shift" | "inconsistency",
+                            "severity": "high" | "medium" | "low",
+                            "description": str,
+                            "new_text_claim": str,
+                            "existing_claim": str,
+                            "source_file": str,
+                            "recommendation": str
+                        }
+                    ],
+                    "terminology_analysis": {
+                        "key_terms_new": [str],
+                        "potential_shifts": [str]
+                    },
+                    "summary": str
+                }
+        """
+        import hashlib
+
+        # Generate report ID
+        report_id = hashlib.md5(
+            f"{new_draft_text[:100]}{datetime.now().isoformat()}".encode()
+        ).hexdigest()[:12]
+
+        report = {
+            "report_id": report_id,
+            "timestamp": datetime.now().isoformat(),
+            "status": "error",
+            "overall_score": 0,
+            "new_text_preview": new_draft_text[:200] + "..." if len(new_draft_text) > 200 else new_draft_text,
+            "corpus_stats": {
+                "total_indexed": self.collection.count(),
+                "sections_analyzed": 0
+            },
+            "related_sections": [],
+            "issues": [],
+            "terminology_analysis": {
+                "key_terms_new": [],
+                "potential_shifts": []
+            },
+            "summary": ""
+        }
+
+        # Check if we have indexed content
+        if self.collection.count() == 0:
+            report["status"] = "error"
+            report["summary"] = "No indexed content. Run index_existing_chapters() first."
+            return report
+
+        # Check for Claude API
+        if not self.claude_client:
+            report["status"] = "error"
+            report["summary"] = "ANTHROPIC_API_KEY not configured. Cannot perform AI analysis."
+            return report
+
+        # Find semantically related sections (top 10)
+        try:
+            results = self.collection.query(
+                query_texts=[new_draft_text],
+                n_results=min(10, self.collection.count()),
+                include=["documents", "metadatas", "distances"]
+            )
+
+            related_sections = []
+            for doc, meta, dist in zip(
+                results["documents"][0],
+                results["metadatas"][0],
+                results["distances"][0]
+            ):
+                similarity = round(1 / (1 + dist), 3)
+                related_sections.append({
+                    "text": doc[:500] + "..." if len(doc) > 500 else doc,
+                    "full_text": doc,
+                    "source": meta.get("source_file", "unknown"),
+                    "chapter": meta.get("chapter", "unknown"),
+                    "paragraph_index": meta.get("paragraph_index", 0),
+                    "similarity": similarity
+                })
+
+            report["related_sections"] = [
+                {"text": s["text"], "source": s["source"], "similarity": s["similarity"]}
+                for s in related_sections
+            ]
+            report["corpus_stats"]["sections_analyzed"] = len(related_sections)
+
+        except Exception as e:
+            report["status"] = "error"
+            report["summary"] = f"Vector search failed: {str(e)}"
+            return report
+
+        # Prepare context for Claude analysis
+        context_for_claude = "\n\n---\n\n".join([
+            f"[SOURCE: {s['source']}, Chapter: {s['chapter']}, Similarity: {s['similarity']}]\n{s['full_text']}"
+            for s in related_sections[:7]  # Top 7 most relevant
+        ])
+
+        # Claude prompt for deep consistency analysis
+        analysis_prompt = f"""You are an academic consistency analyzer for a PhD thesis. Analyze the NEW DRAFT TEXT against EXISTING THESIS SECTIONS.
+
+Your task:
+1. Identify any logical CONTRADICTIONS (claims that conflict)
+2. Detect TERMINOLOGY SHIFTS (same concept, different terms)
+3. Find INCONSISTENCIES (methodology, findings, or argumentation conflicts)
+4. Extract KEY TERMS from the new text
+5. Provide an overall consistency score (0-100)
+
+NEW DRAFT TEXT:
+{new_draft_text}
+
+EXISTING THESIS SECTIONS (from ~30,000 word corpus):
+{context_for_claude}
+
+Respond with a JSON object (no markdown, just raw JSON):
+{{
+    "overall_score": <0-100 integer>,
+    "issues": [
+        {{
+            "type": "contradiction" | "terminology_shift" | "inconsistency",
+            "severity": "high" | "medium" | "low",
+            "description": "<clear explanation>",
+            "new_text_claim": "<quote from new text>",
+            "existing_claim": "<quote from existing text>",
+            "source_file": "<filename>",
+            "recommendation": "<how to resolve>"
+        }}
+    ],
+    "terminology_analysis": {{
+        "key_terms_new": ["<term1>", "<term2>", ...],
+        "potential_shifts": ["<term used differently>", ...]
+    }},
+    "summary": "<2-3 sentence summary of consistency status>"
+}}
+
+If the text is fully consistent, return an empty issues array and score of 100.
+Return ONLY valid JSON."""
+
+        try:
+            response = self.claude_client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=4096,
+                messages=[{"role": "user", "content": analysis_prompt}]
+            )
+
+            response_text = response.content[0].text.strip()
+
+            # Clean potential markdown wrapping
+            if response_text.startswith("```"):
+                response_text = re.sub(r'^```(?:json)?\n?', '', response_text)
+                response_text = re.sub(r'\n?```$', '', response_text)
+
+            # Parse Claude's response
+            analysis = json.loads(response_text)
+
+            # Populate report
+            report["overall_score"] = analysis.get("overall_score", 0)
+            report["issues"] = analysis.get("issues", [])
+            report["terminology_analysis"] = analysis.get("terminology_analysis", {
+                "key_terms_new": [],
+                "potential_shifts": []
+            })
+            report["summary"] = analysis.get("summary", "Analysis complete.")
+
+            # Determine status
+            if not report["issues"]:
+                report["status"] = "consistent"
+            else:
+                high_severity = any(i.get("severity") == "high" for i in report["issues"])
+                report["status"] = "issues_found"
+                if high_severity:
+                    report["status"] = "critical_issues"
+
+        except json.JSONDecodeError as e:
+            report["status"] = "error"
+            report["summary"] = f"Failed to parse AI response: {str(e)}"
+            report["raw_response"] = response_text if 'response_text' in dir() else None
+
+        except Exception as e:
+            report["status"] = "error"
+            report["summary"] = f"Analysis failed: {str(e)}"
+
+        return report
+
+    def get_consistency_report_for_ui(self, new_draft_text: str) -> dict:
+        """
+        Wrapper for verify_consistency that formats output for Streamlit UI.
+
+        Returns a simplified report optimized for display.
+        """
+        full_report = self.verify_consistency(new_draft_text)
+
+        # Create UI-friendly version
+        ui_report = {
+            "status": full_report["status"],
+            "score": full_report["overall_score"],
+            "score_label": self._score_to_label(full_report["overall_score"]),
+            "summary": full_report["summary"],
+            "issue_count": len(full_report["issues"]),
+            "issues_by_severity": {
+                "high": [i for i in full_report["issues"] if i.get("severity") == "high"],
+                "medium": [i for i in full_report["issues"] if i.get("severity") == "medium"],
+                "low": [i for i in full_report["issues"] if i.get("severity") == "low"]
+            },
+            "key_terms": full_report["terminology_analysis"].get("key_terms_new", []),
+            "terminology_warnings": full_report["terminology_analysis"].get("potential_shifts", []),
+            "related_count": len(full_report["related_sections"]),
+            "full_report": full_report  # Include full report for detailed view
+        }
+
+        return ui_report
+
+    def _score_to_label(self, score: int) -> str:
+        """Convert numeric score to human-readable label."""
+        if score >= 95:
+            return "Excellent"
+        elif score >= 85:
+            return "Good"
+        elif score >= 70:
+            return "Fair"
+        elif score >= 50:
+            return "Needs Review"
+        else:
+            return "Critical Issues"
+
+
+# =============================================================================
+# STANDALONE FUNCTIONS (for direct import)
+# =============================================================================
+
+def index_existing_chapters(drafts_dir: Path = DRAFTS_DIR) -> dict:
+    """
+    Standalone function to index all chapters from /drafts folder.
+
+    Usage:
+        from core.red_thread import index_existing_chapters
+        report = index_existing_chapters()
+    """
+    engine = RedThreadEngine()
+    return engine.index_existing_chapters(drafts_dir)
+
+
+def verify_consistency(new_draft_text: str) -> dict:
+    """
+    Standalone function to verify consistency of new text.
+
+    Usage:
+        from core.red_thread import verify_consistency
+        report = verify_consistency("Your new paragraph here...")
+
+    Returns:
+        Consistency Report JSON
+    """
+    engine = RedThreadEngine()
+    return engine.verify_consistency(new_draft_text)
 
 
 def main():
