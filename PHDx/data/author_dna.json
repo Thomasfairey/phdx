@@ -1,66 +1,86 @@
 {
   "metadata": {
     "documents_analyzed": [
-      "mock_lit_review.docx",
       "mock_intro.docx",
-      "mock_methodology.docx"
+      "synthetic_methodology.docx",
+      "mock_methodology.docx",
+      "synthetic_lit_review.docx",
+      "mock_lit_review.docx",
+      "synthetic_intro.docx"
     ],
-    "total_word_count": 1507,
+    "total_word_count": 4099,
     "analysis_version": "1.0"
   },
   "sentence_complexity": {
-    "average_length": 19.29,
-    "total_sentences": 78,
+    "average_length": 21.32,
+    "total_sentences": 192,
     "length_distribution": {
-      "short (1-10 words)": 15,
-      "medium (11-20 words)": 28,
-      "long (21-30 words)": 29,
-      "very_long (31+ words)": 6
+      "short (1-10 words)": 21,
+      "medium (11-20 words)": 65,
+      "long (21-30 words)": 83,
+      "very_long (31+ words)": 23
     }
   },
   "hedging_analysis": {
     "phrases_found": {
-      "arguably": 1,
-      "potentially": 1,
-      "may": 3,
-      "could": 3,
-      "appears to": 1,
+      "arguably": 6,
+      "potentially": 3,
+      "perhaps": 2,
+      "might": 3,
+      "may": 16,
+      "could": 4,
+      "appears to": 2,
       "relatively": 2,
-      "indicates that": 1
+      "indicates that": 1,
+      "suggests that": 1
     },
-    "total_hedges": 12,
-    "hedging_density_per_1000_words": 7.96,
-    "word_count": 1507
+    "total_hedges": 40,
+    "hedging_density_per_1000_words": 9.76,
+    "word_count": 4099
   },
   "transition_vocabulary": {
     "by_category": {
       "addition": {
-        "furthermore": 1,
-        "additionally": 1
+        "furthermore": 4,
+        "additionally": 2,
+        "also": 1
       },
       "contrast": {
-        "however": 1,
-        "nevertheless": 2,
+        "however": 4,
+        "nevertheless": 4,
         "although": 1
       },
       "cause_effect": {
-        "therefore": 1
+        "therefore": 3,
+        "thus": 1
+      },
+      "sequence": {
+        "firstly": 1,
+        "secondly": 1,
+        "subsequently": 1,
+        "finally": 2
       },
       "emphasis": {
         "significantly": 1,
-        "particularly": 3
+        "particularly": 6
+      },
+      "example": {
+        "for instance": 1,
+        "specifically": 1,
+        "such as": 3
       },
       "conclusion": {
-        "in conclusion": 1,
-        "in summary": 1
+        "in conclusion": 3,
+        "in summary": 2,
+        "ultimately": 1
       }
     },
-    "total_transitions": 13,
-    "transition_density_per_1000_words": 8.63,
+    "total_transitions": 43,
+    "transition_density_per_1000_words": 10.49,
     "preferred_categories": [
       "contrast",
-      "emphasis",
-      "addition"
+      "addition",
+      "emphasis"
     ]
   },
   "claude_deep_analysis": {
