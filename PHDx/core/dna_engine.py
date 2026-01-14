@@ -15,6 +15,15 @@ import anthropic
 from docx import Document
 from dotenv import load_dotenv
 
+# Import ethics utilities for AI usage logging
+try:
+    from core.ethics_utils import log_ai_usage, scrub_text
+except ImportError:
+    # Fallback for direct execution
+    import sys
+    sys.path.insert(0, str(Path(__file__).parent.parent))
+    from core.ethics_utils import log_ai_usage, scrub_text
+
 # Load environment variables
 load_dotenv()
 
@@ -216,6 +225,11 @@ def analyze_with_claude(combined_text: str, client: anthropic.Anthropic) -> dict
     if len(combined_text) > max_chars:
         combined_text = combined_text[:max_chars] + "\n[Text truncated for analysis...]"
 
+    # Ethics scrubbing: Anonymize text before sending to AI
+    scrub_result = scrub_text(combined_text)
+    scrubbed_text = scrub_result["scrubbed_text"]
+    was_scrubbed = scrub_result["total_redactions"] > 0
+
     prompt = f"""Analyze the following academic writing samples to create a detailed linguistic fingerprint of the author. Focus on:
 
 1. **Writing Voice & Tone**: Is it formal, semi-formal? First person or third person dominant? Passive vs active voice preference?
@@ -233,9 +247,18 @@ def analyze_with_claude(combined_text: str, client: anthropic.Anthropic) -> dict
 Provide your analysis as a structured JSON object with these categories. Be specific and provide examples where possible.
 
 TEXT SAMPLES:
-{combined_text}
+{scrubbed_text}
 
 Respond with ONLY a valid JSON object, no additional text."""
+
+    # Log AI usage
+    log_ai_usage(
+        action_type="dna_analysis",
+        data_source="drafts_folder",
+        prompt=f"Deep linguistic analysis of {len(combined_text)} chars",
+        was_scrubbed=was_scrubbed,
+        redactions_count=scrub_result["total_redactions"]
+    )
 
     try:
         response = client.messages.create(

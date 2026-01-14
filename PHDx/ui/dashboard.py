@@ -18,6 +18,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.citations import ZoteroSentinel, render_sentinel_widget
 from core.red_thread import RedThreadEngine
 from core.auditor import BrookesAuditor, GoogleDocsPusher
+from core.ethics_utils import (
+    scrub_text,
+    quick_scrub,
+    log_ai_usage,
+    get_usage_stats,
+    get_scrubber
+)
 
 # Paths
 ROOT_DIR = Path(__file__).parent.parent
@@ -369,6 +376,45 @@ st.markdown("""
     .word-target {
         color: rgba(224, 224, 224, 0.5);
     }
+
+    /* ========== ETHICALLY SCANNED BADGE ========== */
+    .ethics-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: linear-gradient(135deg, rgba(0, 200, 83, 0.15) 0%, rgba(0, 150, 60, 0.15) 100%);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border: 1px solid rgba(0, 200, 83, 0.3);
+        border-radius: 20px;
+        padding: 0.4rem 1rem;
+        font-size: 0.85rem;
+        color: #00c853;
+        font-weight: 500;
+        margin-left: 0.5rem;
+        animation: pulse-green 2s ease-in-out infinite;
+    }
+
+    .ethics-badge-icon {
+        font-size: 1rem;
+    }
+
+    @keyframes pulse-green {
+        0%, 100% { box-shadow: 0 0 5px rgba(0, 200, 83, 0.3); }
+        50% { box-shadow: 0 0 15px rgba(0, 200, 83, 0.5); }
+    }
+
+    .ethics-stats {
+        background: rgba(255, 255, 255, 0.03);
+        backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 0.75rem 1rem;
+        margin-top: 0.5rem;
+        font-size: 0.8rem;
+        color: rgba(224, 224, 224, 0.7);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -390,6 +436,10 @@ if "google_docs_pusher" not in st.session_state:
     st.session_state.google_docs_pusher = GoogleDocsPusher()
 if "audit_report" not in st.session_state:
     st.session_state.audit_report = None
+if "ethically_scanned" not in st.session_state:
+    st.session_state.ethically_scanned = False
+if "last_scrub_report" not in st.session_state:
+    st.session_state.last_scrub_report = None
 
 
 # ============================================================================
@@ -463,6 +513,12 @@ def inject_sheets_data() -> dict | None:
         # Generate synthesis with Claude
         client = anthropic.Anthropic(api_key=api_key)
 
+        # Ethics scrubbing: Anonymize data before sending to AI
+        data_to_synthesize = json.dumps(active_row, indent=2)
+        scrub_result = scrub_text(data_to_synthesize)
+        scrubbed_data = scrub_result["scrubbed_text"]
+        was_scrubbed = scrub_result["total_redactions"] > 0
+
         prompt = f"""You are writing a critical synthesis for a PhD thesis. You must match the author's unique writing style.
 
 AUTHOR'S WRITING DNA:
@@ -474,7 +530,7 @@ Linguistic fingerprint:
 - Preferred transitions: {', '.join(dna.get('transition_vocabulary', {}).get('preferred_categories', ['contrast', 'addition'])[:3])}
 
 DATA TO SYNTHESIZE:
-{json.dumps(active_row, indent=2)}
+{scrubbed_data}
 
 Write a 300-word critical synthesis of this data that:
 1. Matches the author's sentence structure and complexity
@@ -483,6 +539,15 @@ Write a 300-word critical synthesis of this data that:
 4. Maintains their academic voice and tone
 
 Write ONLY the synthesis paragraph, no meta-commentary."""
+
+        # Log AI usage
+        log_ai_usage(
+            action_type="generate_synthesis",
+            data_source="google_sheets",
+            prompt=prompt,
+            was_scrubbed=was_scrubbed,
+            redactions_count=scrub_result["total_redactions"]
+        )
 
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -493,7 +558,9 @@ Write ONLY the synthesis paragraph, no meta-commentary."""
         return {
             "success": True,
             "data_row": active_row,
-            "synthesis": response.content[0].text
+            "synthesis": response.content[0].text,
+            "ethically_scanned": True,
+            "redactions": scrub_result["total_redactions"]
         }
 
     except ImportError:
@@ -626,6 +693,27 @@ def render_drafting_pane():
 def render_drafting_tab():
     """Render the main drafting interface."""
 
+    # ========== ETHICALLY SCANNED BADGE ==========
+    if st.session_state.ethically_scanned:
+        st.markdown("""
+        <div style="display: flex; align-items: center; margin-bottom: 1rem;">
+            <span class="ethics-badge">
+                <span class="ethics-badge-icon">🛡️</span>
+                Ethically Scanned
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Show scrub stats if available
+        if st.session_state.last_scrub_report:
+            report = st.session_state.last_scrub_report
+            st.markdown(f"""
+            <div class="ethics-stats">
+                PII items redacted: <strong>{report.get('total_redactions', 0)}</strong> |
+                Data anonymized before AI processing
+            </div>
+            """, unsafe_allow_html=True)
+
     # ========== STATUS BAR ==========
     st.markdown("""
     <div class="status-bar">
@@ -715,6 +803,10 @@ def render_drafting_tab():
                     st.error(result["error"])
                 else:
                     st.session_state.sheets_synthesis = result
+                    # Set ethically scanned state
+                    if result.get("ethically_scanned"):
+                        st.session_state.ethically_scanned = True
+                        st.session_state.last_scrub_report = {"total_redactions": result.get("redactions", 0)}
 
     with col2:
         if "sheets_synthesis" in st.session_state and st.session_state.sheets_synthesis.get("success"):
@@ -769,9 +861,30 @@ def render_drafting_tab():
         if st.button("🔍 Audit Draft", use_container_width=True, type="primary",
                      disabled=len(text_input) < 100):
             with st.spinner("Evaluating against Oxford Brookes criteria..."):
+                # Ethics scrubbing before AI processing
+                scrub_result = scrub_text(text_input)
+                scrubbed_text = scrub_result["scrubbed_text"]
+                was_scrubbed = scrub_result["total_redactions"] > 0
+
+                # Build the audit prompt for logging
+                audit_prompt = f"Audit draft for chapter: {chapter}. Text length: {len(text_input)} chars."
+
+                # Log AI usage
+                log_ai_usage(
+                    action_type="audit_draft",
+                    data_source="drafting_pane",
+                    prompt=audit_prompt,
+                    was_scrubbed=was_scrubbed,
+                    redactions_count=scrub_result["total_redactions"]
+                )
+
                 auditor = st.session_state.brookes_auditor
-                report = auditor.audit_draft(text_input, chapter)
+                report = auditor.audit_draft(scrubbed_text, chapter)
                 st.session_state.audit_report = report
+
+                # Set ethically scanned state
+                st.session_state.ethically_scanned = True
+                st.session_state.last_scrub_report = scrub_result
 
     with col2:
         if st.session_state.audit_report and st.session_state.audit_report.get("status") == "success":
