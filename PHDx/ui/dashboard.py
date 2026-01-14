@@ -26,6 +26,7 @@ from core.ethics_utils import (
     get_scrubber
 )
 from core.supervisor_loop import SupervisorLoop, render_supervisor_notes_widget
+from core.feedback_processor import FeedbackProcessor, render_feedback_tab, get_highlight_text
 
 # Paths
 ROOT_DIR = Path(__file__).parent.parent
@@ -562,6 +563,10 @@ if "last_scrub_report" not in st.session_state:
     st.session_state.last_scrub_report = None
 if "supervisor_loop" not in st.session_state:
     st.session_state.supervisor_loop = SupervisorLoop()
+if "feedback_processor" not in st.session_state:
+    st.session_state.feedback_processor = FeedbackProcessor()
+if "highlight_text" not in st.session_state:
+    st.session_state.highlight_text = None
 
 
 # ============================================================================
@@ -977,23 +982,62 @@ def render_drafting_pane():
     st.markdown("---")
 
     # Main tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["✍️ Drafting", "🧬 DNA Profile", "📚 Chapters", "📈 Progress"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "✍️ Drafting",
+        "📝 Supervisor Feedback",
+        "🧬 DNA Profile",
+        "📚 Chapters",
+        "📈 Progress"
+    ])
 
     with tab1:
         render_drafting_tab()
 
     with tab2:
-        render_dna_tab(dna_profile)
+        render_feedback_tab(st.session_state.feedback_processor)
 
     with tab3:
-        render_chapters_tab()
+        render_dna_tab(dna_profile)
 
     with tab4:
+        render_chapters_tab()
+
+    with tab5:
         render_progress_tab()
 
 
 def render_drafting_tab():
     """Render the main drafting interface."""
+
+    # ========== SUPERVISOR FEEDBACK HIGHLIGHT ==========
+    highlight_text = get_highlight_text()
+    if highlight_text:
+        st.markdown(f"""
+        <div style="background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 193, 7, 0.15) 100%);
+                    border: 1px solid rgba(255, 152, 0, 0.4);
+                    border-left: 4px solid #ff9800;
+                    border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong style="color: #ffc107;">🎯 Feedback Target:</strong>
+                    <span style="color: rgba(224, 224, 224, 0.9);"> Look for text containing:</span>
+                </div>
+            </div>
+            <div style="background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 0.75rem; margin-top: 0.5rem;
+                        font-family: monospace; color: #ffc107;">
+                "{highlight_text[:100]}{'...' if len(highlight_text) > 100 else ''}"
+            </div>
+            <div style="margin-top: 0.5rem; font-size: 0.85rem; color: rgba(224, 224, 224, 0.7);">
+                Use Ctrl+F in the text area below to find this passage, or check the Supervisor Feedback tab.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col1, col2 = st.columns([1, 5])
+        with col1:
+            if st.button("Clear Highlight", key="clear_hl_drafting"):
+                st.session_state.highlight_text = None
+                st.rerun()
 
     # ========== ETHICALLY SCANNED BADGE ==========
     if st.session_state.ethically_scanned:
