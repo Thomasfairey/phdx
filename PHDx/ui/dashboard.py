@@ -25,6 +25,7 @@ from core.ethics_utils import (
     get_usage_stats,
     get_scrubber
 )
+from core.supervisor_loop import SupervisorLoop, render_supervisor_notes_widget
 
 # Paths
 ROOT_DIR = Path(__file__).parent.parent
@@ -440,6 +441,8 @@ if "ethically_scanned" not in st.session_state:
     st.session_state.ethically_scanned = False
 if "last_scrub_report" not in st.session_state:
     st.session_state.last_scrub_report = None
+if "supervisor_loop" not in st.session_state:
+    st.session_state.supervisor_loop = SupervisorLoop()
 
 
 # ============================================================================
@@ -606,6 +609,14 @@ def render_sidebar():
             with st.spinner("Indexing..."):
                 result = engine.index_drafts_folder()
                 st.success(f"Indexed {result['paragraphs_indexed']} paragraphs")
+
+        st.markdown("---")
+
+        # Supervisor Notes Widget
+        render_supervisor_notes_widget(
+            st.session_state.supervisor_loop,
+            st.session_state.current_chapter
+        )
 
         st.markdown("---")
 
