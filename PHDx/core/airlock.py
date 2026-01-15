@@ -327,6 +327,32 @@ def get_auth_status() -> dict:
         }
 
 
+def get_credentials() -> Optional[Credentials]:
+    """
+    Get current credentials if valid, otherwise return None.
+
+    Returns:
+        Credentials object if authenticated and valid, None otherwise.
+    """
+    if not TOKEN_PATH.exists():
+        return None
+
+    try:
+        creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
+        if creds.valid:
+            return creds
+        elif creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+            # Save refreshed credentials
+            with open(TOKEN_PATH, 'w') as token_file:
+                token_file.write(creds.to_json())
+            return creds
+    except Exception:
+        pass
+
+    return None
+
+
 def clear_credentials() -> None:
     """Remove stored OAuth token to force re-authentication."""
     if TOKEN_PATH.exists():
