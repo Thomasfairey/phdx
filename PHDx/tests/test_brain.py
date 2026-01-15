@@ -23,8 +23,10 @@ from core.llm_gateway import (
     generate_content,
     estimate_tokens,
     _route_task,
+    get_available_models,
     SECRETS_PATH,
     HEAVY_LIFT_THRESHOLD,
+    _gemini_available,
 )
 
 
@@ -44,32 +46,44 @@ def test_routing_logic():
     print(f"    Expected: ~{len(test_text) // 4}")
     print()
 
-    # Test routing rules
-    print("[2] Testing routing rules...")
+    # Check Gemini availability
+    print("[2] Checking model availability...")
+    print(f"    Gemini library available: {_gemini_available}")
     print()
 
+    # Test routing rules
+    print("[3] Testing routing rules...")
+    print()
+
+    # Build test cases based on what's available
+    # When Gemini is unavailable, heavy lift should fall back to writer
+    fallback_model = "writer"  # Fallback when Gemini not available
+
     test_cases = [
-        # (task_type, token_count, expected_model)
-        ("drafting", 1000, "writer"),
-        ("synthesis", 5000, "writer"),
-        ("audit", 1000, "auditor"),
-        ("critique", 2000, "auditor"),
-        ("review", 500, "auditor"),
-        ("drafting", 50000, "context"),  # Heavy lift overrides task type
-        ("audit", 100000, "context"),    # Heavy lift overrides task type
-        ("unknown", 1000, "writer"),     # Default to writer
+        # (task_type, token_count, expected_model, note)
+        ("drafting", 1000, "writer", ""),
+        ("synthesis", 5000, "writer", ""),
+        ("audit", 1000, "auditor", ""),
+        ("critique", 2000, "auditor", ""),
+        ("review", 500, "auditor", ""),
+        ("drafting", 50000, "context" if _gemini_available else fallback_model, "heavy lift"),
+        ("audit", 100000, "context" if _gemini_available else fallback_model, "heavy lift"),
+        ("unknown", 1000, "writer", "default"),
     ]
 
-    print(f"    {'Task Type':<15} {'Tokens':<10} {'Expected':<10} {'Got':<10} {'Status'}")
-    print("    " + "-" * 60)
+    print(f"    {'Task Type':<15} {'Tokens':<10} {'Expected':<10} {'Got':<10} {'Status':<6} {'Note'}")
+    print("    " + "-" * 70)
 
     all_passed = True
-    for task_type, token_count, expected in test_cases:
-        result = _route_task(task_type, token_count)
+    for task_type, token_count, expected, note in test_cases:
+        # Pass None for models to test pure routing logic without availability check
+        # For heavy lift tests, we simulate having/not having context model
+        mock_models = {'context': True} if _gemini_available else {'context': None}
+        result = _route_task(task_type, token_count, mock_models)
         status = "PASS" if result == expected else "FAIL"
         if result != expected:
             all_passed = False
-        print(f"    {task_type:<15} {token_count:<10} {expected:<10} {result:<10} {status}")
+        print(f"    {task_type:<15} {token_count:<10} {expected:<10} {result:<10} {status:<6} {note}")
 
     print()
     if all_passed:
@@ -89,7 +103,7 @@ def test_api_call():
     print()
 
     # Check for secrets file
-    print("[3] Checking configuration...")
+    print("[4] Checking configuration...")
     if not SECRETS_PATH.exists():
         print(f"    ERROR: {SECRETS_PATH} not found!")
         print()
@@ -103,8 +117,20 @@ def test_api_call():
     print("    Secrets file found!")
     print()
 
+    # Check available models
+    print("[5] Checking available models...")
+    try:
+        available = get_available_models()
+        print(f"    Available models: {', '.join(available)}")
+        if 'context' not in available:
+            print("    Note: Gemini (context) model not configured - heavy lift will use Claude")
+    except Exception as e:
+        print(f"    Error initializing models: {e}")
+        return False
+    print()
+
     # Test simple generation
-    print("[4] Testing content generation (task_type='drafting')...")
+    print("[6] Testing content generation (task_type='drafting')...")
     print()
 
     try:
@@ -141,11 +167,8 @@ def main():
     # Always run routing logic test (no API needed)
     routing_ok = test_routing_logic()
 
-    # Only run API test if routing passed
-    if routing_ok:
-        api_ok = test_api_call()
-    else:
-        api_ok = False
+    # Run API test
+    api_ok = test_api_call()
 
     print()
     print("=" * 60)

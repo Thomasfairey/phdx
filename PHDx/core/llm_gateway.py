@@ -17,13 +17,34 @@ from typing import Optional
 
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
-from langchain_google_vertexai import ChatVertexAI
 from langchain_core.messages import HumanMessage, SystemMessage
 
+# Optional Gemini support - try Google GenAI first, fall back gracefully
+_gemini_available = False
+_ChatGoogleGenerativeAI = None
 
-# Configuration path
+try:
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    _ChatGoogleGenerativeAI = ChatGoogleGenerativeAI
+    _gemini_available = True
+except ImportError:
+    pass
+
+
+# Configuration paths (check multiple locations)
 CONFIG_DIR = Path(__file__).parent.parent / 'config'
+STREAMLIT_DIR = Path(__file__).parent.parent / '.streamlit'
 SECRETS_PATH = CONFIG_DIR / 'secrets.toml'
+STREAMLIT_SECRETS_PATH = STREAMLIT_DIR / 'secrets.toml'
+
+
+def _find_secrets_file() -> Path:
+    """Find the secrets file from supported locations."""
+    if SECRETS_PATH.exists():
+        return SECRETS_PATH
+    if STREAMLIT_SECRETS_PATH.exists():
+        return STREAMLIT_SECRETS_PATH
+    return SECRETS_PATH  # Return default for error messages
 
 # Token threshold for forcing context model
 HEAVY_LIFT_THRESHOLD = 30000
@@ -43,7 +64,7 @@ def init_models() -> dict:
         Dictionary containing:
             - 'writer': ChatAnthropic (Claude) for drafting
             - 'auditor': ChatOpenAI (GPT) for auditing
-            - 'context': ChatVertexAI (Gemini) for large context tasks
+            - 'context': ChatGoogleGenerativeAI (Gemini) for large context tasks
 
     Raises:
         FileNotFoundError: If secrets.toml is not found.
@@ -53,14 +74,17 @@ def init_models() -> dict:
     if _models_cache is not None:
         return _models_cache
 
-    if not SECRETS_PATH.exists():
+    secrets_file = _find_secrets_file()
+    if not secrets_file.exists():
         raise FileNotFoundError(
-            f"Secrets file not found at {SECRETS_PATH}. "
+            f"Secrets file not found. Checked:\n"
+            f"  - {SECRETS_PATH}\n"
+            f"  - {STREAMLIT_SECRETS_PATH}\n"
             "Please create config/secrets.toml with your API keys."
         )
 
     # Load configuration
-    config = toml.load(SECRETS_PATH)
+    config = toml.load(secrets_file)
 
     # Extract API keys and model names
     anthropic_config = config.get('anthropic', {})
@@ -83,14 +107,15 @@ def init_models() -> dict:
         max_tokens=4096,
     )
 
-    # Initialize Context Model (Gemini)
-    context_model = ChatVertexAI(
-        model=google_config.get('model', 'gemini-1.5-pro'),
-        project=google_config.get('project_id'),
-        location=google_config.get('location', 'us-central1'),
-        temperature=0.5,
-        max_tokens=8192,
-    )
+    # Initialize Context Model (Gemini) - optional
+    context_model = None
+    if _gemini_available and google_config.get('api_key'):
+        context_model = _ChatGoogleGenerativeAI(
+            google_api_key=google_config.get('api_key'),
+            model=google_config.get('model', 'gemini-1.5-pro'),
+            temperature=0.5,
+            max_tokens=8192,
+        )
 
     _models_cache = {
         'writer': writer_model,
@@ -149,7 +174,7 @@ def generate_content(
     token_estimate = estimate_tokens(total_text)
 
     # Smart routing logic
-    model_key = _route_task(task_type, token_estimate)
+    model_key = _route_task(task_type, token_estimate, models)
     model = models[model_key]
 
     # Build messages
@@ -188,7 +213,7 @@ def generate_content(
     }
 
 
-def _route_task(task_type: str, token_count: int) -> str:
+def _route_task(task_type: str, token_count: int, models: dict = None) -> str:
     """
     Determine which model to use based on routing rules.
 
@@ -200,15 +225,22 @@ def _route_task(task_type: str, token_count: int) -> str:
     Args:
         task_type: The type of task being performed.
         token_count: Estimated token count for the request.
+        models: Optional models dict to check availability.
 
     Returns:
         Model key: 'writer', 'auditor', or 'context'.
     """
     task_type_lower = task_type.lower().strip()
 
+    # Check if context model is available
+    context_available = models is not None and models.get('context') is not None
+
     # Rule A: Heavy Lift - force context model for large inputs
     if token_count > HEAVY_LIFT_THRESHOLD:
-        return 'context'
+        if context_available:
+            return 'context'
+        # Fall back to writer if Gemini not available
+        return 'writer'
 
     # Rule B: Drafting tasks - use writer model
     if task_type_lower in ('drafting', 'synthesis', 'writing', 'draft'):
@@ -234,7 +266,7 @@ def get_auditor_model():
 
 
 def get_context_model():
-    """Get the Gemini context model directly."""
+    """Get the Gemini context model directly (may be None if not configured)."""
     return init_models()['context']
 
 
@@ -242,3 +274,9 @@ def clear_model_cache():
     """Clear the cached model instances."""
     global _models_cache
     _models_cache = None
+
+
+def get_available_models() -> list[str]:
+    """Return list of available model keys."""
+    models = init_models()
+    return [k for k, v in models.items() if v is not None]
