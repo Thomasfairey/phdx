@@ -1,0 +1,5 @@
+# Protect OAuth credentials - NEVER commit these files
+client_secret.json
+token.json
+*.json
+!.gitignore

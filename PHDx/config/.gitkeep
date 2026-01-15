@@ -1,0 +1,2 @@
+# This file ensures the config directory is tracked by git
+# Place your client_secret.json here after downloading from Google Cloud Console
