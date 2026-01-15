@@ -3,3 +3,7 @@ client_secret.json
 token.json
 *.json
 !.gitignore
+
+# Protect API keys - NEVER commit secrets.toml
+secrets.toml
+!secrets.toml.example
