@@ -1,32 +1,6 @@
-'use client'
-
-import { useState, useEffect } from 'react'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://phdx-production.up.railway.app'
+const APP_URL = process.env.NEXT_PUBLIC_API_URL || 'https://phdx-production.up.railway.app'
 
 export default function Home() {
-  const [status, setStatus] = useState<'loading' | 'connected' | 'error'>('loading')
-
-  useEffect(() => {
-    const checkBackend = async () => {
-      try {
-        const response = await fetch(`${API_URL}/health`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-        if (response.ok) {
-          setStatus('connected')
-        } else {
-          setStatus('error')
-        }
-      } catch {
-        setStatus('error')
-      }
-    }
-    checkBackend()
-  }, [])
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
@@ -67,16 +41,14 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex items-center justify-center gap-2 text-sm">
-          <span className={`w-3 h-3 rounded-full ${
-            status === 'connected' ? 'bg-green-500' :
-            status === 'error' ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'
-          }`}></span>
-          <span className="text-gray-600 dark:text-gray-400">
-            Backend: {status === 'loading' ? 'Connecting...' :
-                     status === 'connected' ? 'Connected' : 'Unavailable'}
-          </span>
-        </div>
+        <a
+          href={APP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all hover:scale-105"
+        >
+          Launch PHDx App
+        </a>
       </div>
     </main>
   )
