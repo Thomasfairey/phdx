@@ -1,0 +1,21 @@
+Participant_ID,Theme,Quote_Snippet,Interview_Date,Location,Age_Range,Sentiment
+P01,Spatial Avoidance,"You just stop thinking about the cameras after a while, they become part of the background.",2025-07-09,Central London,26-35,Neutral
+P02,Ambient Awareness,"I know they're watching but honestly if it keeps my kids safe, I can live with it.",2025-06-25,North London,36-45,Neutral
+P03,Ambient Awareness,The thing that bothers me is not knowing what they do with all this information.,2025-05-12,East London,56+,Ambivalent
+P04,Normalisation of Surveillance,Sometimes I deliberately take longer routes to avoid the main surveillance areas.,2025-07-27,East London,56+,Negative
+P05,Data Extraction Concerns,They say it's for our protection but who protects us from them?,2025-03-09,West London,46-55,Resigned
+P06,Safety vs Freedom,I've started wearing different clothes and hats when I go certain places.,2025-06-28,South London,18-25,Resigned
+P07,Safety vs Freedom,"My generation grew up with this, we don't really know anything different.",2025-06-16,East London,56+,Neutral
+P08,Data Extraction Concerns,The council keeps saying it's all anonymised but I don't believe them.,2025-03-23,West London,36-45,Negative
+P09,Technological Fatalism,"I feel like we've already lost the battle, there's cameras everywhere now.",2025-06-17,Central London,18-25,Resigned
+P10,Algorithmic Opacity,"It's not just CCTV anymore, it's your phone, your oyster card, everything.",2025-05-20,South London,36-45,Negative
+P11,Institutional Trust,I trust the government more than the private companies to be honest.,2025-06-11,West London,18-25,Negative
+P12,Safety vs Freedom,When I see those cameras I do wonder who's actually looking at the footage.,2025-06-24,East London,46-55,Negative
+P13,Technological Fatalism,"People change how they behave in public now, everyone's more self-conscious.",2025-07-22,North London,26-35,Negative
+P14,Normalisation of Surveillance,"The facial recognition stuff really worries me, that's a step too far.",2025-04-19,West London,56+,Resigned
+P15,Data Extraction Concerns,"Some areas of London feel completely surveilled, you can't escape it.",2025-06-25,Central London,56+,Negative
+P16,Safety vs Freedom,I think most people have just accepted this as the price of living in a city.,2025-04-19,South London,18-25,Negative
+P17,Ambient Awareness,"There's no real consent, you walk outside and you're automatically in the system.",2025-07-07,East London,18-25,Neutral
+P18,Spatial Avoidance,"They target certain communities more than others, it's obvious if you pay attention.",2025-08-01,West London,26-35,Neutral
+P19,Algorithmic Opacity,I've thought about moving somewhere with less surveillance but everywhere's the same now.,2025-05-07,North London,26-35,Negative
+P20,Algorithmic Opacity,"At least with human officers you could reason with them, algorithms don't listen.",2025-06-13,North London,26-35,Ambivalent

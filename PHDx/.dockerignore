@@ -1,0 +1,30 @@
+# Node/Frontend (deployed separately on Vercel)
+web_client/
+node_modules/
+
+# Data files
+data/
+drafts/
+backups/
+feedback/
+*.docx
+*.pdf
+
+# Dev/Test files
+tests/
+.env
+.env.*
+*.pyc
+__pycache__/
+.pytest_cache/
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Misc
+*.log
+*.tmp
+static/

@@ -1,0 +1,103 @@
+# PHDx - PhD Thesis Command Center
+# Docker Compose Production Configuration
+# =======================================
+#
+# Usage:
+#   docker-compose up -d          # Start in detached mode
+#   docker-compose logs -f phdx   # View logs
+#   docker-compose down           # Stop services
+#   docker-compose restart        # Restart services
+#
+# Prerequisites:
+#   1. Create a .env file with your API keys (see .env.example)
+#   2. Ensure Docker and Docker Compose are installed
+
+version: '3.8'
+
+services:
+  phdx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: phdx-app
+    restart: unless-stopped
+    ports:
+      - "8501:8501"
+    environment:
+      # Streamlit Configuration
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+      # Application secrets (loaded from .env file)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_INDEX=${PINECONE_INDEX:-phdx-thesis}
+      - ZOTERO_USER_ID=${ZOTERO_USER_ID}
+      - ZOTERO_API_KEY=${ZOTERO_API_KEY}
+      - GOOGLE_DOC_ID=${GOOGLE_DOC_ID:-}
+      - GOOGLE_CREDENTIALS_PATH=${GOOGLE_CREDENTIALS_PATH:-credentials.json}
+    volumes:
+      # Persistent data storage
+      - phdx-data:/app/data
+      - phdx-drafts:/app/drafts
+      - phdx-feedback:/app/feedback
+      # Optional: Mount credentials file
+      # - ./credentials.json:/app/credentials.json:ro
+    networks:
+      - phdx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phdx.rule=Host(`phdx.ai`)"
+      - "traefik.http.routers.phdx.entrypoints=websecure"
+      - "traefik.http.routers.phdx.tls.certresolver=letsencrypt"
+      - "traefik.http.services.phdx.loadbalancer.server.port=8501"
+
+  # Optional: Traefik reverse proxy for HTTPS
+  traefik:
+    image: traefik:v2.10
+    container_name: phdx-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@phdx.ai}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-letsencrypt:/letsencrypt
+    networks:
+      - phdx-network
+    profiles:
+      - with-traefik
+
+volumes:
+  phdx-data:
+    name: phdx-data
+  phdx-drafts:
+    name: phdx-drafts
+  phdx-feedback:
+    name: phdx-feedback
+  traefik-letsencrypt:
+    name: traefik-letsencrypt
+
+networks:
+  phdx-network:
+    name: phdx-network
+    driver: bridge

@@ -1,0 +1,37 @@
+From: Dr. Sarah Mitchell <s.mitchell@brookes.ac.uk>
+To: PhD Candidate
+Subject: Feedback on Chapters 1-3 Draft
+Date: 15 January 2026
+
+Dear Candidate,
+
+Thank you for submitting your draft chapters. I have reviewed them carefully and have the following observations.
+
+CRITICAL FEEDBACK:
+
+Your methodology chapter is currently too descriptive. You need to engage more substantively with the power dynamics mentioned in the Literature Review. Specifically:
+
+1. The discussion of Foucault's panopticon in Chapter 2 raises important questions about power asymmetries, but these are not adequately addressed in your methodological approach. How does your interview methodology account for the power differential between researcher and researched? You mention reflexivity briefly but this needs much more development.
+
+2. The connection between Zuboff's surveillance capitalism framework and your data collection methods is unclear. If you're arguing that datafied power operates through extraction, shouldn't your methodology explicitly address how you avoid replicating extractive logics in your own research practice?
+
+3. The case study justification is somewhat thin. London is described as "one of the most intensively surveilled cities" but this claim needs evidential support. What metrics are you using? How does London compare to other possible case sites?
+
+POSITIVE OBSERVATIONS:
+
+- Your theoretical synthesis of Foucault and Zuboff in Chapter 2 is sophisticated and original. This is a strength of the thesis.
+- The hedging language and academic tone are appropriate for doctoral work.
+- The structure is clear and the argument flows logically between sections.
+
+MINOR CORRECTIONS:
+
+- Check citation format on p. 12 (Foucault, 1977) - should include page number for direct quote.
+- Some sentences in the Introduction exceed 50 words - consider breaking these up.
+- Consistency in terminology: you alternate between "surveillance" and "monitoring" - pick one and use consistently.
+
+Please address the critical feedback as a priority before our next supervisory meeting.
+
+Best regards,
+Dr. Mitchell
+Senior Lecturer in Sociology
+Oxford Brookes University

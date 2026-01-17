@@ -1,0 +1,26 @@
+# Environment variables (contains credentials)
+.env
+.streamlit/secrets.toml
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Data and cache files
+data/zotero_cache.json
+data/supervisor_analysis.json
+data/ai_usage_log.csv
+data/local_cache/
+data/chroma_db/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

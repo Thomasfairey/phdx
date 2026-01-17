@@ -1,0 +1,29 @@
+# PHDx Feedback Folder
+
+This folder is monitored by the Supervisor Loop module.
+
+## How to use:
+1. Add supervisor feedback as .txt or .md files
+2. Click "Process Feedback" in the sidebar
+3. PHDx will analyze and map feedback to specific thesis sections
+
+## Example feedback file format:
+
+```
+Meeting Notes - January 2026
+
+Overall the draft shows promise but needs more theoretical grounding.
+
+Chapter 2 (Literature Review):
+- Please expand the discussion on Bourdieu's concept of cultural capital
+- The section on habitus needs more critical engagement with recent critiques
+- Consider adding Foucault's notion of power/knowledge
+
+Chapter 3 (Methodology):
+- Justify your choice of semi-structured interviews more clearly
+- Add a reflexivity statement about your positionality
+
+General:
+- Watch your use of passive voice - try to be more direct
+- Some paragraphs are running too long - aim for 150-200 words
+```
