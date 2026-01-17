@@ -2,9 +2,24 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install only production dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir fastapi uvicorn pydantic python-docx google-auth google-auth-oauthlib google-api-python-client anthropic openai
+# Install production dependencies for FastAPI backend
+# Includes toml and langchain packages required by llm_gateway.py
+RUN pip install --no-cache-dir \
+    fastapi \
+    uvicorn \
+    pydantic \
+    python-docx \
+    google-auth \
+    google-auth-oauthlib \
+    google-api-python-client \
+    anthropic \
+    openai \
+    toml \
+    langchain \
+    langchain-anthropic \
+    langchain-openai \
+    langchain-core \
+    python-dotenv
 
 # Copy only necessary files
 COPY api/ ./api/
