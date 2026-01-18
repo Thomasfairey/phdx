@@ -19,7 +19,8 @@ RUN pip install --no-cache-dir \
     langchain-anthropic \
     langchain-openai \
     langchain-core \
-    python-dotenv
+    python-dotenv \
+    requests
 
 # Copy only necessary files from PHDx directory
 COPY PHDx/api/ ./api/
@@ -30,4 +31,5 @@ RUN mkdir -p backups
 
 EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use shell form to expand $PORT environment variable (Railway injects this)
+CMD sh -c "python -m uvicorn api.server:app --host 0.0.0.0 --port ${PORT:-8000}"
