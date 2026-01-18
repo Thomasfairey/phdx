@@ -1,9 +1,9 @@
-<<<<<<< HEAD
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Sidebar, ModelSwitcher, DraftingEditor } from '@/components';
-import { Wifi, WifiOff } from 'lucide-react';
+import { Wifi, WifiOff, FileText, Send, Loader2 } from 'lucide-react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://phdx-production.up.railway.app';
 
 interface Document {
   id: string;
@@ -15,98 +15,201 @@ export default function Home() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [selectedDoc, setSelectedDoc] = useState<string | null>(null);
   const [selectedModel, setSelectedModel] = useState('claude');
-  const [apiStatus, setApiStatus] = useState<'online' | 'offline'>('offline');
+  const [apiStatus, setApiStatus] = useState<'online' | 'offline' | 'checking'>('checking');
+  const [prompt, setPrompt] = useState('');
+  const [response, setResponse] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/status')
+    // Check API status
+    fetch(`${API_URL}/health`)
       .then(res => res.json())
-      .then(() => setApiStatus('online'))
+      .then((data) => {
+        if (data.status === 'healthy') {
+          setApiStatus('online');
+        } else {
+          setApiStatus('offline');
+        }
+      })
       .catch(() => setApiStatus('offline'));
 
-    fetch('http://127.0.0.1:8000/files/recent')
+    // Load recent files
+    fetch(`${API_URL}/files/recent`)
       .then(res => res.json())
       .then(data => {
-        setDocuments(data);
-        if (data.length > 0) setSelectedDoc(data[0].id);
+        if (Array.isArray(data)) {
+          setDocuments(data);
+          if (data.length > 0) setSelectedDoc(data[0].id);
+        }
       })
       .catch(console.error);
   }, []);
 
+  const handleGenerate = async () => {
+    if (!prompt.trim() || !selectedDoc) return;
+
+    setIsGenerating(true);
+    try {
+      const res = await fetch(`${API_URL}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          doc_id: selectedDoc,
+          prompt: prompt,
+          model: selectedModel
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResponse(data.text);
+      } else {
+        setResponse(`Error: ${data.error || 'Generation failed'}`);
+      }
+    } catch (error) {
+      setResponse('Error connecting to API');
+    }
+    setIsGenerating(false);
+  };
+
   return (
-    <div className="min-h-screen bg-[#050505]">
-      <Sidebar documents={documents} selectedDoc={selectedDoc} onSelectDoc={setSelectedDoc} />
-      
-      <main className="ml-[260px] min-h-screen p-6">
-        <header className="glass-panel px-6 py-4 mb-6 flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* Header */}
+      <header className="border-b border-slate-700 bg-slate-900/50 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+              PHDx
+            </h1>
+            <span className="text-slate-500 text-sm">PhD Thesis Command Center</span>
+          </div>
+
           <div className="flex items-center gap-4">
-            <ModelSwitcher selected={selectedModel} onChange={setSelectedModel} />
-            <div className={`flex items-center gap-2 text-sm ${apiStatus === 'online' ? 'text-[#30D158]' : 'text-[#FF453A]'}`}>
-              {apiStatus === 'online' ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
-              {apiStatus === 'online' ? 'Connected' : 'Offline'}
+            {/* Model Selector */}
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200"
+            >
+              <option value="claude">Claude</option>
+              <option value="gpt-4">GPT-4</option>
+            </select>
+
+            {/* Status Indicator */}
+            <div className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-full ${
+              apiStatus === 'online'
+                ? 'bg-green-900/30 text-green-400'
+                : apiStatus === 'checking'
+                ? 'bg-yellow-900/30 text-yellow-400'
+                : 'bg-red-900/30 text-red-400'
+            }`}>
+              {apiStatus === 'online' ? <Wifi className="w-4 h-4" /> :
+               apiStatus === 'checking' ? <Loader2 className="w-4 h-4 animate-spin" /> :
+               <WifiOff className="w-4 h-4" />}
+              {apiStatus === 'online' ? 'Connected' : apiStatus === 'checking' ? 'Checking...' : 'Offline'}
             </div>
           </div>
-        </header>
-
-        <div className="h-[calc(100vh-140px)]">
-          <DraftingEditor docId={selectedDoc} selectedModel={selectedModel} />
         </div>
-      </main>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-6 py-8 flex gap-6">
+        {/* Sidebar - Documents */}
+        <aside className="w-64 flex-shrink-0">
+          <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+            <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">
+              Recent Documents
+            </h2>
+            {documents.length > 0 ? (
+              <ul className="space-y-2">
+                {documents.map((doc) => (
+                  <li key={doc.id}>
+                    <button
+                      onClick={() => setSelectedDoc(doc.id)}
+                      className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-2 text-sm transition-colors ${
+                        selectedDoc === doc.id
+                          ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                          : 'text-slate-300 hover:bg-slate-700/50'
+                      }`}
+                    >
+                      <FileText className="w-4 h-4" />
+                      <span className="truncate">{doc.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-slate-500 text-sm">
+                {apiStatus === 'offline'
+                  ? 'Connect API to load documents'
+                  : 'No documents found'}
+              </p>
+            )}
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 space-y-6">
+          {/* Prompt Input */}
+          <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
+            <h2 className="text-lg font-semibold text-slate-200 mb-4">AI Writing Assistant</h2>
+            <textarea
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Enter your prompt... (e.g., 'Help me improve the introduction section')"
+              className="w-full h-32 bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-slate-200 placeholder-slate-500 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            />
+            <div className="mt-4 flex justify-between items-center">
+              <p className="text-slate-500 text-sm">
+                {selectedDoc ? `Working with: ${documents.find(d => d.id === selectedDoc)?.name || selectedDoc}` : 'Select a document'}
+              </p>
+              <button
+                onClick={handleGenerate}
+                disabled={isGenerating || !prompt.trim() || apiStatus !== 'online'}
+                className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Generate
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Response Output */}
+          <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-6">
+            <h2 className="text-lg font-semibold text-slate-200 mb-4">Response</h2>
+            <div className="min-h-[200px] bg-slate-900/50 border border-slate-600 rounded-lg p-4">
+              {response ? (
+                <p className="text-slate-300 whitespace-pre-wrap">{response}</p>
+              ) : (
+                <p className="text-slate-500 italic">AI response will appear here...</p>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4 hover:border-blue-500/50 transition-colors cursor-pointer">
+              <h3 className="font-semibold text-blue-400">Thesis Writing</h3>
+              <p className="text-sm text-slate-400 mt-1">AI-assisted writing and editing</p>
+            </div>
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4 hover:border-purple-500/50 transition-colors cursor-pointer">
+              <h3 className="font-semibold text-purple-400">Literature Review</h3>
+              <p className="text-sm text-slate-400 mt-1">Organize research papers</p>
+            </div>
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4 hover:border-green-500/50 transition-colors cursor-pointer">
+              <h3 className="font-semibold text-green-400">Knowledge Base</h3>
+              <p className="text-sm text-slate-400 mt-1">Search your research materials</p>
+            </div>
+          </div>
+        </main>
+      </div>
     </div>
   );
-=======
-const APP_URL = process.env.NEXT_PUBLIC_API_URL || 'https://phdx-production.up.railway.app'
-
-export default function Home() {
-
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-8">
-      <div className="max-w-4xl w-full text-center">
-        <h1 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          PHDx
-        </h1>
-        <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
-          PhD Thesis Command Center
-        </p>
-
-        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-8 mb-8">
-          <h2 className="text-2xl font-semibold mb-4">Your Intelligent Research Companion</h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Streamline your PhD journey with AI-powered thesis writing, literature management,
-            and research organization tools.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-            <div className="p-4 bg-blue-50 dark:bg-slate-700 rounded-lg">
-              <h3 className="font-semibold text-blue-700 dark:text-blue-300">Thesis Writing</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                AI-assisted writing and editing for your thesis chapters
-              </p>
-            </div>
-            <div className="p-4 bg-purple-50 dark:bg-slate-700 rounded-lg">
-              <h3 className="font-semibold text-purple-700 dark:text-purple-300">Literature Review</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                Organize and analyze your research papers with Zotero integration
-              </p>
-            </div>
-            <div className="p-4 bg-green-50 dark:bg-slate-700 rounded-lg">
-              <h3 className="font-semibold text-green-700 dark:text-green-300">Knowledge Base</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                Vector-powered search across all your research materials
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <a
-          href={APP_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all hover:scale-105"
-        >
-          Launch PHDx App
-        </a>
-      </div>
-    </main>
-  )
->>>>>>> 6b91e3229396369fe9d66a545436309a7815bc21
 }
