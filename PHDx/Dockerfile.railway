@@ -2,6 +2,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Set default PORT (Railway overrides this at runtime)
+ENV PORT=8000
+
 # Install production dependencies for FastAPI backend
 # Includes toml and langchain packages required by llm_gateway.py
 RUN pip install --no-cache-dir \
@@ -31,5 +34,5 @@ RUN mkdir -p backups
 
 EXPOSE 8000
 
-# Use shell form to expand $PORT environment variable (Railway injects this)
-CMD sh -c "python -m uvicorn api.server:app --host 0.0.0.0 --port ${PORT:-8000}"
+# Railway sets PORT at runtime, use it directly
+CMD ["sh", "-c", "python -m uvicorn api.server:app --host 0.0.0.0 --port $PORT"]
