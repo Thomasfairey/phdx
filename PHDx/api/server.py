@@ -92,9 +92,8 @@ app.add_middleware(
 
 @app.get("/status", response_model=StatusResponse)
 async def get_status():
-    models = llm_gateway.list_models()
-    model_names = [m["name"] for m in models]
-    return StatusResponse(system="online", models=model_names)
+    models = llm_gateway.get_available_models()
+    return StatusResponse(system="online", models=models)
 
 @app.get("/auth/google", response_model=AuthResponse)
 async def authenticate_google():
