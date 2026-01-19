@@ -1,8 +1,8 @@
 'use client';
 
-import { Shield, Activity, Link2, ClipboardCheck, Sparkles, GitBranch } from 'lucide-react';
+import { Shield, Activity, Link2, ClipboardCheck, Sparkles, GitBranch, Swords } from 'lucide-react';
 
-export type ModuleType = 'graph' | 'airlock' | 'dna' | 'red-thread' | 'auditor';
+export type ModuleType = 'graph' | 'airlock' | 'dna' | 'red-thread' | 'auditor' | 'war-room';
 
 interface SidebarProps {
   activeModule: ModuleType;
@@ -59,6 +59,16 @@ const modules = [
     activeColor: 'text-green-400',
     activeBg: 'from-green-500/20 to-emerald-600/20',
     activeBorder: 'border-green-500/30'
+  },
+  {
+    id: 'war-room' as ModuleType,
+    name: 'War Room',
+    description: 'Viva Defense',
+    icon: Swords,
+    gradient: 'from-red-600 to-red-800',
+    activeColor: 'text-red-400',
+    activeBg: 'from-red-600/20 to-red-800/20',
+    activeBorder: 'border-red-600/30'
   }
 ];
 

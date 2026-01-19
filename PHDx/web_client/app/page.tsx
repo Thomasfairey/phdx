@@ -7,6 +7,7 @@ import { DNAModule } from '@/components/DNAModule';
 import { RedThreadModule } from '@/components/RedThreadModule';
 import { AuditorModule } from '@/components/AuditorModule';
 import { ThesisGraph } from '@/components/ThesisGraph';
+import { WarRoomModule } from '@/components/WarRoomModule';
 
 export default function Home() {
   const [activeModule, setActiveModule] = useState<ModuleType>('graph');
@@ -34,6 +35,8 @@ export default function Home() {
         return <RedThreadModule />;
       case 'auditor':
         return <AuditorModule />;
+      case 'war-room':
+        return <WarRoomModule />;
       default:
         return (
           <ThesisGraph

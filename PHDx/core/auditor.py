@@ -587,6 +587,398 @@ def get_marking_criteria() -> dict:
     return OXFORD_BROOKES_CRITERIA
 
 
+# =============================================================================
+# WAR ROOM - VIVA VOCE SIMULATOR
+# =============================================================================
+
+# Hostile examiner system prompt
+HOSTILE_EXAMINER_PROMPT = """You are a hostile External Examiner conducting a PhD viva voce examination. You have read the ENTIRE thesis provided below and your job is to probe for weaknesses.
+
+Your personality:
+- You are NOT polite. You are direct, probing, and skeptical.
+- You challenge every assumption and demand rigorous justification.
+- You seek out methodological weaknesses, logical gaps, and unsupported claims.
+- You ask follow-up questions that probe deeper into weak areas.
+- You never let the candidate off easy with vague answers.
+
+When asking questions:
+- Focus on the WEAKEST aspects of the methodology, argumentation, or evidence.
+- Ask ONE hard, specific question at a time.
+- Be challenging but professional (no personal attacks).
+- If methodology is unclear, attack it. If claims are unsupported, demand evidence.
+- Reference specific parts of the thesis in your questions.
+
+When evaluating answers:
+- Rate answers as: WEAK, EVASIVE, ADEQUATE, or STRONG
+- WEAK: Does not address the question, shows lack of understanding
+- EVASIVE: Deflects or provides superficial response
+- ADEQUATE: Addresses the question but could be stronger
+- STRONG: Demonstrates deep understanding and provides compelling justification
+
+After rating, immediately ask the NEXT probing question targeting another weakness."""
+
+
+class VivaSimulator:
+    """
+    War Room - Viva Voce Examination Simulator.
+
+    Simulates a hostile external examiner conducting an oral defense.
+    """
+
+    def __init__(self):
+        """Initialize the Viva Simulator."""
+        api_key = get_secret("ANTHROPIC_API_KEY")
+        self.claude_client = anthropic.Anthropic(api_key=api_key) if api_key else None
+        self._conversation_history: dict[str, list] = {}  # user_id -> message history
+        self._thesis_context: dict[str, str] = {}  # user_id -> thesis text
+
+    def load_thesis_context(self, user_id: str, thesis_text: str) -> dict:
+        """
+        Load thesis context for a defense simulation.
+
+        Args:
+            user_id: Unique identifier for the user/session
+            thesis_text: The complete thesis text to analyze
+
+        Returns:
+            dict with status and analysis preview
+        """
+        if not self.claude_client:
+            return {"success": False, "error": "ANTHROPIC_API_KEY not configured"}
+
+        if len(thesis_text.strip()) < 500:
+            return {"success": False, "error": "Thesis text too short (minimum 500 characters)"}
+
+        # Store thesis context
+        self._thesis_context[user_id] = thesis_text
+        self._conversation_history[user_id] = []
+
+        # Count words and estimate chapters
+        word_count = len(thesis_text.split())
+
+        # Detect sections
+        sections_detected = []
+        section_keywords = ['introduction', 'literature', 'method', 'result', 'discussion', 'conclusion']
+        text_lower = thesis_text.lower()
+        for kw in section_keywords:
+            if kw in text_lower:
+                sections_detected.append(kw.title())
+
+        return {
+            "success": True,
+            "user_id": user_id,
+            "word_count": word_count,
+            "sections_detected": sections_detected,
+            "message": f"Thesis loaded. {word_count:,} words detected. Ready for examination."
+        }
+
+    def start_defense(self, user_id: str) -> dict:
+        """
+        Start the defense simulation with the first hostile question.
+
+        Args:
+            user_id: User identifier with loaded thesis
+
+        Returns:
+            dict with the first question from the hostile examiner
+        """
+        if not self.claude_client:
+            return {"success": False, "error": "ANTHROPIC_API_KEY not configured"}
+
+        thesis_text = self._thesis_context.get(user_id)
+        if not thesis_text:
+            return {"success": False, "error": "No thesis loaded. Call load_thesis_context first."}
+
+        # Reset conversation
+        self._conversation_history[user_id] = []
+
+        # Generate initial question
+        init_prompt = f"""You are beginning the viva voce examination. You have read this thesis:
+
+---
+{thesis_text[:15000]}
+{f'... [truncated - thesis continues for {len(thesis_text) - 15000} more characters]' if len(thesis_text) > 15000 else ''}
+---
+
+Now, identify the WEAKEST link in the methodology or argumentation. Ask your FIRST hard, probing question. Do NOT be polite. Be direct and challenging.
+
+Start with: "Let's begin. [Your question]"
+
+Respond with ONLY your question, nothing else."""
+
+        try:
+            response = self.claude_client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=500,
+                system=HOSTILE_EXAMINER_PROMPT,
+                messages=[{"role": "user", "content": init_prompt}]
+            )
+
+            question = response.content[0].text.strip()
+
+            # Store in history
+            self._conversation_history[user_id].append({
+                "role": "examiner",
+                "content": question,
+                "type": "question"
+            })
+
+            return {
+                "success": True,
+                "question": question,
+                "question_number": 1,
+                "session_active": True
+            }
+
+        except Exception as e:
+            return {"success": False, "error": f"Failed to start defense: {str(e)}"}
+
+    def respond_to_answer(self, user_id: str, candidate_answer: str) -> dict:
+        """
+        Process candidate's answer and generate next question.
+
+        Args:
+            user_id: User identifier
+            candidate_answer: The candidate's response to the previous question
+
+        Returns:
+            dict with rating, feedback, and next question
+        """
+        if not self.claude_client:
+            return {"success": False, "error": "ANTHROPIC_API_KEY not configured"}
+
+        thesis_text = self._thesis_context.get(user_id)
+        if not thesis_text:
+            return {"success": False, "error": "No active session"}
+
+        history = self._conversation_history.get(user_id, [])
+        if not history:
+            return {"success": False, "error": "No active defense session. Start with start_defense."}
+
+        # Get last question
+        last_question = None
+        for msg in reversed(history):
+            if msg["role"] == "examiner" and msg["type"] == "question":
+                last_question = msg["content"]
+                break
+
+        if not last_question:
+            return {"success": False, "error": "No previous question found"}
+
+        # Store candidate answer
+        history.append({
+            "role": "candidate",
+            "content": candidate_answer,
+            "type": "answer"
+        })
+
+        question_count = sum(1 for m in history if m["role"] == "examiner" and m["type"] == "question")
+
+        # Build context for evaluation
+        eval_prompt = f"""Based on the thesis you read earlier, you asked:
+"{last_question}"
+
+The candidate answered:
+"{candidate_answer}"
+
+Your tasks:
+1. Rate this answer as: WEAK, EVASIVE, ADEQUATE, or STRONG
+2. Give a brief (1-2 sentence) explanation of why
+3. Ask your NEXT probing question targeting ANOTHER weakness in the thesis
+
+{f'This is question {question_count + 1}. You have asked {question_count} questions so far.' if question_count > 0 else ''}
+
+Respond in this EXACT format:
+RATING: [WEAK/EVASIVE/ADEQUATE/STRONG]
+FEEDBACK: [Your brief explanation]
+NEXT QUESTION: [Your next challenging question]"""
+
+        try:
+            response = self.claude_client.messages.create(
+                model="claude-sonnet-4-20250514",
+                max_tokens=600,
+                system=HOSTILE_EXAMINER_PROMPT + f"\n\nTHESIS CONTEXT (first 8000 chars):\n{thesis_text[:8000]}",
+                messages=[{"role": "user", "content": eval_prompt}]
+            )
+
+            response_text = response.content[0].text.strip()
+
+            # Parse response
+            rating = "UNKNOWN"
+            feedback = ""
+            next_question = ""
+
+            lines = response_text.split('\n')
+            for i, line in enumerate(lines):
+                line_upper = line.upper()
+                if line_upper.startswith('RATING:'):
+                    rating_text = line.split(':', 1)[1].strip().upper()
+                    if 'WEAK' in rating_text:
+                        rating = 'WEAK'
+                    elif 'EVASIVE' in rating_text:
+                        rating = 'EVASIVE'
+                    elif 'ADEQUATE' in rating_text:
+                        rating = 'ADEQUATE'
+                    elif 'STRONG' in rating_text:
+                        rating = 'STRONG'
+                elif line_upper.startswith('FEEDBACK:'):
+                    feedback = line.split(':', 1)[1].strip()
+                elif line_upper.startswith('NEXT QUESTION:'):
+                    next_question = line.split(':', 1)[1].strip()
+                    # Get any additional lines that might be part of the question
+                    for j in range(i + 1, len(lines)):
+                        if lines[j].strip() and not any(lines[j].upper().startswith(k) for k in ['RATING:', 'FEEDBACK:', 'NEXT QUESTION:']):
+                            next_question += ' ' + lines[j].strip()
+
+            # If parsing failed, use full response as question
+            if not next_question:
+                next_question = response_text
+
+            # Store examiner response
+            history.append({
+                "role": "examiner",
+                "content": next_question,
+                "type": "question",
+                "rating": rating,
+                "feedback": feedback
+            })
+
+            self._conversation_history[user_id] = history
+
+            return {
+                "success": True,
+                "rating": rating,
+                "feedback": feedback,
+                "next_question": next_question,
+                "question_number": question_count + 1,
+                "session_active": True
+            }
+
+        except Exception as e:
+            return {"success": False, "error": f"Failed to process answer: {str(e)}"}
+
+    def end_defense(self, user_id: str) -> dict:
+        """
+        End the defense session and provide summary.
+
+        Args:
+            user_id: User identifier
+
+        Returns:
+            dict with defense summary and statistics
+        """
+        history = self._conversation_history.get(user_id, [])
+
+        if not history:
+            return {"success": False, "error": "No active session"}
+
+        # Calculate statistics
+        total_questions = sum(1 for m in history if m["role"] == "examiner" and m["type"] == "question")
+        total_answers = sum(1 for m in history if m["role"] == "candidate")
+
+        ratings = [m.get("rating") for m in history if m.get("rating")]
+        rating_counts = {
+            "STRONG": ratings.count("STRONG"),
+            "ADEQUATE": ratings.count("ADEQUATE"),
+            "EVASIVE": ratings.count("EVASIVE"),
+            "WEAK": ratings.count("WEAK")
+        }
+
+        # Calculate performance score
+        score_map = {"STRONG": 100, "ADEQUATE": 70, "EVASIVE": 40, "WEAK": 20}
+        if ratings:
+            avg_score = sum(score_map.get(r, 50) for r in ratings) / len(ratings)
+        else:
+            avg_score = 0
+
+        # Determine verdict
+        if avg_score >= 80:
+            verdict = "PASS - Strong Defense"
+            verdict_detail = "You demonstrated excellent command of your research and responded well to challenging questions."
+        elif avg_score >= 60:
+            verdict = "PASS WITH MINOR CORRECTIONS"
+            verdict_detail = "Your defense was adequate but revealed some areas requiring minor revisions."
+        elif avg_score >= 40:
+            verdict = "MAJOR CORRECTIONS REQUIRED"
+            verdict_detail = "Significant gaps in your defense suggest substantial revisions are needed."
+        else:
+            verdict = "RESUBMISSION REQUIRED"
+            verdict_detail = "Your defense revealed fundamental issues that require extensive rework."
+
+        # Clean up session
+        if user_id in self._conversation_history:
+            del self._conversation_history[user_id]
+        if user_id in self._thesis_context:
+            del self._thesis_context[user_id]
+
+        return {
+            "success": True,
+            "summary": {
+                "total_questions": total_questions,
+                "total_answers": total_answers,
+                "rating_breakdown": rating_counts,
+                "average_score": round(avg_score, 1),
+                "verdict": verdict,
+                "verdict_detail": verdict_detail
+            },
+            "session_active": False
+        }
+
+    def get_session_status(self, user_id: str) -> dict:
+        """Get current session status."""
+        has_thesis = user_id in self._thesis_context
+        history = self._conversation_history.get(user_id, [])
+
+        return {
+            "session_active": has_thesis,
+            "thesis_loaded": has_thesis,
+            "questions_asked": sum(1 for m in history if m["role"] == "examiner" and m["type"] == "question"),
+            "answers_given": sum(1 for m in history if m["role"] == "candidate"),
+        }
+
+
+def simulate_defense(user_id: str, thesis_text: str = None, action: str = "start", answer: str = None) -> dict:
+    """
+    Standalone function for defense simulation.
+
+    Args:
+        user_id: Unique user identifier
+        thesis_text: Full thesis text (required for 'start' action)
+        action: One of 'start', 'answer', 'end', 'status'
+        answer: Candidate's answer (required for 'answer' action)
+
+    Returns:
+        dict with simulation result
+    """
+    simulator = VivaSimulator()
+
+    if action == "start":
+        if not thesis_text:
+            return {"success": False, "error": "thesis_text required for start action"}
+        load_result = simulator.load_thesis_context(user_id, thesis_text)
+        if not load_result["success"]:
+            return load_result
+        return simulator.start_defense(user_id)
+
+    elif action == "answer":
+        if not answer:
+            return {"success": False, "error": "answer required for answer action"}
+        return simulator.respond_to_answer(user_id, answer)
+
+    elif action == "end":
+        return simulator.end_defense(user_id)
+
+    elif action == "status":
+        return simulator.get_session_status(user_id)
+
+    else:
+        return {"success": False, "error": f"Unknown action: {action}"}
+
+
+# =============================================================================
+# Module Entry Point
+# =============================================================================
+
 if __name__ == "__main__":
     print("=" * 60)
     print("PHDx Auditor - Oxford Brookes PhD Marking Criteria")

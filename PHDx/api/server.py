@@ -1658,6 +1658,252 @@ def _get_demo_graph_data() -> ProjectGraphResponse:
     )
 
 
+# =============================================================================
+# War Room API (Viva Voce Simulator)
+# =============================================================================
+
+from core.auditor import VivaSimulator, simulate_defense
+
+# Global Viva Simulator instance (maintains session state)
+_viva_simulator: Optional[VivaSimulator] = None
+
+
+def get_viva_simulator() -> VivaSimulator:
+    """Get or create the global VivaSimulator instance."""
+    global _viva_simulator
+    if _viva_simulator is None:
+        _viva_simulator = VivaSimulator()
+    return _viva_simulator
+
+
+class WarRoomStartRequest(BaseModel):
+    """Request to start a War Room defense session."""
+    thesis_text: str = Field(..., min_length=500, description="Full thesis text to analyze")
+
+
+class WarRoomAnswerRequest(BaseModel):
+    """Request to submit an answer in War Room."""
+    answer: str = Field(..., min_length=10, description="Candidate's answer to the examiner's question")
+
+
+class WarRoomQuestionResponse(BaseModel):
+    """Response containing an examiner question."""
+    success: bool
+    question: Optional[str] = None
+    question_number: int = 0
+    session_active: bool = False
+    error: Optional[str] = None
+
+
+class WarRoomAnswerResponse(BaseModel):
+    """Response after submitting an answer."""
+    success: bool
+    rating: Optional[str] = None  # WEAK, EVASIVE, ADEQUATE, STRONG
+    feedback: Optional[str] = None
+    next_question: Optional[str] = None
+    question_number: int = 0
+    session_active: bool = False
+    error: Optional[str] = None
+
+
+class WarRoomSummaryResponse(BaseModel):
+    """Response with defense session summary."""
+    success: bool
+    summary: Optional[dict] = None
+    session_active: bool = False
+    error: Optional[str] = None
+
+
+class WarRoomStatusResponse(BaseModel):
+    """Response with session status."""
+    session_active: bool
+    thesis_loaded: bool
+    questions_asked: int
+    answers_given: int
+
+
+# War Room Router
+warroom_router = APIRouter(
+    prefix="/api/war-room",
+    tags=["War Room"],
+)
+
+
+@warroom_router.post("/start", response_model=WarRoomQuestionResponse)
+async def start_war_room(
+    request: WarRoomStartRequest,
+    user_id: str = Query(..., description="User identifier"),
+):
+    """
+    Start a War Room defense simulation.
+
+    Loads the thesis and generates the first hostile question.
+    The examiner will identify weaknesses and probe aggressively.
+    """
+    simulator = get_viva_simulator()
+
+    # Load thesis context
+    load_result = simulator.load_thesis_context(user_id, request.thesis_text)
+    if not load_result.get("success"):
+        return WarRoomQuestionResponse(
+            success=False,
+            error=load_result.get("error", "Failed to load thesis"),
+            session_active=False,
+        )
+
+    # Start defense
+    start_result = simulator.start_defense(user_id)
+
+    return WarRoomQuestionResponse(
+        success=start_result.get("success", False),
+        question=start_result.get("question"),
+        question_number=start_result.get("question_number", 1),
+        session_active=start_result.get("session_active", False),
+        error=start_result.get("error"),
+    )
+
+
+@warroom_router.post("/answer", response_model=WarRoomAnswerResponse)
+async def submit_war_room_answer(
+    request: WarRoomAnswerRequest,
+    user_id: str = Query(..., description="User identifier"),
+):
+    """
+    Submit an answer to the examiner's question.
+
+    The examiner will rate the answer and fire the next question.
+    """
+    simulator = get_viva_simulator()
+
+    result = simulator.respond_to_answer(user_id, request.answer)
+
+    return WarRoomAnswerResponse(
+        success=result.get("success", False),
+        rating=result.get("rating"),
+        feedback=result.get("feedback"),
+        next_question=result.get("next_question"),
+        question_number=result.get("question_number", 0),
+        session_active=result.get("session_active", False),
+        error=result.get("error"),
+    )
+
+
+@warroom_router.post("/end", response_model=WarRoomSummaryResponse)
+async def end_war_room(
+    user_id: str = Query(..., description="User identifier"),
+):
+    """
+    End the defense session and get summary.
+
+    Returns performance statistics and final verdict.
+    """
+    simulator = get_viva_simulator()
+
+    result = simulator.end_defense(user_id)
+
+    return WarRoomSummaryResponse(
+        success=result.get("success", False),
+        summary=result.get("summary"),
+        session_active=result.get("session_active", False),
+        error=result.get("error"),
+    )
+
+
+@warroom_router.get("/status", response_model=WarRoomStatusResponse)
+async def get_war_room_status(
+    user_id: str = Query(..., description="User identifier"),
+):
+    """
+    Get current War Room session status.
+    """
+    simulator = get_viva_simulator()
+
+    status = simulator.get_session_status(user_id)
+
+    return WarRoomStatusResponse(
+        session_active=status.get("session_active", False),
+        thesis_loaded=status.get("thesis_loaded", False),
+        questions_asked=status.get("questions_asked", 0),
+        answers_given=status.get("answers_given", 0),
+    )
+
+
+@warroom_router.post("/load-from-drive")
+async def load_thesis_from_drive(
+    user_id: str = Query(..., description="User identifier"),
+    folder_id: Optional[str] = Query(None, description="Drive folder ID"),
+):
+    """
+    Load thesis text from synced Google Drive files.
+
+    Retrieves all chapter documents and combines them for the defense simulation.
+    """
+    service = DriveSyncService(user_id)
+
+    if not service.is_authenticated():
+        raise HTTPException(status_code=401, detail="Not authenticated with Google Drive")
+
+    try:
+        # Get all Google Docs
+        if folder_id:
+            sync_result = service.sync_folder(folder_id, recursive=True)
+            files = sync_result.changed_files if sync_result.success else []
+        else:
+            files = service.list_files(mime_type='application/vnd.google-apps.document')
+
+        # Filter for chapter-like documents
+        chapter_files = []
+        for f in files:
+            name_lower = f.name.lower()
+            if any(kw in name_lower for kw in ['chapter', 'introduction', 'literature', 'method', 'result', 'discussion', 'conclusion']):
+                chapter_files.append(f)
+
+        if not chapter_files:
+            raise HTTPException(status_code=404, detail="No chapter documents found in Drive")
+
+        # Sort by chapter order
+        chapter_files.sort(key=lambda f: _detect_chapter_order(f.name))
+
+        # Export and combine all chapters
+        combined_text = ""
+        chapter_names = []
+
+        for f in chapter_files:
+            try:
+                content = service.export_doc(f.id, ExportFormat.PLAIN_TEXT)
+                combined_text += f"\n\n{'='*60}\n{f.name}\n{'='*60}\n\n{content}"
+                chapter_names.append(f.name)
+            except Exception as e:
+                logger.warning(f"Could not export {f.name}: {e}")
+
+        if not combined_text.strip():
+            raise HTTPException(status_code=500, detail="Failed to extract text from chapters")
+
+        # Load into simulator
+        simulator = get_viva_simulator()
+        load_result = simulator.load_thesis_context(user_id, combined_text)
+
+        if not load_result.get("success"):
+            raise HTTPException(status_code=500, detail=load_result.get("error", "Failed to load thesis"))
+
+        return {
+            "success": True,
+            "chapters_loaded": chapter_names,
+            "word_count": load_result.get("word_count", 0),
+            "message": f"Loaded {len(chapter_names)} chapters. Ready for examination."
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Load from Drive error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Include War Room router
+app.include_router(warroom_router)
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
