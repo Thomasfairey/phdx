@@ -518,6 +518,166 @@ async def sync_to_google(request: SyncRequest):
 
 
 # =============================================================================
+# DNA Style Suggestion API
+# =============================================================================
+
+class StyleEdit(BaseModel):
+    """A single style edit suggestion."""
+    original: str = Field(..., description="Original text to be replaced")
+    suggested: str = Field(..., description="Suggested replacement text")
+    reason: str = Field(..., description="Why this change is suggested")
+    category: str = Field(..., description="Category: 'hedging', 'clarity', 'conciseness', 'tone', 'grammar'")
+    start_index: int = Field(..., description="Start index in original text")
+    end_index: int = Field(..., description="End index in original text")
+
+
+class DNAStyleRequest(BaseModel):
+    """Request for DNA style analysis and suggestions."""
+    text: str = Field(..., min_length=20, description="Text to analyze and improve")
+    style_profile: Optional[str] = Field(None, description="Optional style profile to match")
+
+
+class DNAStyleResponse(BaseModel):
+    """Response with style analysis and edit suggestions."""
+    original_text: str
+    improved_text: str
+    edits: list[StyleEdit] = Field(default_factory=list)
+    style_metrics: dict = Field(default_factory=dict)
+    summary: str
+
+
+@app.post("/dna/suggest-edits", response_model=DNAStyleResponse)
+async def suggest_style_edits(request: DNAStyleRequest):
+    """
+    Analyze text and suggest style improvements.
+
+    Returns a diff-compatible response with original, improved text,
+    and detailed edit suggestions with reasons.
+    """
+    import re
+
+    original_text = request.text
+
+    # Get style metrics
+    sentence_metrics = calculate_sentence_complexity(original_text)
+    hedging = analyze_hedging_frequency(original_text)
+    transitions = extract_transition_vocabulary(original_text)
+
+    # Use LLM to generate style suggestions
+    llm_router = get_llm_router()
+
+    system_prompt = """You are an academic writing editor. Analyze the text and suggest improvements.
+Return a JSON object with this exact structure:
+{
+    "improved_text": "The full improved text",
+    "edits": [
+        {
+            "original": "exact original phrase",
+            "suggested": "improved phrase",
+            "reason": "Brief explanation",
+            "category": "hedging|clarity|conciseness|tone|grammar"
+        }
+    ],
+    "summary": "Brief overall assessment"
+}
+
+Focus on:
+- Removing unnecessary hedging (very, really, quite, somewhat)
+- Eliminating pleonasms (very unique → unique)
+- Improving clarity and conciseness
+- Maintaining academic tone
+- Fixing grammar issues
+
+Return ONLY valid JSON, no markdown."""
+
+    prompt = f"""Analyze and improve this academic text:
+
+{original_text}
+
+Provide specific edits with reasons. Be precise about what to change and why."""
+
+    try:
+        response = llm_router.generate(
+            prompt=prompt,
+            engine=EngineType.DNA,  # Routes to TIER_CREATIVE (GPT-4o)
+            system_prompt=system_prompt,
+        )
+
+        # Parse response
+        content = response.content.strip()
+        if content.startswith('```'):
+            content = re.sub(r'^```(?:json)?\n?', '', content)
+            content = re.sub(r'\n?```$', '', content)
+
+        import json as json_module
+        data = json_module.loads(content)
+
+        # Build edits with indices
+        edits = []
+        for edit in data.get('edits', []):
+            original_phrase = edit.get('original', '')
+            # Find the phrase in text
+            start_idx = original_text.lower().find(original_phrase.lower())
+            if start_idx >= 0:
+                edits.append(StyleEdit(
+                    original=original_phrase,
+                    suggested=edit.get('suggested', original_phrase),
+                    reason=edit.get('reason', 'Style improvement'),
+                    category=edit.get('category', 'clarity'),
+                    start_index=start_idx,
+                    end_index=start_idx + len(original_phrase),
+                ))
+
+        return DNAStyleResponse(
+            original_text=original_text,
+            improved_text=data.get('improved_text', original_text),
+            edits=edits,
+            style_metrics={
+                'sentence_complexity': sentence_metrics,
+                'hedging': hedging,
+                'transitions': transitions,
+            },
+            summary=data.get('summary', 'Analysis complete.'),
+        )
+
+    except Exception as e:
+        # Fallback: return basic analysis without LLM suggestions
+        return DNAStyleResponse(
+            original_text=original_text,
+            improved_text=original_text,
+            edits=[],
+            style_metrics={
+                'sentence_complexity': sentence_metrics,
+                'hedging': hedging,
+                'transitions': transitions,
+            },
+            summary=f"Style analysis complete. LLM suggestions unavailable: {str(e)}",
+        )
+
+
+@app.post("/dna/analyze")
+async def analyze_dna(request: DNAStyleRequest):
+    """
+    Simple DNA variance analysis (legacy endpoint).
+    """
+    sentence_metrics = calculate_sentence_complexity(request.text)
+    hedging = analyze_hedging_frequency(request.text)
+
+    # Calculate variance score based on metrics
+    avg_sentence_len = sentence_metrics.get('average_length', 15)
+    hedging_density = hedging.get('hedging_density_per_1000_words', 0)
+
+    # Variance formula: higher variance = more human-like
+    variance = min(15, max(0, (avg_sentence_len / 3) + (hedging_density / 2)))
+
+    return {
+        'variance': round(variance, 2),
+        'style_match': variance > 5.0,
+        'status': 'Human' if variance > 10 else 'Mixed' if variance > 5 else 'Robotic',
+    }
+
+
+# =============================================================================
 # Red Thread API (direct access)
 # =============================================================================
 
