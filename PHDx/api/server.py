@@ -4,19 +4,26 @@ PHDx FastAPI Server - Headless Backend
 Includes:
 - Core API endpoints for the web client
 - Extension API (/api/v1/extension) for Google Docs Sidebar
+- OAuth2 authentication for Google Drive sync
+- Background sync worker for Drive folders
 """
 
 import sys
 import json
+import asyncio
+import logging
+import secrets
 from pathlib import Path
 from datetime import datetime
 from enum import Enum
 from typing import Optional, Literal
+from contextlib import asynccontextmanager
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from fastapi import FastAPI, HTTPException, Header, Depends, APIRouter
+from fastapi import FastAPI, HTTPException, Header, Depends, APIRouter, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from core import airlock
@@ -35,6 +42,18 @@ from core.dna_engine import (
     analyze_hedging_frequency,
     extract_transition_vocabulary,
 )
+from core.drive_sync import (
+    DriveSyncService,
+    SyncResult,
+    DriveFile,
+    ExportFormat,
+    get_sync_manager,
+)
+from core.secrets_utils import get_oauth_tokens, list_stored_users
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 BACKUPS_DIR = Path(__file__).parent.parent / "backups"
 BACKUPS_DIR.mkdir(exist_ok=True)
@@ -191,15 +210,76 @@ ALLOWED_ORIGINS = [
 
 
 # =============================================================================
+# Background Sync Task
+# =============================================================================
+
+SYNC_INTERVAL_MINUTES = 10
+_background_task: Optional[asyncio.Task] = None
+
+
+async def background_sync_worker():
+    """
+    Background worker that runs sync_folder every 10 minutes for active users.
+    """
+    sync_manager = get_sync_manager()
+
+    while True:
+        try:
+            # Wait for the interval
+            await asyncio.sleep(SYNC_INTERVAL_MINUTES * 60)
+
+            # Run pending syncs
+            logger.info("Running background sync...")
+            results = sync_manager.run_pending_syncs()
+
+            # Log results
+            for result in results:
+                if result.success:
+                    logger.info(f"Sync completed: {result.files_changed} files changed")
+                else:
+                    logger.warning(f"Sync failed: {result.errors}")
+
+        except asyncio.CancelledError:
+            logger.info("Background sync worker cancelled")
+            break
+        except Exception as e:
+            logger.error(f"Background sync error: {e}")
+            # Continue running despite errors
+            await asyncio.sleep(60)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup/shutdown."""
+    global _background_task
+
+    # Startup: Start background sync worker
+    logger.info("Starting background sync worker...")
+    _background_task = asyncio.create_task(background_sync_worker())
+
+    yield
+
+    # Shutdown: Cancel background task
+    if _background_task:
+        logger.info("Stopping background sync worker...")
+        _background_task.cancel()
+        try:
+            await _background_task
+        except asyncio.CancelledError:
+            pass
+
+
+# =============================================================================
 # FastAPI App Setup
 # =============================================================================
 
 app = FastAPI(
     title="PHDx API",
     description="PhD Thesis Command Center - Headless Backend with Extension Support",
-    version="2.1.0",
+    version="2.2.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # CORS middleware with specific origins for Google Apps Script
@@ -426,6 +506,400 @@ def _generate_style_summary(sentence_metrics: dict, hedging: dict, transitions: 
 
 # Include extension router
 app.include_router(extension_router)
+
+
+# =============================================================================
+# OAuth2 / Drive Sync API
+# =============================================================================
+
+# Store for OAuth state tokens (CSRF protection)
+_oauth_states: dict[str, dict] = {}
+
+# OAuth Response Models
+class OAuthLoginResponse(BaseModel):
+    """Response with OAuth authorization URL."""
+    auth_url: str
+    state: str
+
+
+class OAuthUserInfo(BaseModel):
+    """User information from OAuth."""
+    user_id: str
+    name: str
+    email: str
+    photo_url: Optional[str] = None
+    authenticated: bool = True
+
+
+class DriveFileResponse(BaseModel):
+    """Drive file information."""
+    id: str
+    name: str
+    mime_type: str
+    modified_time: str
+    web_view_link: Optional[str] = None
+    is_google_doc: bool
+
+
+class DriveFolderListResponse(BaseModel):
+    """List of Drive folders."""
+    folders: list[DriveFileResponse]
+
+
+class SyncFolderRequest(BaseModel):
+    """Request to sync a folder."""
+    folder_id: str
+    recursive: bool = True
+    force: bool = False
+
+
+class SyncResultResponse(BaseModel):
+    """Result of sync operation."""
+    success: bool
+    files_found: int
+    files_changed: int
+    errors: list[str] = []
+    changed_files: list[DriveFileResponse] = []
+    synced_at: str
+
+
+class ExportDocRequest(BaseModel):
+    """Request to export a document."""
+    file_id: str
+    format: str = "text/plain"
+
+
+class ExportDocResponse(BaseModel):
+    """Exported document content."""
+    file_id: str
+    name: str
+    content: str
+    format: str
+
+
+class RegisterSyncRequest(BaseModel):
+    """Request to register background sync."""
+    folder_id: str
+    interval_minutes: int = 10
+
+
+# Drive Sync Router
+drive_router = APIRouter(
+    prefix="/api/v1/drive",
+    tags=["Drive Sync"],
+)
+
+
+def get_base_url() -> str:
+    """Get the base URL for OAuth callbacks."""
+    import os
+    return os.environ.get('PHDX_BASE_URL', 'http://localhost:8000')
+
+
+@drive_router.get("/auth/login", response_model=OAuthLoginResponse)
+async def oauth_login(
+    user_id: str = Query(..., description="Unique user identifier"),
+):
+    """
+    Initiate OAuth2 login flow.
+
+    Returns an authorization URL to redirect the user to.
+    """
+    # Generate state token for CSRF protection
+    state = secrets.token_urlsafe(32)
+    _oauth_states[state] = {
+        'user_id': user_id,
+        'created_at': datetime.now().isoformat(),
+    }
+
+    # Get auth URL
+    redirect_uri = f"{get_base_url()}/api/v1/drive/auth/callback"
+    service = DriveSyncService(user_id)
+
+    try:
+        auth_url = service.get_auth_url(redirect_uri, state=state)
+        return OAuthLoginResponse(auth_url=auth_url, state=state)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@drive_router.get("/auth/callback")
+async def oauth_callback(
+    code: str = Query(..., description="Authorization code"),
+    state: str = Query(..., description="State token"),
+):
+    """
+    Handle OAuth2 callback from Google.
+
+    Exchanges the authorization code for tokens and stores them.
+    """
+    # Verify state token
+    state_data = _oauth_states.pop(state, None)
+    if not state_data:
+        raise HTTPException(status_code=400, detail="Invalid or expired state token")
+
+    user_id = state_data['user_id']
+    redirect_uri = f"{get_base_url()}/api/v1/drive/auth/callback"
+
+    try:
+        service = DriveSyncService(user_id)
+        user_info = service.handle_auth_callback(code, redirect_uri)
+
+        # Redirect to success page or return JSON
+        frontend_url = get_base_url().replace(':8000', ':3000')  # Assume frontend on 3000
+        return RedirectResponse(
+            url=f"{frontend_url}/settings?auth=success&user={user_id}"
+        )
+
+    except Exception as e:
+        logger.error(f"OAuth callback error: {e}")
+        raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")
+
+
+@drive_router.get("/auth/status", response_model=OAuthUserInfo)
+async def oauth_status(
+    user_id: str = Query(..., description="User identifier"),
+):
+    """
+    Check OAuth authentication status for a user.
+    """
+    service = DriveSyncService(user_id)
+
+    if not service.is_authenticated():
+        return OAuthUserInfo(
+            user_id=user_id,
+            name="",
+            email="",
+            authenticated=False,
+        )
+
+    # Get user info
+    try:
+        user_info = service._get_user_info()
+        return OAuthUserInfo(
+            user_id=user_id,
+            name=user_info.get('name', ''),
+            email=user_info.get('email', ''),
+            photo_url=user_info.get('photo_url'),
+            authenticated=True,
+        )
+    except Exception:
+        return OAuthUserInfo(
+            user_id=user_id,
+            name="",
+            email="",
+            authenticated=True,  # Has tokens but couldn't get info
+        )
+
+
+@drive_router.post("/auth/logout")
+async def oauth_logout(
+    user_id: str = Query(..., description="User identifier"),
+):
+    """
+    Log out a user by deleting their stored tokens.
+    """
+    service = DriveSyncService(user_id)
+    deleted = service.logout()
+
+    return {"success": deleted, "user_id": user_id}
+
+
+@drive_router.get("/folders", response_model=DriveFolderListResponse)
+async def list_drive_folders(
+    user_id: str = Query(..., description="User identifier"),
+    parent_id: str = Query("root", description="Parent folder ID"),
+):
+    """
+    List folders in Google Drive.
+    """
+    service = DriveSyncService(user_id)
+
+    if not service.is_authenticated():
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        folders = service.list_folders(parent_id)
+        return DriveFolderListResponse(
+            folders=[
+                DriveFileResponse(
+                    id=f.id,
+                    name=f.name,
+                    mime_type=f.mime_type,
+                    modified_time=f.modified_time,
+                    web_view_link=f.web_view_link,
+                    is_google_doc=f.is_google_doc,
+                )
+                for f in folders
+            ]
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@drive_router.post("/sync", response_model=SyncResultResponse)
+async def sync_folder(
+    request: SyncFolderRequest,
+    user_id: str = Query(..., description="User identifier"),
+):
+    """
+    Sync a Google Drive folder.
+
+    Detects changed files since last sync.
+    """
+    service = DriveSyncService(user_id)
+
+    if not service.is_authenticated():
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        result = service.sync_folder(
+            folder_id=request.folder_id,
+            recursive=request.recursive,
+            force=request.force,
+        )
+
+        return SyncResultResponse(
+            success=result.success,
+            files_found=result.files_found,
+            files_changed=result.files_changed,
+            errors=result.errors,
+            changed_files=[
+                DriveFileResponse(
+                    id=f.id,
+                    name=f.name,
+                    mime_type=f.mime_type,
+                    modified_time=f.modified_time,
+                    web_view_link=f.web_view_link,
+                    is_google_doc=f.is_google_doc,
+                )
+                for f in result.changed_files
+            ],
+            synced_at=result.synced_at,
+        )
+    except Exception as e:
+        logger.error(f"Sync error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@drive_router.post("/export", response_model=ExportDocResponse)
+async def export_document(
+    request: ExportDocRequest,
+    user_id: str = Query(..., description="User identifier"),
+):
+    """
+    Export a Google Doc to text or HTML.
+    """
+    service = DriveSyncService(user_id)
+
+    if not service.is_authenticated():
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    try:
+        # Get file metadata
+        metadata = service.get_file_metadata(request.file_id)
+        if not metadata:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Determine export format
+        format_map = {
+            'text/plain': ExportFormat.PLAIN_TEXT,
+            'text/html': ExportFormat.HTML,
+            'application/pdf': ExportFormat.PDF,
+        }
+        export_format = format_map.get(request.format, ExportFormat.PLAIN_TEXT)
+
+        # Export document
+        content = service.export_doc(request.file_id, export_format)
+
+        return ExportDocResponse(
+            file_id=request.file_id,
+            name=metadata.name,
+            content=content,
+            format=request.format,
+        )
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found")
+    except Exception as e:
+        logger.error(f"Export error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@drive_router.post("/background-sync/register")
+async def register_background_sync(
+    request: RegisterSyncRequest,
+    user_id: str = Query(..., description="User identifier"),
+):
+    """
+    Register a folder for background sync.
+
+    The folder will be synced automatically every N minutes.
+    """
+    service = DriveSyncService(user_id)
+
+    if not service.is_authenticated():
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    sync_manager = get_sync_manager()
+    sync_manager.register_sync(
+        user_id=user_id,
+        folder_id=request.folder_id,
+        interval_minutes=request.interval_minutes,
+    )
+
+    return {
+        "success": True,
+        "user_id": user_id,
+        "folder_id": request.folder_id,
+        "interval_minutes": request.interval_minutes,
+    }
+
+
+@drive_router.delete("/background-sync/unregister")
+async def unregister_background_sync(
+    user_id: str = Query(..., description="User identifier"),
+    folder_id: str = Query(..., description="Folder ID"),
+):
+    """
+    Unregister a folder from background sync.
+    """
+    sync_manager = get_sync_manager()
+    removed = sync_manager.unregister_sync(user_id, folder_id)
+
+    return {"success": removed, "user_id": user_id, "folder_id": folder_id}
+
+
+@drive_router.get("/background-sync/status")
+async def get_background_sync_status():
+    """
+    Get status of all active background syncs.
+    """
+    sync_manager = get_sync_manager()
+    active_syncs = sync_manager.list_active_syncs()
+
+    return {
+        "active_syncs": active_syncs,
+        "total": len(active_syncs),
+    }
+
+
+@drive_router.post("/background-sync/run-now")
+async def run_background_sync_now(background_tasks: BackgroundTasks):
+    """
+    Manually trigger background sync for all registered folders.
+    """
+    def run_sync():
+        sync_manager = get_sync_manager()
+        results = sync_manager.run_pending_syncs()
+        logger.info(f"Manual sync completed: {len(results)} syncs run")
+
+    background_tasks.add_task(run_sync)
+
+    return {"success": True, "message": "Sync triggered in background"}
+
+
+# Include drive router
+app.include_router(drive_router)
 
 
 # =============================================================================
