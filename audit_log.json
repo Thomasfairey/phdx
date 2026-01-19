@@ -1,0 +1,86 @@
+{
+  "audit_log": [
+    {
+      "entry_id": "8f81aa1d20e7",
+      "timestamp": "2026-01-19T13:15:33.256284",
+      "action_type": "pii_scan_and_redact",
+      "module": "EthicsAirlock",
+      "input_summary": "Draft chapter (7199 chars)",
+      "output_summary": "Redacted 10 PII instances",
+      "pii_protection": {
+        "was_scrubbed": true,
+        "redactions_count": 10
+      },
+      "compliance_flags": {
+        "ethics_cleared": true,
+        "logged_for_audit": true
+      }
+    },
+    {
+      "entry_id": "183495b7c0e0",
+      "timestamp": "2026-01-19T13:15:33.259355",
+      "action_type": "style_analysis",
+      "module": "DNAEngine",
+      "input_summary": "Author profile vs draft chapter comparison",
+      "output_summary": "Detected 16 style deviations",
+      "pii_protection": {
+        "was_scrubbed": false,
+        "redactions_count": 0
+      },
+      "compliance_flags": {
+        "ethics_cleared": true,
+        "logged_for_audit": true
+      }
+    },
+    {
+      "entry_id": "abbaac5c7088",
+      "timestamp": "2026-01-19T13:15:33.261055",
+      "action_type": "compliance_audit",
+      "module": "Auditor",
+      "input_summary": "Draft chapter (902 words)",
+      "output_summary": "Total score: 49.8, Grade: Needs Improvement",
+      "pii_protection": {
+        "was_scrubbed": false,
+        "redactions_count": 0
+      },
+      "compliance_flags": {
+        "ethics_cleared": true,
+        "logged_for_audit": true
+      }
+    },
+    {
+      "entry_id": "8ec114d42564",
+      "timestamp": "2026-01-19T13:15:33.261540",
+      "action_type": "feedback_classification",
+      "module": "FeedbackProcessor",
+      "input_summary": "Supervisor feedback document",
+      "output_summary": "Classified: 3 RED, 5 AMBER, 4 GREEN",
+      "pii_protection": {
+        "was_scrubbed": false,
+        "redactions_count": 0
+      },
+      "compliance_flags": {
+        "ethics_cleared": true,
+        "logged_for_audit": true
+      }
+    },
+    {
+      "entry_id": "2a841f866b35",
+      "timestamp": "2026-01-19T13:15:33.262459",
+      "action_type": "continuity_check",
+      "module": "RedThreadEngine",
+      "input_summary": "Chapter 1 vs Chapter 4 comparison",
+      "output_summary": "Similarity: 67.24%, Status: strong",
+      "pii_protection": {
+        "was_scrubbed": false,
+        "redactions_count": 0
+      },
+      "compliance_flags": {
+        "ethics_cleared": true,
+        "logged_for_audit": true
+      }
+    }
+  ],
+  "generated_at": "2026-01-19T13:15:33.262892",
+  "total_entries": 5
+}
