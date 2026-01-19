@@ -527,11 +527,40 @@ class RedThreadCheckRequest(BaseModel):
     discussion: str = Field(..., min_length=50, description="Discussion/Conclusion text")
 
 
+class VisualGraphNode(BaseModel):
+    """Node in the argument flow graph."""
+    id: str
+    label: str
+    type: str  # 'question', 'argument', 'evidence', 'conclusion'
+    chapter: str
+
+
+class VisualGraphEdge(BaseModel):
+    """Edge in the argument flow graph."""
+    source: str
+    target: str
+    label: Optional[str] = None
+    strength: float = 1.0
+
+
+class MissingLinkDetail(BaseModel):
+    """Details about a missing logical link."""
+    from_chapter: str
+    to_chapter: str
+    description: str
+    severity: str = "medium"  # 'high', 'medium', 'low'
+    suggestion: str
+
+
 class RedThreadCheckResponse(BaseModel):
     """Response for red thread check - compatible with RedThreadModule.tsx."""
     continuity_score: int
+    thread_status: str  # 'solid' or 'broken'
     status: str
     analysis: str
+    missing_links: list[MissingLinkDetail] = Field(default_factory=list)
+    visual_graph_nodes: list[VisualGraphNode] = Field(default_factory=list)
+    visual_graph_edges: list[VisualGraphEdge] = Field(default_factory=list)
 
 
 @app.post("/red-thread/check", response_model=RedThreadCheckResponse)
@@ -540,6 +569,7 @@ async def check_red_thread(request: RedThreadCheckRequest):
     Check argument continuity between introduction and discussion.
 
     This endpoint is used by the RedThreadModule.tsx component.
+    Returns visual graph data for the Golden Thread visualization.
     """
     # Combine intro and discussion for analysis
     combined_text = f"""CHAPTER 1: INTRODUCTION
@@ -552,10 +582,54 @@ CHAPTER 5: CONCLUSION
 
     result = check_continuity(combined_text)
 
+    # Parse missing links
+    missing_links = []
+    for ml in result.get('missing_links', []):
+        try:
+            missing_links.append(MissingLinkDetail(
+                from_chapter=ml.get('from_chapter', 'unknown'),
+                to_chapter=ml.get('to_chapter', 'unknown'),
+                description=ml.get('description', 'No description'),
+                severity=ml.get('severity', 'medium'),
+                suggestion=ml.get('suggestion', 'Review the connection'),
+            ))
+        except Exception:
+            pass
+
+    # Parse visual graph nodes
+    graph_nodes = []
+    for node in result.get('visual_graph_nodes', []):
+        try:
+            graph_nodes.append(VisualGraphNode(
+                id=node.get('id', f'node_{len(graph_nodes)}'),
+                label=node.get('label', 'Unknown'),
+                type=node.get('type', 'argument'),
+                chapter=node.get('chapter', 'unknown'),
+            ))
+        except Exception:
+            pass
+
+    # Parse visual graph edges
+    graph_edges = []
+    for edge in result.get('visual_graph_edges', []):
+        try:
+            graph_edges.append(VisualGraphEdge(
+                source=edge.get('source', ''),
+                target=edge.get('target', ''),
+                label=edge.get('label'),
+                strength=edge.get('strength', 1.0),
+            ))
+        except Exception:
+            pass
+
     return RedThreadCheckResponse(
         continuity_score=result.get('continuity_score', 0),
+        thread_status=result.get('thread_status', 'unknown'),
         status=result.get('status', 'Unknown'),
         analysis=result.get('analysis', 'Analysis unavailable'),
+        missing_links=missing_links,
+        visual_graph_nodes=graph_nodes,
+        visual_graph_edges=graph_edges,
     )
 
 
