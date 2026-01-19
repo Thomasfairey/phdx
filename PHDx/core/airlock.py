@@ -4,10 +4,16 @@ Airlock - Data Connector Module
 Google OAuth 2.0 authentication and document loading utilities for the PhD
 writing assistant. Provides secure access to Google Drive, Docs, and Sheets,
 as well as local file parsing capabilities.
+
+Also includes lightweight API key validation for the Google Docs extension.
 """
 
+import hashlib
+import hmac
 import os
 import json
+import secrets
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +35,217 @@ SCOPES = [
 CONFIG_DIR = Path(__file__).parent.parent / 'config'
 CLIENT_SECRET_PATH = CONFIG_DIR / 'client_secret.json'
 TOKEN_PATH = CONFIG_DIR / 'token.json'
+API_KEYS_PATH = CONFIG_DIR / 'api_keys.json'
+
+
+# =============================================================================
+# Extension API Key Management
+# =============================================================================
+
+class ExtensionAuthError(Exception):
+    """Raised when extension authentication fails."""
+    pass
+
+
+def generate_extension_api_key(name: str = "default", expires_days: int = 90) -> dict:
+    """
+    Generate a new API key for the Google Docs extension.
+
+    Args:
+        name: Friendly name for the key (e.g., 'google-docs-sidebar')
+        expires_days: Days until the key expires (default 90)
+
+    Returns:
+        Dict with 'key', 'name', 'created_at', 'expires_at'
+    """
+    # Generate a secure random key
+    raw_key = secrets.token_urlsafe(32)
+    key_id = secrets.token_hex(8)
+
+    # Format: phdx_ext_{key_id}_{raw_key}
+    api_key = f"phdx_ext_{key_id}_{raw_key}"
+
+    # Store hashed version for validation
+    key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+
+    key_data = {
+        'key_id': key_id,
+        'key_hash': key_hash,
+        'name': name,
+        'created_at': datetime.now().isoformat(),
+        'expires_at': (datetime.now() + timedelta(days=expires_days)).isoformat(),
+        'active': True,
+    }
+
+    # Load existing keys
+    keys_store = _load_api_keys()
+    keys_store['keys'][key_id] = key_data
+    _save_api_keys(keys_store)
+
+    return {
+        'key': api_key,  # Only returned once - not stored in plaintext
+        'key_id': key_id,
+        'name': name,
+        'created_at': key_data['created_at'],
+        'expires_at': key_data['expires_at'],
+    }
+
+
+def validate_extension_api_key(api_key: str) -> dict:
+    """
+    Validate an extension API key.
+
+    Args:
+        api_key: The API key to validate (Bearer token)
+
+    Returns:
+        Dict with 'valid', 'key_id', 'name', 'error' (if invalid)
+
+    Raises:
+        ExtensionAuthError: If key is invalid, expired, or revoked
+    """
+    if not api_key:
+        raise ExtensionAuthError("No API key provided")
+
+    # Handle Bearer prefix
+    if api_key.startswith("Bearer "):
+        api_key = api_key[7:]
+
+    # Check format
+    if not api_key.startswith("phdx_ext_"):
+        raise ExtensionAuthError("Invalid API key format")
+
+    # Extract key_id
+    parts = api_key.split("_")
+    if len(parts) < 4:
+        raise ExtensionAuthError("Invalid API key format")
+
+    key_id = parts[2]
+
+    # Load keys and validate
+    keys_store = _load_api_keys()
+    key_data = keys_store.get('keys', {}).get(key_id)
+
+    if not key_data:
+        raise ExtensionAuthError("API key not found")
+
+    # Check if active
+    if not key_data.get('active', True):
+        raise ExtensionAuthError("API key has been revoked")
+
+    # Check expiration
+    expires_at = datetime.fromisoformat(key_data['expires_at'])
+    if datetime.now() > expires_at:
+        raise ExtensionAuthError("API key has expired")
+
+    # Validate hash
+    key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+    if not hmac.compare_digest(key_hash, key_data['key_hash']):
+        raise ExtensionAuthError("Invalid API key")
+
+    return {
+        'valid': True,
+        'key_id': key_id,
+        'name': key_data.get('name', 'unknown'),
+        'expires_at': key_data['expires_at'],
+    }
+
+
+def revoke_extension_api_key(key_id: str) -> bool:
+    """
+    Revoke an extension API key.
+
+    Args:
+        key_id: The key ID to revoke
+
+    Returns:
+        True if revoked, False if not found
+    """
+    keys_store = _load_api_keys()
+
+    if key_id in keys_store.get('keys', {}):
+        keys_store['keys'][key_id]['active'] = False
+        keys_store['keys'][key_id]['revoked_at'] = datetime.now().isoformat()
+        _save_api_keys(keys_store)
+        return True
+
+    return False
+
+
+def list_extension_api_keys() -> list[dict]:
+    """
+    List all extension API keys (without the actual keys).
+
+    Returns:
+        List of key metadata dicts
+    """
+    keys_store = _load_api_keys()
+    return [
+        {
+            'key_id': key_id,
+            'name': data.get('name', 'unknown'),
+            'created_at': data.get('created_at'),
+            'expires_at': data.get('expires_at'),
+            'active': data.get('active', True),
+        }
+        for key_id, data in keys_store.get('keys', {}).items()
+    ]
+
+
+def _load_api_keys() -> dict:
+    """Load API keys from storage."""
+    if API_KEYS_PATH.exists():
+        try:
+            with open(API_KEYS_PATH, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {'keys': {}, 'version': 1}
+
+
+def _save_api_keys(keys_store: dict) -> None:
+    """Save API keys to storage."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    with open(API_KEYS_PATH, 'w') as f:
+        json.dump(keys_store, f, indent=2)
+
+
+# =============================================================================
+# Environment-based API Key (Simpler alternative for MVP)
+# =============================================================================
+
+def validate_env_api_key(api_key: str) -> dict:
+    """
+    Validate against environment variable PHDX_EXTENSION_API_KEY.
+
+    This is a simpler alternative to the full key management system
+    for MVP deployments.
+
+    Args:
+        api_key: The API key to validate
+
+    Returns:
+        Dict with 'valid' and 'error' (if invalid)
+    """
+    if not api_key:
+        raise ExtensionAuthError("No API key provided")
+
+    # Handle Bearer prefix
+    if api_key.startswith("Bearer "):
+        api_key = api_key[7:]
+
+    # Get expected key from environment
+    expected_key = os.environ.get('PHDX_EXTENSION_API_KEY', '')
+
+    if not expected_key:
+        # If no env key is set, try the full key management system
+        return validate_extension_api_key(api_key)
+
+    # Constant-time comparison
+    if hmac.compare_digest(api_key, expected_key):
+        return {'valid': True, 'source': 'environment'}
+
+    raise ExtensionAuthError("Invalid API key")
 
 
 def authenticate_user() -> Credentials:
