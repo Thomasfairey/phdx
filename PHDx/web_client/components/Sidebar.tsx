@@ -2,6 +2,8 @@
 
 import { Shield, Activity, Link2, ClipboardCheck, Sparkles } from 'lucide-react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 export type ModuleType = 'airlock' | 'dna' | 'red-thread' | 'auditor';
 
 interface SidebarProps {
@@ -116,7 +118,9 @@ export function Sidebar({ activeModule, onModuleChange }: SidebarProps) {
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
           <span className="text-xs text-[#8A8F98]">API Connected</span>
-          <span className="text-xs text-[#8A8F98] ml-auto">localhost:8000</span>
+          <span className="text-xs text-[#8A8F98] ml-auto truncate max-w-[120px]" title={API_URL}>
+            {API_URL.replace(/^https?:\/\//, '')}
+          </span>
         </div>
       </div>
     </aside>

@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { Send, Cloud, Loader2 } from 'lucide-react';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
 interface DraftingEditorProps {
   docId: string | null;
   selectedModel: string;
@@ -17,7 +19,7 @@ export function DraftingEditor({ docId, selectedModel }: DraftingEditorProps) {
     if (!docId || !prompt) return;
     setLoading(true);
     try {
-      const res = await fetch('http://127.0.0.1:8000/generate', {
+      const res = await fetch(`${API_URL}/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ doc_id: docId, prompt, model: selectedModel }),
