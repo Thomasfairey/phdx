@@ -1,8 +1,8 @@
 'use client';
 
-import { Shield, Activity, Link2, ClipboardCheck, Sparkles } from 'lucide-react';
+import { Shield, Activity, Link2, ClipboardCheck, Sparkles, GitBranch } from 'lucide-react';
 
-export type ModuleType = 'airlock' | 'dna' | 'red-thread' | 'auditor';
+export type ModuleType = 'graph' | 'airlock' | 'dna' | 'red-thread' | 'auditor';
 
 interface SidebarProps {
   activeModule: ModuleType;
@@ -10,6 +10,16 @@ interface SidebarProps {
 }
 
 const modules = [
+  {
+    id: 'graph' as ModuleType,
+    name: 'Thesis Graph',
+    description: 'Living Structure',
+    icon: GitBranch,
+    gradient: 'from-violet-500 to-fuchsia-600',
+    activeColor: 'text-violet-400',
+    activeBg: 'from-violet-500/20 to-fuchsia-600/20',
+    activeBorder: 'border-violet-500/30'
+  },
   {
     id: 'airlock' as ModuleType,
     name: 'Airlock',
@@ -55,17 +65,20 @@ const modules = [
 export function Sidebar({ activeModule, onModuleChange }: SidebarProps) {
   return (
     <aside className="fixed left-0 top-0 h-screen w-[280px] glass-panel rounded-none border-l-0 border-t-0 border-b-0 flex flex-col z-50">
-      {/* Logo */}
+      {/* Logo - Click to go to Thesis Graph */}
       <div className="p-6 border-b border-white/5">
-        <div className="flex items-center gap-3">
+        <button
+          onClick={() => onModuleChange('graph')}
+          className="flex items-center gap-3 w-full text-left hover:opacity-80 transition-opacity"
+        >
           <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#007AFF] to-[#BF5AF2] flex items-center justify-center shadow-lg shadow-purple-500/20">
             <Sparkles className="w-6 h-6 text-white" />
           </div>
           <div>
             <h1 className="text-xl font-bold neon-text">PHDx</h1>
-            <p className="text-xs text-[#8A8F98]">Mission Control</p>
+            <p className="text-xs text-[#8A8F98]">Living Thesis Graph</p>
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Navigation */}

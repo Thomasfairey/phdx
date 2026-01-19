@@ -14,7 +14,7 @@ import asyncio
 import logging
 import secrets
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional, Literal
 from contextlib import asynccontextmanager
@@ -1264,6 +1264,397 @@ CHAPTER 5: CONCLUSION
         missing_links=missing_links,
         visual_graph_nodes=graph_nodes,
         visual_graph_edges=graph_edges,
+    )
+
+
+# =============================================================================
+# Project Graph API (Living Thesis Graph)
+# =============================================================================
+
+class ChapterStatus(str, Enum):
+    """Status of a thesis chapter."""
+    DRAFT = "draft"
+    REVIEWING = "reviewing"
+    SOLID = "solid"
+    ISSUES = "issues"
+
+
+class ChapterNodeResponse(BaseModel):
+    """A chapter node in the thesis graph."""
+    id: str
+    name: str
+    doc_id: Optional[str] = None
+    status: ChapterStatus
+    last_synced: Optional[str] = None
+    logic_errors: int = 0
+    word_count: Optional[int] = None
+    web_view_link: Optional[str] = None
+
+
+class LogicConnectionResponse(BaseModel):
+    """A logical connection between chapters."""
+    source: str
+    target: str
+    status: str  # 'solid' or 'broken'
+    error_description: Optional[str] = None
+    severity: Optional[str] = None
+
+
+class ProjectGraphResponse(BaseModel):
+    """Complete thesis graph data for visualization."""
+    chapters: list[ChapterNodeResponse]
+    connections: list[LogicConnectionResponse]
+    last_analyzed: Optional[str] = None
+    overall_score: Optional[int] = None
+
+
+# Store for analyzed chapter data (in-memory cache)
+_chapter_analysis_cache: dict[str, dict] = {}
+
+
+def _determine_chapter_status(chapter_id: str, logic_errors: int, last_synced: Optional[str]) -> ChapterStatus:
+    """Determine the status of a chapter based on analysis results."""
+    if logic_errors > 0:
+        return ChapterStatus.ISSUES
+
+    if not last_synced:
+        return ChapterStatus.DRAFT
+
+    # Check if recently synced (within last hour = reviewing)
+    try:
+        synced_time = datetime.fromisoformat(last_synced.replace('Z', '+00:00'))
+        now = datetime.now(synced_time.tzinfo) if synced_time.tzinfo else datetime.now()
+        hours_since_sync = (now - synced_time).total_seconds() / 3600
+
+        if hours_since_sync < 1:
+            return ChapterStatus.REVIEWING
+    except Exception:
+        pass
+
+    return ChapterStatus.SOLID
+
+
+def _detect_chapter_order(name: str) -> int:
+    """Extract chapter order from name (e.g., 'Chapter 1' -> 1)."""
+    import re
+
+    # Try to find chapter number
+    match = re.search(r'chapter\s*(\d+)', name.lower())
+    if match:
+        return int(match.group(1))
+
+    # Common chapter keywords in order
+    keywords = [
+        ('introduction', 1),
+        ('literature', 2),
+        ('method', 3),
+        ('result', 4),
+        ('discussion', 5),
+        ('conclusion', 6),
+        ('appendix', 7),
+    ]
+
+    name_lower = name.lower()
+    for keyword, order in keywords:
+        if keyword in name_lower:
+            return order
+
+    return 99  # Unknown chapters at end
+
+
+@app.get("/api/project/graph", response_model=ProjectGraphResponse)
+async def get_project_graph(
+    user_id: str = Query(..., description="User identifier"),
+    folder_id: Optional[str] = Query(None, description="Specific folder to analyze"),
+    force_refresh: bool = Query(False, description="Force re-analysis"),
+):
+    """
+    Get the Living Thesis Graph data.
+
+    Returns chapters as nodes and logical connections as edges,
+    with status indicators based on Red Thread analysis.
+
+    This endpoint combines Drive sync data with Red Thread analysis
+    to provide a real-time view of thesis structure and health.
+    """
+    try:
+        service = DriveSyncService(user_id)
+
+        # Check authentication
+        if not service.is_authenticated():
+            # Return demo data for unauthenticated users
+            return _get_demo_graph_data()
+
+        # Get synced files
+        chapters: list[ChapterNodeResponse] = []
+        chapter_contents: dict[str, str] = {}
+
+        try:
+            # If folder_id provided, sync that folder
+            if folder_id:
+                sync_result = service.sync_folder(folder_id, recursive=True, force=force_refresh)
+                files = sync_result.changed_files if sync_result.success else []
+            else:
+                # List all Google Docs from root
+                files = service.list_files(mime_type='application/vnd.google-apps.document')
+        except Exception as e:
+            logger.warning(f"Could not fetch Drive files: {e}")
+            files = []
+
+        # Filter for chapter-like documents
+        chapter_files = []
+        for f in files:
+            name_lower = f.name.lower()
+            # Include files that look like chapters
+            if any(kw in name_lower for kw in ['chapter', 'introduction', 'literature', 'method', 'result', 'discussion', 'conclusion']):
+                chapter_files.append(f)
+
+        # Sort by detected chapter order
+        chapter_files.sort(key=lambda f: _detect_chapter_order(f.name))
+
+        # Build chapter nodes
+        for idx, f in enumerate(chapter_files):
+            chapter_id = f"ch{idx + 1}"
+
+            # Try to get cached analysis
+            cache_key = f"{user_id}_{f.id}"
+            cached = _chapter_analysis_cache.get(cache_key)
+
+            logic_errors = 0
+            word_count = None
+
+            if cached and not force_refresh:
+                logic_errors = cached.get('logic_errors', 0)
+                word_count = cached.get('word_count')
+            else:
+                # Export and analyze document
+                try:
+                    content = service.export_doc(f.id, ExportFormat.PLAIN_TEXT)
+                    word_count = len(content.split())
+                    chapter_contents[chapter_id] = content
+
+                    # Cache the content
+                    _chapter_analysis_cache[cache_key] = {
+                        'content': content,
+                        'word_count': word_count,
+                        'logic_errors': 0,
+                        'analyzed_at': datetime.now().isoformat(),
+                    }
+                except Exception as e:
+                    logger.warning(f"Could not export document {f.id}: {e}")
+
+            status = _determine_chapter_status(chapter_id, logic_errors, f.modified_time)
+
+            chapters.append(ChapterNodeResponse(
+                id=chapter_id,
+                name=f.name,
+                doc_id=f.id,
+                status=status,
+                last_synced=f.modified_time,
+                logic_errors=logic_errors,
+                word_count=word_count,
+                web_view_link=f.web_view_link,
+            ))
+
+        # If no chapters found, return demo data
+        if not chapters:
+            return _get_demo_graph_data()
+
+        # Build connections between adjacent chapters
+        connections: list[LogicConnectionResponse] = []
+
+        for i in range(len(chapters) - 1):
+            source = chapters[i]
+            target = chapters[i + 1]
+
+            # Analyze connection between chapters
+            source_content = chapter_contents.get(source.id, '')
+            target_content = chapter_contents.get(target.id, '')
+
+            connection_status = 'solid'
+            error_description = None
+
+            if source_content and target_content:
+                # Run Red Thread analysis on the connection
+                try:
+                    combined = f"""CHAPTER {i + 1}:
+
+{source_content[:2000]}
+
+CHAPTER {i + 2}:
+
+{target_content[:2000]}"""
+
+                    result = check_continuity(combined)
+
+                    if result.get('thread_status') == 'broken':
+                        connection_status = 'broken'
+                        missing = result.get('missing_links', [])
+                        if missing:
+                            error_description = missing[0].get('description', 'Logic break detected')
+
+                        # Update logic errors count
+                        cache_key = f"{user_id}_{source.doc_id}"
+                        if cache_key in _chapter_analysis_cache:
+                            _chapter_analysis_cache[cache_key]['logic_errors'] = len(missing)
+                            # Update chapter status
+                            source.logic_errors = len(missing)
+                            source.status = ChapterStatus.ISSUES
+
+                except Exception as e:
+                    logger.warning(f"Connection analysis failed: {e}")
+
+            connections.append(LogicConnectionResponse(
+                source=source.id,
+                target=target.id,
+                status=connection_status,
+                error_description=error_description,
+                severity='high' if connection_status == 'broken' else None,
+            ))
+
+        # Also check intro-conclusion connection
+        if len(chapters) >= 2:
+            intro = chapters[0]
+            conclusion = chapters[-1]
+
+            intro_content = chapter_contents.get(intro.id, '')
+            conclusion_content = chapter_contents.get(conclusion.id, '')
+
+            if intro_content and conclusion_content:
+                try:
+                    combined = f"""INTRODUCTION:
+
+{intro_content[:2000]}
+
+CONCLUSION:
+
+{conclusion_content[:2000]}"""
+
+                    result = check_continuity(combined)
+
+                    intro_conclusion_status = 'solid' if result.get('thread_status') == 'solid' else 'broken'
+                    error_desc = None
+
+                    if intro_conclusion_status == 'broken':
+                        missing = result.get('missing_links', [])
+                        if missing:
+                            error_desc = missing[0].get('description', 'Introduction-conclusion mismatch')
+
+                    connections.append(LogicConnectionResponse(
+                        source=intro.id,
+                        target=conclusion.id,
+                        status=intro_conclusion_status,
+                        error_description=error_desc,
+                        severity='high' if intro_conclusion_status == 'broken' else None,
+                    ))
+                except Exception:
+                    pass
+
+        # Calculate overall score
+        total_connections = len(connections)
+        solid_connections = sum(1 for c in connections if c.status == 'solid')
+        overall_score = int((solid_connections / total_connections * 100)) if total_connections > 0 else 100
+
+        return ProjectGraphResponse(
+            chapters=chapters,
+            connections=connections,
+            last_analyzed=datetime.now().isoformat(),
+            overall_score=overall_score,
+        )
+
+    except Exception as e:
+        logger.error(f"Project graph error: {e}")
+        # Return demo data on error
+        return _get_demo_graph_data()
+
+
+def _get_demo_graph_data() -> ProjectGraphResponse:
+    """Return demo graph data for testing/unauthenticated users."""
+    now = datetime.now()
+
+    chapters = [
+        ChapterNodeResponse(
+            id="ch1",
+            name="Chapter 1: Introduction",
+            status=ChapterStatus.SOLID,
+            last_synced=(now - timedelta(minutes=2)).isoformat(),
+            logic_errors=0,
+            word_count=3500,
+        ),
+        ChapterNodeResponse(
+            id="ch2",
+            name="Chapter 2: Literature Review",
+            status=ChapterStatus.REVIEWING,
+            last_synced=(now - timedelta(minutes=15)).isoformat(),
+            logic_errors=0,
+            word_count=8200,
+        ),
+        ChapterNodeResponse(
+            id="ch3",
+            name="Chapter 3: Methodology",
+            status=ChapterStatus.SOLID,
+            last_synced=(now - timedelta(hours=1)).isoformat(),
+            logic_errors=0,
+            word_count=5100,
+        ),
+        ChapterNodeResponse(
+            id="ch4",
+            name="Chapter 4: Results",
+            status=ChapterStatus.ISSUES,
+            last_synced=(now - timedelta(minutes=30)).isoformat(),
+            logic_errors=2,
+            word_count=4800,
+        ),
+        ChapterNodeResponse(
+            id="ch5",
+            name="Chapter 5: Discussion",
+            status=ChapterStatus.DRAFT,
+            last_synced=(now - timedelta(hours=2)).isoformat(),
+            logic_errors=0,
+            word_count=2100,
+        ),
+        ChapterNodeResponse(
+            id="ch6",
+            name="Chapter 6: Conclusion",
+            status=ChapterStatus.ISSUES,
+            last_synced=(now - timedelta(hours=3)).isoformat(),
+            logic_errors=3,
+            word_count=1800,
+        ),
+    ]
+
+    connections = [
+        LogicConnectionResponse(source="ch1", target="ch2", status="solid"),
+        LogicConnectionResponse(source="ch2", target="ch3", status="solid"),
+        LogicConnectionResponse(source="ch3", target="ch4", status="solid"),
+        LogicConnectionResponse(
+            source="ch4",
+            target="ch5",
+            status="broken",
+            error_description="Results not adequately connected to discussion themes",
+            severity="high",
+        ),
+        LogicConnectionResponse(
+            source="ch5",
+            target="ch6",
+            status="broken",
+            error_description="Missing link between discussion insights and conclusions",
+            severity="medium",
+        ),
+        LogicConnectionResponse(
+            source="ch1",
+            target="ch6",
+            status="broken",
+            error_description="Introduction claims not fully addressed in conclusion",
+            severity="high",
+        ),
+    ]
+
+    return ProjectGraphResponse(
+        chapters=chapters,
+        connections=connections,
+        last_analyzed=now.isoformat(),
+        overall_score=68,
     )
 
 

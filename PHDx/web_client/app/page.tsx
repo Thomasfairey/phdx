@@ -6,12 +6,26 @@ import { AirlockModule } from '@/components/AirlockModule';
 import { DNAModule } from '@/components/DNAModule';
 import { RedThreadModule } from '@/components/RedThreadModule';
 import { AuditorModule } from '@/components/AuditorModule';
+import { ThesisGraph } from '@/components/ThesisGraph';
 
 export default function Home() {
-  const [activeModule, setActiveModule] = useState<ModuleType>('airlock');
+  const [activeModule, setActiveModule] = useState<ModuleType>('graph');
+  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(null);
+
+  const handleChapterSelect = (chapterId: string) => {
+    setSelectedChapterId(chapterId);
+    // Could switch to red-thread module to analyze the selected chapter
+  };
 
   const renderModule = () => {
     switch (activeModule) {
+      case 'graph':
+        return (
+          <ThesisGraph
+            userId="default"
+            onNodeSelect={handleChapterSelect}
+          />
+        );
       case 'airlock':
         return <AirlockModule />;
       case 'dna':
@@ -21,7 +35,12 @@ export default function Home() {
       case 'auditor':
         return <AuditorModule />;
       default:
-        return <AirlockModule />;
+        return (
+          <ThesisGraph
+            userId="default"
+            onNodeSelect={handleChapterSelect}
+          />
+        );
     }
   };
 
