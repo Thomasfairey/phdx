@@ -8,11 +8,9 @@ Uses both regex patterns and spaCy NER for comprehensive anonymization.
 """
 
 import csv
-import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -34,10 +32,13 @@ PII_PATTERNS = {
         re.IGNORECASE
     ),
     "phone_uk": re.compile(
-        r'\b(?:(?:\+44\s?|0)(?:7\d{3}|\d{4}))[\s.-]?\d{3}[\s.-]?\d{3,4}\b'
+        r'\+44\s?\d{4}\s?\d{6}|\+44\s?\d{3}\s?\d{3}\s?\d{4}|07\d{3}\s?\d{6}|07\d{3}\s?\d{3}\s?\d{3}'
+    ),
+    "phone_us": re.compile(
+        r'\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b'
     ),
     "phone_intl": re.compile(
-        r'\b\+?[1-9]\d{1,14}\b'
+        r'\b\+[1-9]\d{1,2}[-.\s]?\d{2,4}[-.\s]?\d{2,4}[-.\s]?\d{2,4}\b'
     ),
     "uk_postcode": re.compile(
         r'\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b',
@@ -70,6 +71,7 @@ PII_PATTERNS = {
 PII_REPLACEMENTS = {
     "email": "[EMAIL_REDACTED]",
     "phone_uk": "[PHONE_REDACTED]",
+    "phone_us": "[PHONE_REDACTED]",
     "phone_intl": "[PHONE_REDACTED]",
     "uk_postcode": "[POSTCODE_REDACTED]",
     "national_insurance": "[NI_NUMBER_REDACTED]",
@@ -511,7 +513,7 @@ if __name__ == "__main__":
     print("\n[3] Scrubbed Text:")
     print(result["scrubbed_text"])
 
-    print(f"\n[4] Scrub Report:")
+    print("\n[4] Scrub Report:")
     print(f"  Total redactions: {result['total_redactions']}")
     for report in result["reports"]:
         print(f"  Method: {report['method']}")

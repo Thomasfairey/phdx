@@ -8,7 +8,6 @@ Supports development, staging, and production environments.
 import os
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
 from typing import List, Optional
 
 from dotenv import load_dotenv

@@ -19,14 +19,14 @@ from contextlib import asynccontextmanager
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from fastapi import FastAPI, HTTPException, Request, Depends
+from fastapi import FastAPI, HTTPException, Request, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from core import airlock
 from core import llm_gateway
-from core.config import get_config, Environment
+from core.config import get_config
 from core.ethics_utils import scrub_text, get_usage_stats
 
 # Configure logging
@@ -137,9 +137,9 @@ class FileInfo(BaseModel):
 
 class SnapshotRequest(BaseModel):
     """Request to save a snapshot."""
-    doc_id: str
-    timestamp: str
-    content: str
+    doc_id: str = Field(..., min_length=1, max_length=500)
+    timestamp: str = Field(..., min_length=1, max_length=100)
+    content: str = Field(..., min_length=1, max_length=5000000)  # 5MB max
 
 
 class SnapshotResponse(BaseModel):
@@ -153,9 +153,9 @@ class SnapshotResponse(BaseModel):
 
 class SyncRequest(BaseModel):
     """Request to sync to Google Docs."""
-    doc_id: str
-    content: str
-    section_title: Optional[str] = None
+    doc_id: str = Field(..., min_length=1, max_length=500)
+    content: str = Field(..., min_length=1, max_length=5000000)  # 5MB max
+    section_title: Optional[str] = Field(None, max_length=500)
 
 
 class SyncResponse(BaseModel):
@@ -180,13 +180,13 @@ class SanitizeResponse(BaseModel):
 
 class AuditRequest(BaseModel):
     """Request to audit text."""
-    text: str = Field(..., min_length=100)
-    chapter_context: Optional[str] = None
+    text: str = Field(..., min_length=100, max_length=500000)  # 500KB max
+    chapter_context: Optional[str] = Field(None, max_length=10000)
 
 
 class ConsistencyRequest(BaseModel):
     """Request to check consistency."""
-    text: str = Field(..., min_length=50)
+    text: str = Field(..., min_length=50, max_length=500000)  # 500KB max
 
 
 class ErrorResponse(BaseModel):
@@ -338,7 +338,7 @@ async def authenticate_google():
 # =============================================================================
 
 @app.get("/files/recent", response_model=List[FileInfo])
-async def list_recent_files(limit: int = 10, dependencies=[Depends(check_rate_limit)]):
+async def list_recent_files(limit: int = Query(default=10, ge=1, le=100), dependencies=[Depends(check_rate_limit)]):
     """List recent Google Docs and Sheets."""
     try:
         docs = airlock.list_recent_docs(limit=limit)

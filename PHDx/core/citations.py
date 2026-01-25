@@ -1168,7 +1168,7 @@ def render_sentinel_widget(
 
                     # Insert Citation button
                     if st.button(
-                        f"📎 Insert Citation",
+                        "📎 Insert Citation",
                         key=f"insert_cite_{i}_{paper['key']}",
                         use_container_width=True
                     ):

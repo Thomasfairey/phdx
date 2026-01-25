@@ -14,18 +14,16 @@ Primary Functions:
 """
 
 import json
-import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import anthropic
 from docx import Document
 from dotenv import load_dotenv
 
 # Import vector store abstraction
-from core.vector_store import get_vector_store, VectorStoreBase
+from core.vector_store import get_vector_store
 from core.secrets_utils import get_secret
 
 # Load environment variables
@@ -507,7 +505,8 @@ Respond with ONLY valid JSON, no additional text."""
 
         # Generate report ID
         report_id = hashlib.md5(
-            f"{new_draft_text[:100]}{datetime.now().isoformat()}".encode()
+            f"{new_draft_text[:100]}{datetime.now().isoformat()}".encode(),
+            usedforsecurity=False
         ).hexdigest()[:12]
 
         report = {

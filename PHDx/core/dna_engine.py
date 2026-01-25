@@ -6,7 +6,6 @@ creating a linguistic profile for maintaining consistency across thesis drafts.
 """
 
 import json
-import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -150,10 +149,10 @@ def calculate_sentence_complexity(text: str) -> dict:
 
     # Categorize sentence lengths
     distribution = {
-        "short (1-10 words)": len([l for l in lengths if l <= 10]),
-        "medium (11-20 words)": len([l for l in lengths if 11 <= l <= 20]),
-        "long (21-30 words)": len([l for l in lengths if 21 <= l <= 30]),
-        "very_long (31+ words)": len([l for l in lengths if l > 30]),
+        "short (1-10 words)": len([wc for wc in lengths if wc <= 10]),
+        "medium (11-20 words)": len([wc for wc in lengths if 11 <= wc <= 20]),
+        "long (21-30 words)": len([wc for wc in lengths if 21 <= wc <= 30]),
+        "very_long (31+ words)": len([wc for wc in lengths if wc > 30]),
     }
 
     return {

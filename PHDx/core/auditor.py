@@ -11,7 +11,6 @@ import json
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import anthropic
 from dotenv import load_dotenv
@@ -188,7 +187,8 @@ class BrookesAuditor:
 
         # Generate audit ID
         audit_id = hashlib.md5(
-            f"{draft_text[:50]}{datetime.now().isoformat()}".encode()
+            f"{draft_text[:50]}{datetime.now().isoformat()}".encode(),
+            usedforsecurity=False
         ).hexdigest()[:10]
 
         report = {

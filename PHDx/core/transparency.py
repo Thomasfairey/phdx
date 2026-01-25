@@ -8,12 +8,10 @@ Generates exportable declarations for thesis submission.
 """
 
 import json
-import os
 import csv
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from enum import Enum
 import io
 
@@ -117,7 +115,7 @@ class TransparencyLog:
         """Generate unique entry ID."""
         import hashlib
         timestamp = datetime.now().isoformat()
-        return hashlib.md5(f"{timestamp}{len(self.entries)}".encode()).hexdigest()[:12]
+        return hashlib.md5(f"{timestamp}{len(self.entries)}".encode(), usedforsecurity=False).hexdigest()[:12]
 
     def _calculate_ai_contribution(
         self,
@@ -918,13 +916,13 @@ def main():
 
     # Show stats
     stats = log.get_summary_stats()
-    print(f"\nTransparency Log Statistics:")
+    print("\nTransparency Log Statistics:")
     print(f"  Total entries: {stats['total_entries']}")
     print(f"  Total AI words: {stats['total_ai_words']}")
     print(f"  Average contribution: {stats['avg_contribution']:.1f}%")
 
     if stats["by_task_type"]:
-        print(f"\n  By task type:")
+        print("\n  By task type:")
         for task, data in stats["by_task_type"].items():
             print(f"    - {task}: {data['count']} ops, {data['words']} words")
 

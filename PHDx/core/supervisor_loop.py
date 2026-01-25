@@ -10,11 +10,9 @@ Output: data/supervisor_analysis.json
 """
 
 import json
-import os
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from hashlib import md5
 
 import anthropic
@@ -78,7 +76,7 @@ class SupervisorLoop:
     def _get_file_hash(self, filepath: Path) -> str:
         """Generate hash for a file to detect changes."""
         with open(filepath, 'rb') as f:
-            return md5(f.read()).hexdigest()
+            return md5(f.read(), usedforsecurity=False).hexdigest()
 
     def _load_drafts_content(self) -> dict:
         """Load all draft content for mapping."""
@@ -193,7 +191,8 @@ class SupervisorLoop:
                 }
         """
         feedback_id = md5(
-            f"{feedback_text[:100]}{datetime.now().isoformat()}".encode()
+            f"{feedback_text[:100]}{datetime.now().isoformat()}".encode(),
+            usedforsecurity=False
         ).hexdigest()[:10]
 
         result = {

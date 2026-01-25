@@ -18,7 +18,7 @@ import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from enum import Enum
 
 import anthropic
@@ -272,7 +272,7 @@ class FeedbackProcessor:
     def _get_file_hash(self, filepath: Path) -> str:
         """Get hash of file for change detection."""
         with open(filepath, 'rb') as f:
-            return hashlib.md5(f.read()).hexdigest()
+            return hashlib.md5(f.read(), usedforsecurity=False).hexdigest()
 
     def _parse_txt(self, filepath: Path) -> str:
         """Parse a text file."""
@@ -371,7 +371,7 @@ class FeedbackProcessor:
         if not self.claude:
             # Return uncategorized if no Claude available
             return [FeedbackItem(
-                id=hashlib.md5(feedback_text[:100].encode()).hexdigest()[:8],
+                id=hashlib.md5(feedback_text[:100].encode(), usedforsecurity=False).hexdigest()[:8],
                 text=feedback_text,
                 category=FeedbackCategory.GENERAL.value,
                 traffic_light="amber",
@@ -491,7 +491,7 @@ Return ONLY valid JSON array, no markdown."""
                         traffic_light = "amber"
 
                 feedback_items.append(FeedbackItem(
-                    id=f"{hashlib.md5(source_file.encode()).hexdigest()[:4]}_{i:03d}",
+                    id=f"{hashlib.md5(source_file.encode(), usedforsecurity=False).hexdigest()[:4]}_{i:03d}",
                     text=item.get("text", ""),
                     category=item.get("category", "general"),
                     traffic_light=traffic_light,
@@ -509,7 +509,7 @@ Return ONLY valid JSON array, no markdown."""
         except Exception as e:
             print(f"Error categorizing feedback: {e}")
             return [FeedbackItem(
-                id=hashlib.md5(feedback_text[:100].encode()).hexdigest()[:8],
+                id=hashlib.md5(feedback_text[:100].encode(), usedforsecurity=False).hexdigest()[:8],
                 text=feedback_text[:500],
                 category=FeedbackCategory.GENERAL.value,
                 traffic_light="amber",
@@ -1007,29 +1007,29 @@ def main():
     print("\nProcessing feedback folder...")
     results = processor.process_feedback_folder()
 
-    print(f"\nResults:")
+    print("\nResults:")
     print(f"  Files processed: {results['files_processed']}")
     print(f"  Files skipped: {results['files_skipped']}")
     print(f"  New items: {results['new_items']}")
 
     if results['errors']:
-        print(f"\n  Errors:")
+        print("\n  Errors:")
         for err in results['errors']:
             print(f"    - {err}")
 
     # Show stats
     stats = processor.get_stats()
-    print(f"\nFeedback Statistics:")
+    print("\nFeedback Statistics:")
     print(f"  Total items: {stats['total_items']}")
     print(f"  Resolved: {stats['resolved']}")
     print(f"  Unresolved: {stats['unresolved']['total']}")
-    print(f"\n  By category:")
+    print("\n  By category:")
     for cat, count in stats['by_category'].items():
         print(f"    - {cat}: {count}")
 
     # Show sample items
     if processor.feedback_items:
-        print(f"\nSample feedback items:")
+        print("\nSample feedback items:")
         for item in processor.feedback_items[:3]:
             print(f"\n  [{item.priority.upper()}] {item.category}")
             print(f"  Chapter: {item.chapter}")

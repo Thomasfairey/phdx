@@ -10,9 +10,7 @@ Automatically selects the appropriate backend based on environment variables.
 
 import os
 import hashlib
-from datetime import datetime
 from pathlib import Path
-from typing import Optional
 from abc import ABC, abstractmethod
 
 from dotenv import load_dotenv
@@ -177,7 +175,7 @@ class PineconeVectorStore(VectorStoreBase):
 
     def _generate_id(self, text: str, index: int) -> str:
         """Generate a consistent ID for a document."""
-        return hashlib.md5(f"{text[:100]}_{index}".encode()).hexdigest()[:16]
+        return hashlib.md5(f"{text[:100]}_{index}".encode(), usedforsecurity=False).hexdigest()[:16]
 
     def upsert(self, ids: list[str], documents: list[str], metadatas: list[dict]) -> int:
         # Generate embeddings
@@ -191,7 +189,7 @@ class PineconeVectorStore(VectorStoreBase):
             meta_with_text = {
                 **meta,
                 "text_preview": doc[:500] if len(doc) > 500 else doc,
-                "text_hash": hashlib.md5(doc.encode()).hexdigest()
+                "text_hash": hashlib.md5(doc.encode(), usedforsecurity=False).hexdigest()
             }
 
             vectors.append({

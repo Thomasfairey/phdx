@@ -6,8 +6,6 @@ writing assistant. Provides secure access to Google Drive, Docs, and Sheets,
 as well as local file parsing capabilities.
 """
 
-import os
-import json
 from pathlib import Path
 from typing import Optional
 
