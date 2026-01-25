@@ -7,12 +7,13 @@ Provides a unified way to access secrets that works with both:
 """
 
 import os
+from typing import Optional
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
-def get_secret(key: str, default: str = None) -> str:
+def get_secret(key: str, default: Optional[str] = None) -> Optional[str]:
     """
     Get a secret from Streamlit secrets (cloud) or environment variables (local).
 

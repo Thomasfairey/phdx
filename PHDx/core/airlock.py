@@ -357,3 +357,173 @@ def clear_credentials() -> None:
     """Remove stored OAuth token to force re-authentication."""
     if TOKEN_PATH.exists():
         TOKEN_PATH.unlink()
+
+
+# =============================================================================
+# API COMPATIBILITY FUNCTIONS
+# =============================================================================
+
+def get_document_text(doc_id: str) -> dict:
+    """
+    Get document text content with error handling for API use.
+
+    Args:
+        doc_id: The Google Doc ID.
+
+    Returns:
+        Dictionary with 'success', 'text', and optional 'error' keys.
+    """
+    try:
+        text = load_google_doc(doc_id)
+        if text:
+            return {"success": True, "text": text}
+        else:
+            return {"success": False, "text": "", "error": "Document is empty or could not be read"}
+    except FileNotFoundError as e:
+        return {"success": False, "text": "", "error": str(e)}
+    except HttpError as e:
+        return {"success": False, "text": "", "error": f"Google API error: {e}"}
+    except Exception as e:
+        return {"success": False, "text": "", "error": str(e)}
+
+
+def get_user_info() -> dict:
+    """
+    Get current user authentication info for API use.
+
+    Returns:
+        Dictionary with 'email', 'name', 'authenticated', and optional 'mock' keys.
+    """
+    status = get_auth_status()
+
+    if not status['authenticated']:
+        return {
+            "email": "",
+            "name": "",
+            "authenticated": False,
+            "mock": None
+        }
+
+    # If authenticated, try to get user info from the API
+    try:
+        creds = get_credentials()
+        if creds:
+            # Build People API to get user info
+            try:
+                from googleapiclient.discovery import build
+                service = build('people', 'v1', credentials=creds)
+                profile = service.people().get(
+                    resourceName='people/me',
+                    personFields='names,emailAddresses'
+                ).execute()
+
+                names = profile.get('names', [{}])
+                emails = profile.get('emailAddresses', [{}])
+
+                return {
+                    "email": emails[0].get('value', '') if emails else '',
+                    "name": names[0].get('displayName', '') if names else '',
+                    "authenticated": True,
+                    "mock": False
+                }
+            except Exception:
+                # Fall back to basic authenticated response
+                return {
+                    "email": "authenticated@user",
+                    "name": "Authenticated User",
+                    "authenticated": True,
+                    "mock": False
+                }
+    except Exception:
+        pass
+
+    return {
+        "email": "",
+        "name": "",
+        "authenticated": False,
+        "mock": None
+    }
+
+
+def update_google_doc(doc_id: str, content: str, section_title: Optional[str] = None) -> dict:
+    """
+    Append content to a Google Doc.
+
+    Args:
+        doc_id: The Google Doc ID.
+        content: Text content to append.
+        section_title: Optional section heading to add before content.
+
+    Returns:
+        Dictionary with 'success', 'doc_url', and optional 'error' keys.
+    """
+    from datetime import datetime
+
+    try:
+        creds = get_credentials()
+        if not creds:
+            return {
+                "success": False,
+                "doc_url": None,
+                "error": "Not authenticated. Please authenticate first."
+            }
+
+        service = build('docs', 'v1', credentials=creds)
+
+        # Get document to find end index
+        doc = service.documents().get(documentId=doc_id).execute()
+        body = doc.get('body', {})
+        doc_content = body.get('content', [])
+
+        if not doc_content:
+            end_index = 1
+        else:
+            end_index = doc_content[-1].get('endIndex', 1) - 1
+
+        # Build content to insert
+        content_parts = []
+        content_parts.append("\n\n---\n\n")
+
+        # Add timestamp
+        timestamp_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        content_parts.append(f"[PHDx-Verified: {timestamp_str}]\n\n")
+
+        # Add section title if provided
+        if section_title:
+            content_parts.append(f"## {section_title}\n\n")
+
+        content_parts.append(content)
+        full_content = "".join(content_parts)
+
+        # Create insert request
+        requests = [
+            {
+                'insertText': {
+                    'location': {'index': end_index},
+                    'text': full_content
+                }
+            }
+        ]
+
+        service.documents().batchUpdate(
+            documentId=doc_id,
+            body={'requests': requests}
+        ).execute()
+
+        return {
+            "success": True,
+            "doc_url": f"https://docs.google.com/document/d/{doc_id}/edit"
+        }
+
+    except HttpError as e:
+        return {
+            "success": False,
+            "doc_url": None,
+            "error": f"Google API error: {e}"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "doc_url": None,
+            "error": str(e)
+        }

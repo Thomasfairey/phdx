@@ -25,9 +25,9 @@ RUN pip install --no-cache-dir \
     python-dotenv \
     requests
 
-# Copy only necessary files from PHDx directory
-COPY PHDx/api/ ./api/
-COPY PHDx/core/ ./core/
+# Copy only necessary files
+COPY api/ ./api/
+COPY core/ ./core/
 
 # Create backups directory
 RUN mkdir -p backups

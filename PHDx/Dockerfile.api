@@ -1,0 +1,53 @@
+# PHDx - FastAPI Backend
+# Production Dockerfile for API Server
+# =====================================
+
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PHDX_ENV=production \
+    HOST=0.0.0.0 \
+    PORT=8000
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libffi-dev \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash phdx
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY --chown=phdx:phdx . .
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/backups /app/config /app/data/chroma_db && \
+    chown -R phdx:phdx /app
+
+# Switch to non-root user
+USER phdx
+
+# Expose API port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl --fail http://localhost:8000/health || exit 1
+
+# Run the API server
+CMD ["python", "-m", "uvicorn", "api.server:app", "--host", "0.0.0.0", "--port", "8000"]

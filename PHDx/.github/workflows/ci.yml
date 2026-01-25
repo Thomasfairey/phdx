@@ -1,0 +1,187 @@
+name: PHDx CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  PYTHON_VERSION: "3.11"
+  PHDX_ENV: "development"
+  MOCK_MODE: "true"
+
+jobs:
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install linting tools
+        run: pip install ruff
+
+      - name: Run ruff linter
+        run: ruff check core/ api/ ui/ tests/ --output-format=github
+
+      - name: Run ruff formatter check
+        run: ruff format --check core/ api/ ui/ tests/
+
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install mypy types-toml types-requests
+
+      - name: Run mypy
+        run: mypy core/ api/ --ignore-missing-imports --no-error-summary
+        continue-on-error: true  # Don't fail build yet, track progress
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-cov httpx
+
+      - name: Create mock config
+        run: |
+          mkdir -p config
+          cat > config/secrets.toml << 'EOF'
+          [anthropic]
+          api_key = "mock-key-for-testing"
+          model = "claude-sonnet-4-20250514"
+
+          [openai]
+          api_key = "mock-key-for-testing"
+          model = "gpt-4o"
+
+          [google]
+          api_key = "mock-key-for-testing"
+          model = "gemini-1.5-pro"
+          EOF
+
+      - name: Run unit tests
+        run: |
+          python -m pytest tests/ -v --tb=short --cov=core --cov=api --cov-report=xml
+
+      - name: Upload coverage report
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  e2e-test:
+    name: E2E API Tests
+    runs-on: ubuntu-latest
+    needs: [test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx anyio
+
+      - name: Create mock config
+        run: |
+          mkdir -p config
+          cat > config/secrets.toml << 'EOF'
+          [anthropic]
+          api_key = "mock-key-for-testing"
+          model = "claude-sonnet-4-20250514"
+
+          [openai]
+          api_key = "mock-key-for-testing"
+          model = "gpt-4o"
+
+          [google]
+          api_key = "mock-key-for-testing"
+          model = "gemini-1.5-pro"
+          EOF
+
+      - name: Run E2E tests
+        run: |
+          python -m pytest tests/e2e/ -v --tb=short
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install bandit
+        run: pip install bandit[toml]
+
+      - name: Run security scan
+        run: bandit -r core/ api/ -ll -ii -x tests/
+        continue-on-error: true  # Report issues but don't fail
+
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify imports
+        run: |
+          python -c "from core.config import get_config; print('Config OK')"
+          python -c "from core.llm_gateway import get_available_models; print('LLM Gateway OK')"
+          python -c "from core.airlock import get_user_info; print('Airlock OK')"
+          python -c "from api.server import app; print('API Server OK')"
+
+      - name: Verify Streamlit app
+        run: |
+          python -c "from ui.dashboard import main; print('Dashboard OK')"

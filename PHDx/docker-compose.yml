@@ -15,6 +15,7 @@
 version: '3.8'
 
 services:
+  # Streamlit Frontend
   phdx:
     build:
       context: .
@@ -31,6 +32,8 @@ services:
       - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
       # Application secrets (loaded from .env file)
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - PINECONE_API_KEY=${PINECONE_API_KEY}
       - PINECONE_INDEX=${PINECONE_INDEX:-phdx-thesis}
       - ZOTERO_USER_ID=${ZOTERO_USER_ID}
@@ -58,6 +61,51 @@ services:
       - "traefik.http.routers.phdx.entrypoints=websecure"
       - "traefik.http.routers.phdx.tls.certresolver=letsencrypt"
       - "traefik.http.services.phdx.loadbalancer.server.port=8501"
+
+  # FastAPI Backend
+  phdx-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: phdx-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PHDX_ENV=production
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - CORS_ORIGINS=https://phdx.ai,https://www.phdx.ai
+      - RATE_LIMIT_RPM=60
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - PINECONE_INDEX=${PINECONE_INDEX:-phdx-thesis}
+      - GOOGLE_CLIENT_SECRET_PATH=/app/config/client_secret.json
+      - GOOGLE_TOKEN_PATH=/app/config/token.json
+    volumes:
+      - phdx-data:/app/data
+      - phdx-backups:/app/backups
+      # Mount Google OAuth credentials
+      # - ./config/client_secret.json:/app/config/client_secret.json:ro
+      # - ./config/token.json:/app/config/token.json
+    networks:
+      - phdx-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.phdx-api.rule=Host(`api.phdx.ai`)"
+      - "traefik.http.routers.phdx-api.entrypoints=websecure"
+      - "traefik.http.routers.phdx-api.tls.certresolver=letsencrypt"
+      - "traefik.http.services.phdx-api.loadbalancer.server.port=8000"
 
   # Optional: Traefik reverse proxy for HTTPS
   traefik:
@@ -94,6 +142,8 @@ volumes:
     name: phdx-drafts
   phdx-feedback:
     name: phdx-feedback
+  phdx-backups:
+    name: phdx-backups
   traefik-letsencrypt:
     name: traefik-letsencrypt
 
