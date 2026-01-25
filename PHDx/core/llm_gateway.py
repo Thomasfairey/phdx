@@ -6,8 +6,10 @@ selects the optimal LLM based on task type and context size to maximize
 quality while avoiding token limit issues.
 
 Models:
-    - Writer (Claude): Best prose style for drafting and synthesis
-    - Auditor (GPT): Strict logic checking for audits and critiques
+    - Opus (Claude Opus 4.5): Best for complex reasoning and prose
+    - Writer (Claude Sonnet): Fast drafting and standard tasks
+    - Quick (Claude Haiku): Fast, cost-effective for simple tasks
+    - Auditor (GPT-4o): Strict logic checking for audits and critiques
     - Context (Gemini): Large context window for heavy lifting tasks
 """
 
@@ -46,8 +48,45 @@ def _find_secrets_file() -> Path:
         return STREAMLIT_SECRETS_PATH
     return SECRETS_PATH  # Return default for error messages
 
+
 # Token threshold for forcing context model
 HEAVY_LIFT_THRESHOLD = 30000
+
+# Task-to-model routing matrix
+TASK_MODEL_MAP = {
+    # Complex tasks -> Opus (best reasoning)
+    "complex_reasoning": "opus",
+    "literature_synthesis": "opus",
+    "argument_analysis": "opus",
+    "deep_analysis": "opus",
+    "thesis_structure": "opus",
+
+    # Standard drafting -> Writer (Sonnet - good balance)
+    "drafting": "writer",
+    "synthesis": "writer",
+    "writing": "writer",
+    "draft": "writer",
+    "expansion": "writer",
+    "rewrite": "writer",
+
+    # Quick tasks -> Quick (Haiku - fast, cheap)
+    "classification": "quick",
+    "citation_match": "quick",
+    "outline_generation": "quick",
+    "summarization": "quick",
+
+    # Audit tasks -> Auditor (GPT-4o - strict logic)
+    "audit": "auditor",
+    "critique": "auditor",
+    "review": "auditor",
+    "check": "auditor",
+    "statistical_interpretation": "auditor",
+    "logic_check": "auditor",
+
+    # Large context -> Context (Gemini 1M tokens)
+    "full_thesis_analysis": "context",
+    "bulk_processing": "context",
+}
 
 # Cached models
 _models_cache: Optional[dict] = None
@@ -58,13 +97,15 @@ def init_models() -> dict:
     Initialize LLM models from configuration.
 
     Loads API keys and model names from config/secrets.toml and creates
-    three distinct model instances for different task types.
+    multiple model instances for different task types.
 
     Returns:
         Dictionary containing:
-            - 'writer': ChatAnthropic (Claude) for drafting
-            - 'auditor': ChatOpenAI (GPT) for auditing
-            - 'context': ChatGoogleGenerativeAI (Gemini) for large context tasks
+            - 'opus': ChatAnthropic (Claude Opus 4.5) for complex reasoning
+            - 'writer': ChatAnthropic (Claude Sonnet) for drafting
+            - 'quick': ChatAnthropic (Claude Haiku) for fast tasks
+            - 'auditor': ChatOpenAI (GPT-4o) for auditing
+            - 'context': ChatGoogleGenerativeAI (Gemini) for large context
 
     Raises:
         FileNotFoundError: If secrets.toml is not found.
@@ -91,15 +132,41 @@ def init_models() -> dict:
     openai_config = config.get('openai', {})
     google_config = config.get('google', {})
 
-    # Initialize Writer Model (Claude)
+    # Get Anthropic API key (shared across all Claude models)
+    anthropic_api_key = anthropic_config.get('api_key')
+
+    # Initialize Opus Model (Claude Opus 4.5) - Best reasoning & prose
+    opus_model = ChatAnthropic(
+        api_key=anthropic_api_key,
+        model=anthropic_config.get('opus_model', 'claude-opus-4-5-20250101'),
+        temperature=0.7,
+        max_tokens=8192,
+    )
+
+    # Initialize Writer Model (Claude Sonnet) - Standard drafting
     writer_model = ChatAnthropic(
-        api_key=anthropic_config.get('api_key'),
-        model=anthropic_config.get('model', 'claude-sonnet-4-20250514'),
+        api_key=anthropic_api_key,
+        model=anthropic_config.get('writer_model', 'claude-sonnet-4-20250514'),
         temperature=0.7,
         max_tokens=4096,
     )
 
-    # Initialize Auditor Model (GPT)
+    # Initialize Quick Model (Claude Haiku) - Fast, cost-effective
+    quick_model = None
+    haiku_model_name = anthropic_config.get('quick_model', 'claude-3-5-haiku-20241022')
+    if haiku_model_name:
+        try:
+            quick_model = ChatAnthropic(
+                api_key=anthropic_api_key,
+                model=haiku_model_name,
+                temperature=0.3,
+                max_tokens=2048,
+            )
+        except Exception:
+            # Fall back to sonnet if haiku not available
+            quick_model = writer_model
+
+    # Initialize Auditor Model (GPT-4o) - Strict logic checking
     auditor_model = ChatOpenAI(
         api_key=openai_config.get('api_key'),
         model=openai_config.get('model', 'gpt-4o'),
@@ -107,7 +174,7 @@ def init_models() -> dict:
         max_tokens=4096,
     )
 
-    # Initialize Context Model (Gemini) - optional
+    # Initialize Context Model (Gemini) - Large context window
     context_model = None
     if _gemini_available and google_config.get('api_key'):
         context_model = _ChatGoogleGenerativeAI(
@@ -118,7 +185,9 @@ def init_models() -> dict:
         )
 
     _models_cache = {
+        'opus': opus_model,
         'writer': writer_model,
+        'quick': quick_model,
         'auditor': auditor_model,
         'context': context_model,
     }
@@ -146,20 +215,24 @@ def generate_content(
     task_type: str,
     context_text: str = "",
     system_prompt: Optional[str] = None,
+    force_model: Optional[str] = None,
 ) -> dict:
     """
     Generate content using smart model routing.
 
     Automatically selects the optimal model based on task type and context size:
         - Heavy Lift (>30k tokens): Forces Gemini regardless of task
-        - Drafting/Synthesis: Uses Claude for best prose style
-        - Audit/Critique: Uses GPT for strict logic checking
+        - Complex/Synthesis: Uses Opus for best analytical depth
+        - Drafting: Uses Sonnet for good balance of quality/speed
+        - Quick tasks: Uses Haiku for fast, cost-effective responses
+        - Audit/Critique: Uses GPT-4o for strict logic checking
 
     Args:
         prompt: The main prompt/question to send.
-        task_type: Type of task ('drafting', 'synthesis', 'audit', 'critique').
+        task_type: Type of task (see TASK_MODEL_MAP for options).
         context_text: Optional context to include (e.g., document content).
         system_prompt: Optional system message to set model behavior.
+        force_model: Optional model key to force specific model.
 
     Returns:
         Dictionary with:
@@ -173,8 +246,12 @@ def generate_content(
     total_text = prompt + context_text
     token_estimate = estimate_tokens(total_text)
 
-    # Smart routing logic
-    model_key = _route_task(task_type, token_estimate, models)
+    # Smart routing logic (unless model is forced)
+    if force_model and force_model in models:
+        model_key = force_model
+    else:
+        model_key = _route_task(task_type, token_estimate, models)
+
     model = models[model_key]
 
     # Build messages
@@ -201,9 +278,11 @@ def generate_content(
 
     # Map model keys to friendly names
     model_names = {
-        'writer': 'Claude (Writer)',
-        'auditor': 'GPT (Auditor)',
-        'context': 'Gemini (Context)',
+        'opus': 'Claude Opus 4.5 (Complex)',
+        'writer': 'Claude Sonnet (Writer)',
+        'quick': 'Claude Haiku (Quick)',
+        'auditor': 'GPT-4o (Auditor)',
+        'context': 'Gemini 1.5 Pro (Context)',
     }
 
     return {
@@ -215,12 +294,12 @@ def generate_content(
 
 def _route_task(task_type: str, token_count: int, models: dict = None) -> str:
     """
-    Determine which model to use based on routing rules.
+    Determine which model to use based on enhanced routing rules.
 
     Rules (in priority order):
         A. Heavy Lift: If tokens > 30,000, force context model
-        B. Drafting: If task is drafting/synthesis, use writer model
-        C. Auditing: If task is audit/critique, use auditor model
+        B. Task-specific: Use TASK_MODEL_MAP for explicit task routing
+        C. Default: Fall back to writer model
 
     Args:
         task_type: The type of task being performed.
@@ -228,40 +307,69 @@ def _route_task(task_type: str, token_count: int, models: dict = None) -> str:
         models: Optional models dict to check availability.
 
     Returns:
-        Model key: 'writer', 'auditor', or 'context'.
+        Model key: 'opus', 'writer', 'quick', 'auditor', or 'context'.
     """
     task_type_lower = task_type.lower().strip()
 
-    # Check if context model is available
+    # Check model availability
     context_available = models is not None and models.get('context') is not None
+    opus_available = models is not None and models.get('opus') is not None
+    quick_available = models is not None and models.get('quick') is not None
 
     # Rule A: Heavy Lift - force context model for large inputs
     if token_count > HEAVY_LIFT_THRESHOLD:
         if context_available:
             return 'context'
-        # Fall back to writer if Gemini not available
+        # Fall back to opus for large contexts if Gemini unavailable
+        if opus_available:
+            return 'opus'
         return 'writer'
 
-    # Rule B: Drafting tasks - use writer model
-    if task_type_lower in ('drafting', 'synthesis', 'writing', 'draft'):
-        return 'writer'
+    # Rule B: Task-specific routing from TASK_MODEL_MAP
+    if task_type_lower in TASK_MODEL_MAP:
+        preferred = TASK_MODEL_MAP[task_type_lower]
 
-    # Rule C: Auditing tasks - use auditor model
-    if task_type_lower in ('audit', 'critique', 'review', 'check'):
-        return 'auditor'
+        # Check if preferred model is available
+        if preferred == 'opus' and opus_available:
+            return 'opus'
+        elif preferred == 'quick' and quick_available:
+            return 'quick'
+        elif preferred == 'context' and context_available:
+            return 'context'
+        elif preferred in ('writer', 'auditor'):
+            return preferred
 
-    # Default to writer for unrecognized task types
+        # Fall back based on task category
+        if preferred in ('opus', 'writer', 'quick'):
+            return 'writer'  # Fall back to writer for Claude tasks
+        elif preferred == 'context':
+            return 'opus' if opus_available else 'writer'
+
+    # Rule C: Default to writer for unrecognized task types
     return 'writer'
 
 
-# Utility functions for direct model access
+# =============================================================================
+# UTILITY FUNCTIONS FOR DIRECT MODEL ACCESS
+# =============================================================================
+
+def get_opus_model():
+    """Get the Claude Opus 4.5 model directly (best for complex reasoning)."""
+    return init_models()['opus']
+
+
 def get_writer_model():
-    """Get the Claude writer model directly."""
+    """Get the Claude Sonnet writer model directly."""
     return init_models()['writer']
 
 
+def get_quick_model():
+    """Get the Claude Haiku quick model directly (may be None)."""
+    return init_models()['quick']
+
+
 def get_auditor_model():
-    """Get the GPT auditor model directly."""
+    """Get the GPT-4o auditor model directly."""
     return init_models()['auditor']
 
 
@@ -280,3 +388,50 @@ def get_available_models() -> list[str]:
     """Return list of available model keys."""
     models = init_models()
     return [k for k, v in models.items() if v is not None]
+
+
+def get_model_info() -> dict:
+    """Return information about configured models."""
+    models = init_models()
+    return {
+        key: {
+            "available": model is not None,
+            "type": type(model).__name__ if model else None,
+        }
+        for key, model in models.items()
+    }
+
+
+# =============================================================================
+# CLI TESTING
+# =============================================================================
+
+if __name__ == "__main__":
+    print("=" * 60)
+    print("PHDx LLM Gateway - Model Routing Test")
+    print("=" * 60)
+
+    try:
+        models = init_models()
+        print("\nAvailable models:")
+        for key, model in models.items():
+            status = "OK" if model else "Not configured"
+            print(f"  - {key}: {status}")
+
+        print("\nTask routing examples:")
+        test_tasks = [
+            ("complex_reasoning", 5000),
+            ("drafting", 5000),
+            ("audit", 5000),
+            ("classification", 5000),
+            ("full_thesis_analysis", 50000),
+        ]
+
+        for task, tokens in test_tasks:
+            route = _route_task(task, tokens, models)
+            print(f"  - {task} ({tokens} tokens) -> {route}")
+
+    except FileNotFoundError as e:
+        print(f"\nError: {e}")
+
+    print("\n" + "=" * 60)

@@ -1014,6 +1014,298 @@ Respond with ONLY valid JSON array, no markdown."""
 
         return stats
 
+    # =========================================================================
+    # BIBLIOGRAPHY GENERATION
+    # =========================================================================
+
+    def generate_bibliography(
+        self,
+        citation_keys: list[str] = None,
+        items: list[dict] = None,
+        sort_by: str = "author"
+    ) -> str:
+        """
+        Generate a formatted bibliography in Oxford Brookes Harvard style.
+
+        Args:
+            citation_keys: List of Zotero item keys to include
+            items: Alternative: list of item dicts directly
+            sort_by: Sort order - "author", "year", or "title"
+
+        Returns:
+            Formatted bibliography string
+        """
+        # Get items to include
+        if items:
+            bib_items = items
+        elif citation_keys:
+            bib_items = [
+                item for item in self.items_cache
+                if item.get("key") in citation_keys
+            ]
+        else:
+            bib_items = self.items_cache
+
+        if not bib_items:
+            return "No items to include in bibliography."
+
+        # Sort items
+        if sort_by == "author":
+            bib_items = sorted(bib_items, key=lambda x: x.get("authors", "").lower())
+        elif sort_by == "year":
+            bib_items = sorted(bib_items, key=lambda x: x.get("year", "9999"), reverse=True)
+        elif sort_by == "title":
+            bib_items = sorted(bib_items, key=lambda x: x.get("title", "").lower())
+
+        # Format each item
+        bibliography_lines = []
+        for item in bib_items:
+            formatted = self.format_as_brookes_harvard(item)
+            bibliography_lines.append(formatted)
+
+        return "\n\n".join(bibliography_lines)
+
+    def export_bibliography(
+        self,
+        citation_keys: list[str] = None,
+        format: str = "harvard"
+    ) -> dict:
+        """
+        Export bibliography in various formats.
+
+        Args:
+            citation_keys: List of Zotero item keys (None = all items)
+            format: Output format - "harvard", "bibtex", "ris"
+
+        Returns:
+            dict with format, content, and item_count
+        """
+        if citation_keys:
+            items = [i for i in self.items_cache if i.get("key") in citation_keys]
+        else:
+            items = self.items_cache
+
+        if format == "harvard":
+            content = self.generate_bibliography(items=items)
+        elif format == "bibtex":
+            content = self._export_bibtex(items)
+        elif format == "ris":
+            content = self._export_ris(items)
+        else:
+            content = self.generate_bibliography(items=items)
+
+        return {
+            "format": format,
+            "content": content,
+            "item_count": len(items),
+            "timestamp": datetime.now().isoformat()
+        }
+
+    def _export_bibtex(self, items: list[dict]) -> str:
+        """Export items in BibTeX format."""
+        entries = []
+        for item in items:
+            item_type = item.get("item_type", "misc")
+            bibtex_type = {
+                "journalArticle": "article",
+                "book": "book",
+                "bookSection": "incollection",
+                "conferencePaper": "inproceedings",
+                "thesis": "phdthesis",
+                "webpage": "misc"
+            }.get(item_type, "misc")
+
+            key = item.get("key", "unknown")
+            authors_list = item.get("authors_list", [])
+            authors = " and ".join([
+                f"{a.get('lastName', '')}, {a.get('firstName', '')}"
+                for a in authors_list
+            ]) if authors_list else item.get("authors", "Unknown")
+
+            entry = f"@{bibtex_type}{{{key},\n"
+            entry += f"  author = {{{authors}}},\n"
+            entry += f"  title = {{{item.get('title', 'Untitled')}}},\n"
+            entry += f"  year = {{{item.get('year', 'n.d.')}}},\n"
+
+            if item.get("publication"):
+                if bibtex_type == "article":
+                    entry += f"  journal = {{{item['publication']}}},\n"
+                else:
+                    entry += f"  booktitle = {{{item['publication']}}},\n"
+
+            if item.get("volume"):
+                entry += f"  volume = {{{item['volume']}}},\n"
+            if item.get("pages"):
+                entry += f"  pages = {{{item['pages']}}},\n"
+            if item.get("publisher"):
+                entry += f"  publisher = {{{item['publisher']}}},\n"
+            if item.get("doi"):
+                entry += f"  doi = {{{item['doi']}}},\n"
+
+            entry = entry.rstrip(",\n") + "\n}"
+            entries.append(entry)
+
+        return "\n\n".join(entries)
+
+    def _export_ris(self, items: list[dict]) -> str:
+        """Export items in RIS format."""
+        entries = []
+        for item in items:
+            item_type = item.get("item_type", "GEN")
+            ris_type = {
+                "journalArticle": "JOUR",
+                "book": "BOOK",
+                "bookSection": "CHAP",
+                "conferencePaper": "CONF",
+                "thesis": "THES",
+                "webpage": "ELEC"
+            }.get(item_type, "GEN")
+
+            entry = f"TY  - {ris_type}\n"
+            entry += f"TI  - {item.get('title', 'Untitled')}\n"
+
+            for author in item.get("authors_list", []):
+                name = f"{author.get('lastName', '')}, {author.get('firstName', '')}"
+                entry += f"AU  - {name}\n"
+
+            entry += f"PY  - {item.get('year', '')}\n"
+
+            if item.get("publication"):
+                entry += f"JO  - {item['publication']}\n"
+            if item.get("volume"):
+                entry += f"VL  - {item['volume']}\n"
+            if item.get("pages"):
+                entry += f"SP  - {item['pages']}\n"
+            if item.get("doi"):
+                entry += f"DO  - {item['doi']}\n"
+
+            entry += "ER  - "
+            entries.append(entry)
+
+        return "\n\n".join(entries)
+
+    # =========================================================================
+    # CITATION COVERAGE ANALYSIS
+    # =========================================================================
+
+    def analyze_citation_coverage(
+        self,
+        draft_text: str,
+        chapter_type: str = ""
+    ) -> dict:
+        """
+        Analyze citation coverage in a draft against the Zotero library.
+
+        Identifies:
+        - Papers cited in the draft
+        - Relevant papers not yet cited
+        - Citation density metrics
+        - Recommendations for additional citations
+
+        Args:
+            draft_text: The draft text to analyze
+            chapter_type: Optional chapter type for context
+
+        Returns:
+            dict with coverage analysis
+        """
+        if not draft_text or not self.items_cache:
+            return {
+                "status": "error",
+                "message": "No draft text or library items available"
+            }
+
+        # Extract existing citations from draft
+        # Pattern matches (Author, Year) or (Author et al., Year)
+        citation_pattern = r'\(([A-Z][a-zA-Z]+(?:\s+(?:and|&)\s+[A-Z][a-zA-Z]+)?(?:\s+et\s+al\.)?),?\s*(\d{4}[a-z]?)\)'
+        found_citations = re.findall(citation_pattern, draft_text)
+
+        # Match found citations to library items
+        cited_items = []
+        for author_part, year in found_citations:
+            author_clean = author_part.replace(" et al.", "").replace(" and ", " ").strip()
+            for item in self.items_cache:
+                item_author = item.get("authors", "").split(",")[0].strip()
+                if author_clean.lower() in item_author.lower() and item.get("year") == year:
+                    if item not in cited_items:
+                        cited_items.append(item)
+
+        # Find relevant uncited papers
+        uncited_relevant = self.get_relevant_papers(draft_text, chapter_type, top_n=10)
+        uncited_relevant = [
+            p for p in uncited_relevant
+            if p.get("key") not in [c.get("key") for c in cited_items]
+        ][:5]
+
+        # Calculate metrics
+        word_count = len(draft_text.split())
+        citation_count = len(found_citations)
+        citations_per_1000_words = (citation_count / word_count * 1000) if word_count > 0 else 0
+
+        # Determine coverage quality
+        if citations_per_1000_words < 2:
+            coverage_level = "low"
+            coverage_advice = "Consider adding more citations to support your arguments."
+        elif citations_per_1000_words < 5:
+            coverage_level = "moderate"
+            coverage_advice = "Citation coverage is acceptable but could be strengthened."
+        else:
+            coverage_level = "good"
+            coverage_advice = "Citation coverage is strong."
+
+        return {
+            "status": "success",
+            "timestamp": datetime.now().isoformat(),
+            "metrics": {
+                "word_count": word_count,
+                "citation_count": citation_count,
+                "citations_per_1000_words": round(citations_per_1000_words, 2),
+                "coverage_level": coverage_level,
+                "coverage_advice": coverage_advice
+            },
+            "cited_papers": [
+                {
+                    "key": c.get("key"),
+                    "title": c.get("title"),
+                    "authors": c.get("authors"),
+                    "year": c.get("year")
+                }
+                for c in cited_items
+            ],
+            "suggested_additions": [
+                {
+                    "key": p.get("key"),
+                    "title": p.get("title"),
+                    "authors": p.get("authors"),
+                    "year": p.get("year"),
+                    "relevance_score": p.get("relevance_score", 0),
+                    "relevance_reason": p.get("relevance_reason", "")
+                }
+                for p in uncited_relevant
+            ],
+            "chapter_type": chapter_type
+        }
+
+    def suggest_citations_for_claim(
+        self,
+        claim: str,
+        context: str = "",
+        top_n: int = 3
+    ) -> list[dict]:
+        """
+        Suggest citations to support a specific claim or argument.
+
+        Args:
+            claim: The specific claim or argument to support
+            context: Optional surrounding context
+            top_n: Number of suggestions to return
+
+        Returns:
+            List of suggested papers with relevance info
+        """
+        search_text = f"{claim} {context}".strip()
+        return self.get_relevant_papers(search_text, top_n=top_n)
+
 
 # =============================================================================
 # STREAMLIT WIDGET FOR SIDEBAR
