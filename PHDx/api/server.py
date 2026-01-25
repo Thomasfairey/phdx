@@ -29,6 +29,10 @@ from core import llm_gateway
 from core.config import get_config
 from core.ethics_utils import scrub_text, get_usage_stats
 
+# Import API routers
+from api.routers import writing as writing_router
+from api.routers import data as data_router
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -237,6 +241,10 @@ app.add_middleware(
     allow_methods=config.cors.allowed_methods,
     allow_headers=config.cors.allowed_headers,
 )
+
+# Include new API routers
+app.include_router(writing_router.router, prefix="/api/writing", tags=["Writing Desk"])
+app.include_router(data_router.router, prefix="/api/data", tags=["Data Lab"])
 
 
 # =============================================================================
