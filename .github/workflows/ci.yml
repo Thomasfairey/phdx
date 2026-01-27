@@ -11,6 +11,10 @@ env:
   PHDX_ENV: "development"
   MOCK_MODE: "true"
 
+defaults:
+  run:
+    working-directory: PHDx
+
 jobs:
   lint:
     name: Lint & Format
