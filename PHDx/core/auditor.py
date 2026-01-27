@@ -20,6 +20,7 @@ try:
     from core.secrets_utils import get_secret
 except ImportError:
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from core.secrets_utils import get_secret
 
@@ -44,15 +45,15 @@ OXFORD_BROOKES_CRITERIA = {
                 "Innovative methodology or analytical approach",
                 "Original synthesis of existing knowledge",
                 "Discovery of new facts or relationships",
-                "Development of new techniques, tools, or applications"
+                "Development of new techniques, tools, or applications",
             ],
             "grade_descriptors": {
                 "excellent": "Makes a significant and innovative contribution that advances the field substantially. Demonstrates clear potential for high-impact publication.",
                 "good": "Makes a solid original contribution with clear novelty. Advances understanding in the field.",
                 "satisfactory": "Makes an adequate contribution to knowledge. Some original elements present but scope is limited.",
                 "needs_improvement": "Originality is unclear or insufficiently demonstrated. Contribution to knowledge is marginal.",
-                "unsatisfactory": "Fails to demonstrate original contribution. Work is largely derivative or replicative."
-            }
+                "unsatisfactory": "Fails to demonstrate original contribution. Work is largely derivative or replicative.",
+            },
         },
         "criticality": {
             "name": "Critical Analysis & Argumentation",
@@ -65,15 +66,15 @@ OXFORD_BROOKES_CRITERIA = {
                 "Identification of gaps, tensions, and debates in the field",
                 "Balanced consideration of alternative perspectives",
                 "Clear articulation of theoretical positioning",
-                "Logical progression from evidence to conclusions"
+                "Logical progression from evidence to conclusions",
             ],
             "grade_descriptors": {
                 "excellent": "Exceptional critical engagement with sophisticated argumentation. Demonstrates mastery of the field with nuanced evaluation of complex issues.",
                 "good": "Strong critical analysis with well-developed arguments. Engages effectively with key debates and perspectives.",
                 "satisfactory": "Adequate critical engagement. Arguments are generally sound but may lack depth in places.",
                 "needs_improvement": "Limited critical analysis. Arguments may be superficial or poorly developed.",
-                "unsatisfactory": "Lacks critical engagement. Arguments are weak, inconsistent, or absent."
-            }
+                "unsatisfactory": "Lacks critical engagement. Arguments are weak, inconsistent, or absent.",
+            },
         },
         "rigour": {
             "name": "Methodological Rigour",
@@ -87,24 +88,30 @@ OXFORD_BROOKES_CRITERIA = {
                 "Transparent reporting of methods and limitations",
                 "Ethical considerations addressed appropriately",
                 "Replicability and validity considerations",
-                "Appropriate use of evidence to support claims"
+                "Appropriate use of evidence to support claims",
             ],
             "grade_descriptors": {
                 "excellent": "Exemplary methodological rigour with innovative yet appropriate design. Methods are transparently reported and executed to the highest standards.",
                 "good": "Strong methodological approach with clear justification. Minor limitations acknowledged and addressed.",
                 "satisfactory": "Adequate research design with acceptable rigour. Some methodological limitations present.",
                 "needs_improvement": "Methodological weaknesses that undermine confidence in findings. Design or execution issues evident.",
-                "unsatisfactory": "Serious methodological flaws. Research design is inappropriate or poorly executed."
-            }
-        }
+                "unsatisfactory": "Serious methodological flaws. Research design is inappropriate or poorly executed.",
+            },
+        },
     },
     "grade_scale": {
         "excellent": {"range": "85-100", "descriptor": "Distinction-level work"},
         "good": {"range": "70-84", "descriptor": "Strong pass"},
         "satisfactory": {"range": "60-69", "descriptor": "Pass"},
-        "needs_improvement": {"range": "50-59", "descriptor": "Marginal - revisions required"},
-        "unsatisfactory": {"range": "0-49", "descriptor": "Fail - major revisions or resubmission"}
-    }
+        "needs_improvement": {
+            "range": "50-59",
+            "descriptor": "Marginal - revisions required",
+        },
+        "unsatisfactory": {
+            "range": "0-49",
+            "descriptor": "Fail - major revisions or resubmission",
+        },
+    },
 }
 
 # System prompt for Claude evaluation
@@ -113,22 +120,22 @@ AUDITOR_SYSTEM_PROMPT = f"""You are an expert PhD thesis examiner at Oxford Broo
 ## OXFORD BROOKES PHD ASSESSMENT CRITERIA
 
 ### 1. ORIGINALITY (Weight: 35%)
-{OXFORD_BROOKES_CRITERIA['criteria']['originality']['description']}
+{OXFORD_BROOKES_CRITERIA["criteria"]["originality"]["description"]}
 
 Key Indicators:
-{chr(10).join('- ' + i for i in OXFORD_BROOKES_CRITERIA['criteria']['originality']['indicators'])}
+{chr(10).join("- " + i for i in OXFORD_BROOKES_CRITERIA["criteria"]["originality"]["indicators"])}
 
 ### 2. CRITICAL ANALYSIS & ARGUMENTATION (Weight: 35%)
-{OXFORD_BROOKES_CRITERIA['criteria']['criticality']['description']}
+{OXFORD_BROOKES_CRITERIA["criteria"]["criticality"]["description"]}
 
 Key Indicators:
-{chr(10).join('- ' + i for i in OXFORD_BROOKES_CRITERIA['criteria']['criticality']['indicators'])}
+{chr(10).join("- " + i for i in OXFORD_BROOKES_CRITERIA["criteria"]["criticality"]["indicators"])}
 
 ### 3. METHODOLOGICAL RIGOUR (Weight: 30%)
-{OXFORD_BROOKES_CRITERIA['criteria']['rigour']['description']}
+{OXFORD_BROOKES_CRITERIA["criteria"]["rigour"]["description"]}
 
 Key Indicators:
-{chr(10).join('- ' + i for i in OXFORD_BROOKES_CRITERIA['criteria']['rigour']['indicators'])}
+{chr(10).join("- " + i for i in OXFORD_BROOKES_CRITERIA["criteria"]["rigour"]["indicators"])}
 
 ## GRADING SCALE
 - Excellent (85-100): Distinction-level work
@@ -188,7 +195,7 @@ class BrookesAuditor:
         # Generate audit ID
         audit_id = hashlib.md5(
             f"{draft_text[:50]}{datetime.now().isoformat()}".encode(),
-            usedforsecurity=False
+            usedforsecurity=False,
         ).hexdigest()[:10]
 
         report = {
@@ -197,20 +204,16 @@ class BrookesAuditor:
             "status": "error",
             "context": chapter_context or "General Draft",
             "word_count": len(draft_text.split()),
-            "overall_grade": {
-                "score": 0,
-                "level": "unknown",
-                "descriptor": ""
-            },
+            "overall_grade": {"score": 0, "level": "unknown", "descriptor": ""},
             "criteria_scores": {
                 "originality": {"score": 0, "level": "", "feedback": ""},
                 "criticality": {"score": 0, "level": "", "feedback": ""},
-                "rigour": {"score": 0, "level": "", "feedback": ""}
+                "rigour": {"score": 0, "level": "", "feedback": ""},
             },
             "strengths": [],
             "areas_for_improvement": [],
             "specific_recommendations": [],
-            "examiner_summary": ""
+            "examiner_summary": "",
         }
 
         if not self.claude_client:
@@ -218,7 +221,9 @@ class BrookesAuditor:
             return report
 
         if len(draft_text.strip()) < 100:
-            report["error"] = "Draft too short for meaningful evaluation (min 100 characters)"
+            report["error"] = (
+                "Draft too short for meaningful evaluation (min 100 characters)"
+            )
             return report
 
         # Construct evaluation prompt
@@ -279,7 +284,7 @@ Return ONLY valid JSON, no markdown formatting."""
                 model="claude-sonnet-4-20250514",
                 max_tokens=4096,
                 system=AUDITOR_SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": eval_prompt}]
+                messages=[{"role": "user", "content": eval_prompt}],
             )
 
             response_text = response.content[0].text.strip()
@@ -287,24 +292,33 @@ Return ONLY valid JSON, no markdown formatting."""
             # Clean markdown if present
             if response_text.startswith("```"):
                 import re
-                response_text = re.sub(r'^```(?:json)?\n?', '', response_text)
-                response_text = re.sub(r'\n?```$', '', response_text)
+
+                response_text = re.sub(r"^```(?:json)?\n?", "", response_text)
+                response_text = re.sub(r"\n?```$", "", response_text)
 
             # Parse response
             evaluation = json.loads(response_text)
 
             # Populate report
             report["status"] = "success"
-            report["overall_grade"] = evaluation.get("overall_grade", report["overall_grade"])
-            report["criteria_scores"] = evaluation.get("criteria_scores", report["criteria_scores"])
+            report["overall_grade"] = evaluation.get(
+                "overall_grade", report["overall_grade"]
+            )
+            report["criteria_scores"] = evaluation.get(
+                "criteria_scores", report["criteria_scores"]
+            )
             report["strengths"] = evaluation.get("strengths", [])
-            report["areas_for_improvement"] = evaluation.get("areas_for_improvement", [])
-            report["specific_recommendations"] = evaluation.get("specific_recommendations", [])
+            report["areas_for_improvement"] = evaluation.get(
+                "areas_for_improvement", []
+            )
+            report["specific_recommendations"] = evaluation.get(
+                "specific_recommendations", []
+            )
             report["examiner_summary"] = evaluation.get("examiner_summary", "")
 
         except json.JSONDecodeError as e:
             report["error"] = f"Failed to parse evaluation: {str(e)}"
-            report["raw_response"] = response_text if 'response_text' in dir() else None
+            report["raw_response"] = response_text if "response_text" in dir() else None
 
         except Exception as e:
             report["error"] = f"Evaluation failed: {str(e)}"
@@ -319,11 +333,11 @@ Return ONLY valid JSON, no markdown formatting."""
                 {
                     "name": c["name"],
                     "weight": f"{int(c['weight'] * 100)}%",
-                    "description": c["description"]
+                    "description": c["description"],
                 }
                 for c in self.criteria["criteria"].values()
             ],
-            "grade_scale": self.criteria["grade_scale"]
+            "grade_scale": self.criteria["grade_scale"],
         }
 
     def format_audit_for_display(self, report: dict) -> str:
@@ -340,23 +354,23 @@ Return ONLY valid JSON, no markdown formatting."""
             "good": "#0071ce",
             "satisfactory": "#ffc107",
             "needs_improvement": "#ff9800",
-            "unsatisfactory": "#f44336"
+            "unsatisfactory": "#f44336",
         }
         color = level_colors.get(grade["level"], "#e0e0e0")
 
         md = f"""
 ### Oxford Brookes PhD Audit Report
 
-**Audit ID:** `{report['audit_id']}`
-**Date:** {report['timestamp'][:10]}
-**Context:** {report['context']}
-**Word Count:** {report['word_count']:,}
+**Audit ID:** `{report["audit_id"]}`
+**Date:** {report["timestamp"][:10]}
+**Context:** {report["context"]}
+**Word Count:** {report["word_count"]:,}
 
 ---
 
-## Overall Grade: <span style="color:{color}">{grade['score']}/100 ({grade['level'].replace('_', ' ').title()})</span>
+## Overall Grade: <span style="color:{color}">{grade["score"]}/100 ({grade["level"].replace("_", " ").title()})</span>
 
-{grade['descriptor']}
+{grade["descriptor"]}
 
 ---
 
@@ -364,35 +378,35 @@ Return ONLY valid JSON, no markdown formatting."""
 
 | Criterion | Score | Level | Weight |
 |-----------|-------|-------|--------|
-| Originality | {scores['originality']['score']}/100 | {scores['originality']['level'].replace('_', ' ').title()} | 35% |
-| Critical Analysis | {scores['criticality']['score']}/100 | {scores['criticality']['level'].replace('_', ' ').title()} | 35% |
-| Methodological Rigour | {scores['rigour']['score']}/100 | {scores['rigour']['level'].replace('_', ' ').title()} | 30% |
+| Originality | {scores["originality"]["score"]}/100 | {scores["originality"]["level"].replace("_", " ").title()} | 35% |
+| Critical Analysis | {scores["criticality"]["score"]}/100 | {scores["criticality"]["level"].replace("_", " ").title()} | 35% |
+| Methodological Rigour | {scores["rigour"]["score"]}/100 | {scores["rigour"]["level"].replace("_", " ").title()} | 30% |
 
 ### Originality
-{scores['originality']['feedback']}
+{scores["originality"]["feedback"]}
 
 ### Critical Analysis
-{scores['criticality']['feedback']}
+{scores["criticality"]["feedback"]}
 
 ### Methodological Rigour
-{scores['rigour']['feedback']}
+{scores["rigour"]["feedback"]}
 
 ---
 
 ## Strengths
-{chr(10).join('- ' + s for s in report['strengths'])}
+{chr(10).join("- " + s for s in report["strengths"])}
 
 ## Areas for Improvement
-{chr(10).join('- ' + a for a in report['areas_for_improvement'])}
+{chr(10).join("- " + a for a in report["areas_for_improvement"])}
 
 ## Recommendations
-{chr(10).join('- ' + r for r in report['specific_recommendations'])}
+{chr(10).join("- " + r for r in report["specific_recommendations"])}
 
 ---
 
 ## Examiner Summary
 
-{report['examiner_summary']}
+{report["examiner_summary"]}
 """
         return md
 
@@ -400,6 +414,7 @@ Return ONLY valid JSON, no markdown formatting."""
 # =============================================================================
 # GOOGLE DOCS INTEGRATION
 # =============================================================================
+
 
 class GoogleDocsPusher:
     """
@@ -421,19 +436,20 @@ class GoogleDocsPusher:
             from googleapiclient.discovery import build
 
             if not Path(self.credentials_path).exists():
-                raise FileNotFoundError(f"Credentials not found: {self.credentials_path}")
+                raise FileNotFoundError(
+                    f"Credentials not found: {self.credentials_path}"
+                )
 
             scopes = [
                 "https://www.googleapis.com/auth/documents",
-                "https://www.googleapis.com/auth/drive"
+                "https://www.googleapis.com/auth/drive",
             ]
 
             creds = Credentials.from_service_account_file(
-                self.credentials_path,
-                scopes=scopes
+                self.credentials_path, scopes=scopes
             )
 
-            self.service = build('docs', 'v1', credentials=creds)
+            self.service = build("docs", "v1", credentials=creds)
             return self.service
 
         except ImportError:
@@ -444,7 +460,7 @@ class GoogleDocsPusher:
         doc_id: str,
         text: str,
         section_title: str = "",
-        include_timestamp: bool = True
+        include_timestamp: bool = True,
     ) -> dict:
         """
         Append text to the end of a Google Doc.
@@ -471,7 +487,7 @@ class GoogleDocsPusher:
             "doc_id": doc_id,
             "doc_url": f"https://docs.google.com/document/d/{doc_id}/edit",
             "timestamp": datetime.now().isoformat(),
-            "characters_added": 0
+            "characters_added": 0,
         }
 
         try:
@@ -479,7 +495,7 @@ class GoogleDocsPusher:
 
             # Get current document to find end index
             doc = service.documents().get(documentId=doc_id).execute()
-            end_index = doc['body']['content'][-1]['endIndex'] - 1
+            end_index = doc["body"]["content"][-1]["endIndex"] - 1
 
             # Build content to insert
             content_parts = []
@@ -504,20 +520,12 @@ class GoogleDocsPusher:
 
             # Create insert request
             requests = [
-                {
-                    'insertText': {
-                        'location': {
-                            'index': end_index
-                        },
-                        'text': full_content
-                    }
-                }
+                {"insertText": {"location": {"index": end_index}, "text": full_content}}
             ]
 
             # Execute the request
             service.documents().batchUpdate(
-                documentId=doc_id,
-                body={'requests': requests}
+                documentId=doc_id, body={"requests": requests}
             ).execute()
 
             result["success"] = True
@@ -544,19 +552,17 @@ class GoogleDocsPusher:
                 "success": True,
                 "title": doc.get("title", "Untitled"),
                 "doc_id": doc_id,
-                "url": f"https://docs.google.com/document/d/{doc_id}/edit"
+                "url": f"https://docs.google.com/document/d/{doc_id}/edit",
             }
 
         except Exception as e:
-            return {
-                "success": False,
-                "error": str(e)
-            }
+            return {"success": False, "error": str(e)}
 
 
 # =============================================================================
 # STANDALONE FUNCTIONS
 # =============================================================================
+
 
 def audit_draft(draft_text: str, chapter_context: str = "") -> dict:
     """
@@ -597,9 +603,9 @@ if __name__ == "__main__":
 
     print(f"\nInstitution: {summary['institution']}")
     print("\nAssessment Criteria:")
-    for c in summary['criteria']:
+    for c in summary["criteria"]:
         print(f"  - {c['name']} ({c['weight']}): {c['description'][:50]}...")
 
     print("\nGrade Scale:")
-    for level, info in summary['grade_scale'].items():
+    for level, info in summary["grade_scale"].items():
         print(f"  - {level.title()}: {info['range']} - {info['descriptor']}")

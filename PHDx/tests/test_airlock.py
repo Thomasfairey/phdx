@@ -84,9 +84,9 @@ def main():
         print("    " + "-" * 80)
 
         for i, doc in enumerate(docs, 1):
-            doc_type = doc['type'].upper()
-            name = doc['name'][:38] + '..' if len(doc['name']) > 40 else doc['name']
-            doc_id = doc['id']
+            doc_type = doc["type"].upper()
+            name = doc["name"][:38] + ".." if len(doc["name"]) > 40 else doc["name"]
+            doc_id = doc["id"]
             print(f"    {i:<4} {doc_type:<8} {name:<40} {doc_id}")
 
     print()

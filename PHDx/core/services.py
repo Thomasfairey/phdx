@@ -74,10 +74,13 @@ class PHDxServices:
         """
         if self._llm_gateway is None:
             from core import llm_gateway
+
             self._llm_gateway = llm_gateway
         return self._llm_gateway
 
-    def generate_content(self, prompt: str, task_type: str, context: str = "", **kwargs) -> dict:
+    def generate_content(
+        self, prompt: str, task_type: str, context: str = "", **kwargs
+    ) -> dict:
         """Convenience method for LLM content generation."""
         return self.llm.generate_content(prompt, task_type, context, **kwargs)
 
@@ -95,6 +98,7 @@ class PHDxServices:
         """
         if self._vector_store is None:
             from core.vector_store import get_vector_store
+
             self._vector_store = get_vector_store()
         return self._vector_store
 
@@ -116,6 +120,7 @@ class PHDxServices:
         """
         if self._ethics_scrubber is None:
             from core.ethics_utils import get_scrubber
+
             self._ethics_scrubber = get_scrubber()
         return self._ethics_scrubber
 
@@ -147,7 +152,7 @@ class PHDxServices:
         """Load DNA profile from disk."""
         if DNA_PROFILE_PATH.exists():
             try:
-                with open(DNA_PROFILE_PATH, 'r') as f:
+                with open(DNA_PROFILE_PATH, "r") as f:
                     return json.load(f)
             except (json.JSONDecodeError, IOError):
                 return None
@@ -181,10 +186,7 @@ class PHDxServices:
             user_id = get_secret("ZOTERO_USER_ID")
             api_key = get_secret("ZOTERO_API_KEY")
 
-            self._zotero_sentinel = ZoteroSentinel(
-                user_id=user_id,
-                api_key=api_key
-            )
+            self._zotero_sentinel = ZoteroSentinel(user_id=user_id, api_key=api_key)
         return self._zotero_sentinel
 
     def get_citations(self, context: str, top_n: int = 5) -> list:
@@ -205,6 +207,7 @@ class PHDxServices:
         """
         if self._auditor is None:
             from core.auditor import BrookesAuditor
+
             self._auditor = BrookesAuditor()
         return self._auditor
 
@@ -226,6 +229,7 @@ class PHDxServices:
         """
         if self._red_thread is None:
             from core.red_thread import RedThreadEngine
+
             self._red_thread = RedThreadEngine()
         return self._red_thread
 
@@ -313,7 +317,7 @@ if __name__ == "__main__":
     print(f"DNA Profile Available: {status['dna_profile_available']}")
 
     print("\nService Status:")
-    for service, loaded in status['services'].items():
+    for service, loaded in status["services"].items():
         indicator = "+" if loaded else "-"
         print(f"  [{indicator}] {service}")
 

@@ -28,43 +28,31 @@ AI_USAGE_LOG = DATA_DIR / "ai_usage_log.csv"
 
 PII_PATTERNS = {
     "email": re.compile(
-        r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
-        re.IGNORECASE
+        r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b", re.IGNORECASE
     ),
     "phone_uk": re.compile(
-        r'\+44\s?\d{4}\s?\d{6}|\+44\s?\d{3}\s?\d{3}\s?\d{4}|07\d{3}\s?\d{6}|07\d{3}\s?\d{3}\s?\d{3}'
+        r"\+44\s?\d{4}\s?\d{6}|\+44\s?\d{3}\s?\d{3}\s?\d{4}|07\d{3}\s?\d{6}|07\d{3}\s?\d{3}\s?\d{3}"
     ),
-    "phone_us": re.compile(
-        r'\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b'
-    ),
+    "phone_us": re.compile(r"\b(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b"),
     "phone_intl": re.compile(
-        r'\b\+[1-9]\d{1,2}[-.\s]?\d{2,4}[-.\s]?\d{2,4}[-.\s]?\d{2,4}\b'
+        r"\b\+[1-9]\d{1,2}[-.\s]?\d{2,4}[-.\s]?\d{2,4}[-.\s]?\d{2,4}\b"
     ),
-    "uk_postcode": re.compile(
-        r'\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b',
-        re.IGNORECASE
-    ),
+    "uk_postcode": re.compile(r"\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b", re.IGNORECASE),
     "national_insurance": re.compile(
-        r'\b[A-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]\b',
-        re.IGNORECASE
+        r"\b[A-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]\b", re.IGNORECASE
     ),
-    "credit_card": re.compile(
-        r'\b(?:\d{4}[\s-]?){3}\d{4}\b'
-    ),
-    "ip_address": re.compile(
-        r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
-    ),
+    "credit_card": re.compile(r"\b(?:\d{4}[\s-]?){3}\d{4}\b"),
+    "ip_address": re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b"),
     "url": re.compile(
-        r'https?://(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b[-a-zA-Z0-9()@:%_\+.~#?&//=]*'
+        r"https?://(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b[-a-zA-Z0-9()@:%_\+.~#?&//=]*"
     ),
     "date_of_birth": re.compile(
-        r'\b(?:DOB|D\.O\.B\.?|Date of Birth)[:\s]*\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b',
-        re.IGNORECASE
+        r"\b(?:DOB|D\.O\.B\.?|Date of Birth)[:\s]*\d{1,2}[/.-]\d{1,2}[/.-]\d{2,4}\b",
+        re.IGNORECASE,
     ),
     "student_id": re.compile(
-        r'\b(?:Student\s*(?:ID|Number)|ID\s*Number)[:\s]*\d{6,10}\b',
-        re.IGNORECASE
-    )
+        r"\b(?:Student\s*(?:ID|Number)|ID\s*Number)[:\s]*\d{6,10}\b", re.IGNORECASE
+    ),
 }
 
 # Replacement tokens
@@ -79,7 +67,7 @@ PII_REPLACEMENTS = {
     "ip_address": "[IP_REDACTED]",
     "url": "[URL_REDACTED]",
     "date_of_birth": "[DOB_REDACTED]",
-    "student_id": "[STUDENT_ID_REDACTED]"
+    "student_id": "[STUDENT_ID_REDACTED]",
 }
 
 
@@ -109,12 +97,14 @@ class EthicsScrubber:
 
         try:
             import spacy
+
             # Try to load the model, download if not available
             try:
                 self.nlp = spacy.load("en_core_web_sm")
             except OSError:
                 print("Downloading spaCy model...")
                 from spacy.cli import download
+
                 download("en_core_web_sm")
                 self.nlp = spacy.load("en_core_web_sm")
         except ImportError:
@@ -132,11 +122,7 @@ class EthicsScrubber:
             Tuple of (scrubbed_text, scrub_report)
         """
         scrubbed = text
-        report = {
-            "method": "regex",
-            "items_found": {},
-            "total_redactions": 0
-        }
+        report = {"method": "regex", "items_found": {}, "total_redactions": 0}
 
         for pii_type, pattern in PII_PATTERNS.items():
             matches = pattern.findall(scrubbed)
@@ -162,11 +148,7 @@ class EthicsScrubber:
 
         doc = self.nlp(text)
         scrubbed = text
-        report = {
-            "method": "spacy_ner",
-            "entities_found": {},
-            "total_redactions": 0
-        }
+        report = {"method": "spacy_ner", "entities_found": {}, "total_redactions": 0}
 
         # Entity types to redact
         redact_types = {
@@ -175,7 +157,7 @@ class EthicsScrubber:
             "GPE": "[LOCATION_REDACTED]",  # Geopolitical entity
             "LOC": "[LOCATION_REDACTED]",
             "FAC": "[FACILITY_REDACTED]",
-            "NORP": "[GROUP_REDACTED]"  # Nationalities, religious, political groups
+            "NORP": "[GROUP_REDACTED]",  # Nationalities, religious, political groups
         }
 
         # Sort entities by start position (reverse) to replace from end
@@ -191,7 +173,9 @@ class EthicsScrubber:
 
                 # Replace in text
                 replacement = redact_types[ent.label_]
-                scrubbed = scrubbed[:ent.start_char] + replacement + scrubbed[ent.end_char:]
+                scrubbed = (
+                    scrubbed[: ent.start_char] + replacement + scrubbed[ent.end_char :]
+                )
 
         return scrubbed, report
 
@@ -214,7 +198,7 @@ class EthicsScrubber:
             "is_clean": True,
             "reports": [],
             "total_redactions": 0,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         # Step 1: Regex-based scrubbing
@@ -252,6 +236,7 @@ class EthicsScrubber:
 # AI USAGE LOGGING
 # =============================================================================
 
+
 class AIUsageLedger:
     """
     Logs all AI interactions for audit trail and ethical compliance.
@@ -274,19 +259,21 @@ class AIUsageLedger:
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
 
         if not self.log_path.exists():
-            with open(self.log_path, 'w', newline='', encoding='utf-8') as f:
+            with open(self.log_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
-                writer.writerow([
-                    "timestamp",
-                    "action_type",
-                    "data_source",
-                    "prompt_preview",
-                    "prompt_length",
-                    "was_scrubbed",
-                    "redactions_count",
-                    "model_used",
-                    "session_id"
-                ])
+                writer.writerow(
+                    [
+                        "timestamp",
+                        "action_type",
+                        "data_source",
+                        "prompt_preview",
+                        "prompt_length",
+                        "was_scrubbed",
+                        "redactions_count",
+                        "model_used",
+                        "session_id",
+                    ]
+                )
 
     def log(
         self,
@@ -296,7 +283,7 @@ class AIUsageLedger:
         was_scrubbed: bool = False,
         redactions_count: int = 0,
         model_used: str = "claude-sonnet-4-20250514",
-        session_id: str = ""
+        session_id: str = "",
     ):
         """
         Log an AI usage event.
@@ -311,23 +298,25 @@ class AIUsageLedger:
             session_id: Optional session identifier
         """
         # Truncate prompt for log (first 200 chars)
-        prompt_preview = prompt[:200].replace('\n', ' ').replace(',', ';')
+        prompt_preview = prompt[:200].replace("\n", " ").replace(",", ";")
         if len(prompt) > 200:
             prompt_preview += "..."
 
-        with open(self.log_path, 'a', newline='', encoding='utf-8') as f:
+        with open(self.log_path, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                datetime.now().isoformat(),
-                action_type,
-                data_source,
-                prompt_preview,
-                len(prompt),
-                was_scrubbed,
-                redactions_count,
-                model_used,
-                session_id or "default"
-            ])
+            writer.writerow(
+                [
+                    datetime.now().isoformat(),
+                    action_type,
+                    data_source,
+                    prompt_preview,
+                    len(prompt),
+                    was_scrubbed,
+                    redactions_count,
+                    model_used,
+                    session_id or "default",
+                ]
+            )
 
     def get_recent_logs(self, limit: int = 10) -> list[dict]:
         """
@@ -343,7 +332,7 @@ class AIUsageLedger:
             return []
 
         entries = []
-        with open(self.log_path, 'r', encoding='utf-8') as f:
+        with open(self.log_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 entries.append(row)
@@ -365,12 +354,12 @@ class AIUsageLedger:
             "by_action": {},
             "by_source": {},
             "scrubbed_percentage": 0,
-            "total_redactions": 0
+            "total_redactions": 0,
         }
 
         scrubbed_count = 0
 
-        with open(self.log_path, 'r', encoding='utf-8') as f:
+        with open(self.log_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 stats["total_calls"] += 1
@@ -387,7 +376,9 @@ class AIUsageLedger:
                 stats["total_redactions"] += int(row.get("redactions_count", 0))
 
         if stats["total_calls"] > 0:
-            stats["scrubbed_percentage"] = round(scrubbed_count / stats["total_calls"] * 100, 1)
+            stats["scrubbed_percentage"] = round(
+                scrubbed_count / stats["total_calls"] * 100, 1
+            )
 
         return stats
 
@@ -398,6 +389,7 @@ class AIUsageLedger:
 
 # Global scrubber instance
 _scrubber = None
+
 
 def get_scrubber() -> EthicsScrubber:
     """Get or create the global ethics scrubber instance."""
@@ -410,6 +402,7 @@ def get_scrubber() -> EthicsScrubber:
 # Global ledger instance
 _ledger = None
 
+
 def get_ledger() -> AIUsageLedger:
     """Get or create the global AI usage ledger instance."""
     global _ledger
@@ -421,6 +414,7 @@ def get_ledger() -> AIUsageLedger:
 # =============================================================================
 # CONVENIENCE FUNCTIONS
 # =============================================================================
+
 
 def scrub_text(text: str, include_names: bool = True) -> dict:
     """
@@ -454,7 +448,7 @@ def log_ai_usage(
     data_source: str,
     prompt: str,
     was_scrubbed: bool = False,
-    redactions_count: int = 0
+    redactions_count: int = 0,
 ):
     """
     Log an AI usage event.
@@ -471,7 +465,7 @@ def log_ai_usage(
         data_source=data_source,
         prompt=prompt,
         was_scrubbed=was_scrubbed,
-        redactions_count=redactions_count
+        redactions_count=redactions_count,
     )
 
 
@@ -530,7 +524,7 @@ if __name__ == "__main__":
         data_source="cli_test",
         prompt="Demo prompt for testing",
         was_scrubbed=True,
-        redactions_count=result["total_redactions"]
+        redactions_count=result["total_redactions"],
     )
     print(f"  Log file: {AI_USAGE_LOG}")
 

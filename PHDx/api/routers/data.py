@@ -34,8 +34,10 @@ _datasets: Dict[str, Dict[str, Any]] = {}
 # REQUEST/RESPONSE MODELS
 # =============================================================================
 
+
 class DatasetInfo(BaseModel):
     """Dataset information."""
+
     dataset_id: str
     filename: str
     rows: int
@@ -47,6 +49,7 @@ class DatasetInfo(BaseModel):
 
 class UploadResponse(BaseModel):
     """File upload response."""
+
     success: bool
     dataset_id: str = ""
     info: Optional[DatasetInfo] = None
@@ -56,11 +59,13 @@ class UploadResponse(BaseModel):
 
 class EDARequest(BaseModel):
     """Request for EDA."""
+
     dataset_id: str
 
 
 class NumericSummary(BaseModel):
     """Summary statistics for numeric column."""
+
     count: int = 0
     mean: float = 0
     std: float = 0
@@ -73,12 +78,14 @@ class NumericSummary(BaseModel):
 
 class CategoricalSummary(BaseModel):
     """Summary for categorical column."""
+
     unique: int = 0
     top_values: Dict[str, int] = {}
 
 
 class EDAResponse(BaseModel):
     """EDA results."""
+
     success: bool
     overview: Dict[str, Any] = {}
     data_types: Dict[str, str] = {}
@@ -91,12 +98,14 @@ class EDAResponse(BaseModel):
 
 class SentimentRequest(BaseModel):
     """Request for sentiment analysis."""
+
     dataset_id: str
     text_column: str
 
 
 class SentimentResponse(BaseModel):
     """Sentiment analysis results."""
+
     success: bool
     distribution: Dict[str, float] = {}
     average_score: float = 0
@@ -107,8 +116,11 @@ class SentimentResponse(BaseModel):
 
 class StatisticalTestRequest(BaseModel):
     """Request for statistical test."""
+
     dataset_id: str
-    test_type: str = Field(..., description="t_test, chi_square, anova, mann_whitney, correlation")
+    test_type: str = Field(
+        ..., description="t_test, chi_square, anova, mann_whitney, correlation"
+    )
     column1: Optional[str] = None
     column2: Optional[str] = None
     value_column: Optional[str] = None
@@ -117,6 +129,7 @@ class StatisticalTestRequest(BaseModel):
 
 class StatisticalTestResponse(BaseModel):
     """Statistical test results."""
+
     success: bool
     test_name: str = ""
     statistic: float = 0
@@ -129,8 +142,11 @@ class StatisticalTestResponse(BaseModel):
 
 class VisualizationRequest(BaseModel):
     """Request for visualization."""
+
     dataset_id: str
-    chart_type: str = Field(..., description="histogram, scatter, bar, box, line, heatmap, pie")
+    chart_type: str = Field(
+        ..., description="histogram, scatter, bar, box, line, heatmap, pie"
+    )
     x_column: Optional[str] = None
     y_column: Optional[str] = None
     color_column: Optional[str] = None
@@ -139,6 +155,7 @@ class VisualizationRequest(BaseModel):
 
 class VisualizationResponse(BaseModel):
     """Visualization response."""
+
     success: bool
     chart_type: str = ""
     plotly_json: Dict[str, Any] = {}
@@ -147,6 +164,7 @@ class VisualizationResponse(BaseModel):
 
 class NarrativeRequest(BaseModel):
     """Request for narrative generation."""
+
     analysis_results: Dict[str, Any]
     chapter_context: str = "findings"
     focus: str = ""
@@ -154,6 +172,7 @@ class NarrativeRequest(BaseModel):
 
 class NarrativeResponse(BaseModel):
     """Narrative generation response."""
+
     success: bool
     narrative: str = ""
     word_count: int = 0
@@ -163,6 +182,7 @@ class NarrativeResponse(BaseModel):
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
+
 
 def _get_dataset(dataset_id: str):
     """Get dataset by ID."""
@@ -174,6 +194,7 @@ def _get_dataset(dataset_id: str):
 # =============================================================================
 # ENDPOINTS
 # =============================================================================
+
 
 @router.post("/upload", response_model=UploadResponse)
 async def upload_file(
@@ -197,14 +218,14 @@ async def upload_file(
         else:
             return UploadResponse(
                 success=False,
-                error="Unsupported file type. Please upload CSV or Excel."
+                error="Unsupported file type. Please upload CSV or Excel.",
             )
 
         # Store dataset
         _datasets[dataset_id] = {
             "df": df,
             "filename": filename,
-            "uploaded_at": datetime.now().isoformat()
+            "uploaded_at": datetime.now().isoformat(),
         }
 
         # Create info
@@ -215,17 +236,14 @@ async def upload_file(
             columns=len(df.columns),
             column_names=df.columns.tolist(),
             column_types={col: str(dtype) for col, dtype in df.dtypes.items()},
-            uploaded_at=datetime.now().isoformat()
+            uploaded_at=datetime.now().isoformat(),
         )
 
         # Create preview
         preview = df.head(10).to_dict(orient="records")
 
         return UploadResponse(
-            success=True,
-            dataset_id=dataset_id,
-            info=info,
-            preview=preview
+            success=True, dataset_id=dataset_id, info=info, preview=preview
         )
 
     except Exception as e:
@@ -248,7 +266,9 @@ async def upload_from_url(
                 sheet_id = url.split("/d/")[1].split("/")[0]
             else:
                 sheet_id = url.split("/d/")[1].split("/")[0] if "/d/" in url else url
-            csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+            csv_url = (
+                f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+            )
         else:
             csv_url = url
 
@@ -257,7 +277,7 @@ async def upload_from_url(
         _datasets[dataset_id] = {
             "df": df,
             "filename": "Google Sheet",
-            "uploaded_at": datetime.now().isoformat()
+            "uploaded_at": datetime.now().isoformat(),
         }
 
         info = DatasetInfo(
@@ -267,16 +287,13 @@ async def upload_from_url(
             columns=len(df.columns),
             column_names=df.columns.tolist(),
             column_types={col: str(dtype) for col, dtype in df.dtypes.items()},
-            uploaded_at=datetime.now().isoformat()
+            uploaded_at=datetime.now().isoformat(),
         )
 
         preview = df.head(10).to_dict(orient="records")
 
         return UploadResponse(
-            success=True,
-            dataset_id=dataset_id,
-            info=info,
-            preview=preview
+            success=True, dataset_id=dataset_id, info=info, preview=preview
         )
 
     except Exception as e:
@@ -289,13 +306,15 @@ async def list_datasets():
     datasets = []
     for dataset_id, data in _datasets.items():
         df = data["df"]
-        datasets.append({
-            "dataset_id": dataset_id,
-            "filename": data["filename"],
-            "rows": len(df),
-            "columns": len(df.columns),
-            "uploaded_at": data["uploaded_at"]
-        })
+        datasets.append(
+            {
+                "dataset_id": dataset_id,
+                "filename": data["filename"],
+                "rows": len(df),
+                "columns": len(df.columns),
+                "uploaded_at": data["uploaded_at"],
+            }
+        )
     return {"datasets": datasets}
 
 
@@ -334,15 +353,14 @@ async def run_eda(dataset_id: str):
                 q25=float(stats.get("25%", 0)),
                 median=float(stats.get("50%", 0)),
                 q75=float(stats.get("75%", 0)),
-                max=float(stats.get("max", 0))
+                max=float(stats.get("max", 0)),
             )
 
         # Convert categorical summary
         categorical_summary = {}
         for col, info in result.get("categorical_summary", {}).items():
             categorical_summary[col] = CategoricalSummary(
-                unique=info.get("unique", 0),
-                top_values=info.get("top_values", {})
+                unique=info.get("unique", 0), top_values=info.get("top_values", {})
             )
 
         return EDAResponse(
@@ -352,7 +370,7 @@ async def run_eda(dataset_id: str):
             missing_values=result.get("missing_values", {}),
             numeric_summary=numeric_summary,
             categorical_summary=categorical_summary,
-            correlations=result.get("correlations", {})
+            correlations=result.get("correlations", {}),
         )
 
     except ImportError:
@@ -365,10 +383,10 @@ async def run_eda(dataset_id: str):
             overview={
                 "rows": len(df),
                 "columns": len(df.columns),
-                "missing_cells": int(df.isna().sum().sum())
+                "missing_cells": int(df.isna().sum().sum()),
             },
             data_types={col: str(dtype) for col, dtype in df.dtypes.items()},
-            missing_values={col: int(df[col].isna().sum()) for col in df.columns}
+            missing_values={col: int(df[col].isna().sum()) for col in df.columns},
         )
     except Exception as e:
         return EDAResponse(success=False, error=str(e))
@@ -386,7 +404,7 @@ async def analyze_sentiment(dataset_id: str, request: SentimentRequest):
         if request.text_column not in df.columns:
             return SentimentResponse(
                 success=False,
-                error=f"Column '{request.text_column}' not found in dataset"
+                error=f"Column '{request.text_column}' not found in dataset",
             )
 
         lab = DataLab()
@@ -411,13 +429,12 @@ async def analyze_sentiment(dataset_id: str, request: SentimentRequest):
             distribution=result.get("distribution", {}),
             average_score=result.get("average_score", 0),
             total_analyzed=result.get("total_analyzed", 0),
-            sample_results=sample_results
+            sample_results=sample_results,
         )
 
     except ImportError:
         return SentimentResponse(
-            success=False,
-            error="Sentiment analysis requires transformers library"
+            success=False, error="Sentiment analysis requires transformers library"
         )
     except Exception as e:
         return SentimentResponse(success=False, error=str(e))
@@ -435,11 +452,7 @@ async def run_statistical_test(dataset_id: str, request: StatisticalTestRequest)
         lab = DataLab()
 
         if request.test_type == "correlation":
-            result = lab.correlation_analysis(
-                df,
-                request.column1,
-                request.column2
-            )
+            result = lab.correlation_analysis(df, request.column1, request.column2)
         else:
             result = lab.significance_test(
                 df,
@@ -447,7 +460,7 @@ async def run_statistical_test(dataset_id: str, request: StatisticalTestRequest)
                 value_column=request.value_column,
                 group_column=request.group_column,
                 column1=request.column1,
-                column2=request.column2
+                column2=request.column2,
             )
 
         if result.get("error"):
@@ -460,13 +473,12 @@ async def run_statistical_test(dataset_id: str, request: StatisticalTestRequest)
             p_value=result.get("p_value", 1),
             significant=result.get("p_value", 1) < 0.05,
             interpretation=result.get("interpretation", ""),
-            details=result
+            details=result,
         )
 
     except ImportError:
         return StatisticalTestResponse(
-            success=False,
-            error="Statistical tests require scipy library"
+            success=False, error="Statistical tests require scipy library"
         )
     except Exception as e:
         return StatisticalTestResponse(success=False, error=str(e))
@@ -488,28 +500,24 @@ async def create_visualization(dataset_id: str, request: VisualizationRequest):
             x_column=request.x_column,
             y_column=request.y_column,
             color_column=request.color_column,
-            title=request.title
+            title=request.title,
         )
 
         if fig is None:
             return VisualizationResponse(
-                success=False,
-                error="Failed to create visualization"
+                success=False, error="Failed to create visualization"
             )
 
         # Convert to JSON
         plotly_json = json.loads(fig.to_json())
 
         return VisualizationResponse(
-            success=True,
-            chart_type=request.chart_type,
-            plotly_json=plotly_json
+            success=True, chart_type=request.chart_type, plotly_json=plotly_json
         )
 
     except ImportError:
         return VisualizationResponse(
-            success=False,
-            error="Visualization requires plotly library"
+            success=False, error="Visualization requires plotly library"
         )
     except Exception as e:
         return VisualizationResponse(success=False, error=str(e))
@@ -523,9 +531,7 @@ async def generate_narrative(request: NarrativeRequest):
 
         lab = DataLab()
         result = lab.generate_narrative(
-            request.analysis_results,
-            request.chapter_context,
-            request.focus
+            request.analysis_results, request.chapter_context, request.focus
         )
 
         if result.get("error"):
@@ -533,9 +539,7 @@ async def generate_narrative(request: NarrativeRequest):
 
         narrative = result.get("narrative", "")
         return NarrativeResponse(
-            success=True,
-            narrative=narrative,
-            word_count=len(narrative.split())
+            success=True, narrative=narrative, word_count=len(narrative.split())
         )
 
     except Exception as e:
@@ -551,7 +555,7 @@ async def get_preview(dataset_id: str, rows: int = 20):
     return {
         "preview": df.head(rows).to_dict(orient="records"),
         "total_rows": len(df),
-        "columns": df.columns.tolist()
+        "columns": df.columns.tolist(),
     }
 
 
@@ -567,13 +571,15 @@ async def get_columns(dataset_id: str):
         is_numeric = dtype in ["int64", "float64", "int32", "float32"]
         is_text = dtype == "object"
 
-        columns.append({
-            "name": col,
-            "dtype": dtype,
-            "is_numeric": is_numeric,
-            "is_text": is_text,
-            "unique_count": int(df[col].nunique()),
-            "missing_count": int(df[col].isna().sum())
-        })
+        columns.append(
+            {
+                "name": col,
+                "dtype": dtype,
+                "is_numeric": is_numeric,
+                "is_text": is_text,
+                "unique_count": int(df[col].nunique()),
+                "missing_count": int(df[col].isna().sum()),
+            }
+        )
 
     return {"columns": columns}

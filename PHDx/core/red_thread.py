@@ -61,6 +61,7 @@ class RedThreadEngine:
         # Initialize vector store (auto-selects Pinecone or ChromaDB)
         if use_local:
             from core.vector_store import ChromaVectorStore
+
             self.vector_store = ChromaVectorStore(COLLECTION_NAME)
         else:
             self.vector_store = get_vector_store(COLLECTION_NAME)
@@ -83,7 +84,7 @@ class RedThreadEngine:
             List of paragraph strings
         """
         # Split by double newlines or paragraph breaks
-        paragraphs = re.split(r'\n\s*\n', text)
+        paragraphs = re.split(r"\n\s*\n", text)
 
         # Filter and clean
         cleaned = []
@@ -120,17 +121,13 @@ class RedThreadEngine:
                 {
                     "source_file": filepath.name,
                     "paragraph_index": i,
-                    "word_count": len(p.split())
+                    "word_count": len(p.split()),
                 }
                 for i, p in enumerate(paragraphs)
             ]
 
             # Upsert to vector store (update if exists, insert if not)
-            self.vector_store.upsert(
-                ids=ids,
-                documents=paragraphs,
-                metadatas=metadatas
-            )
+            self.vector_store.upsert(ids=ids, documents=paragraphs, metadatas=metadatas)
 
             return len(paragraphs)
 
@@ -149,7 +146,7 @@ class RedThreadEngine:
             "files_processed": 0,
             "paragraphs_indexed": 0,
             "files": [],
-            "waiting_for_content": False
+            "waiting_for_content": False,
         }
 
         if not drafts_dir.exists():
@@ -179,19 +176,13 @@ class RedThreadEngine:
             count = self.index_document(docx_file)
             stats["files_processed"] += 1
             stats["paragraphs_indexed"] += count
-            stats["files"].append({
-                "name": docx_file.name,
-                "paragraphs": count
-            })
+            stats["files"].append({"name": docx_file.name, "paragraphs": count})
             print(f"Indexed {docx_file.name}: {count} paragraphs")
 
         return stats
 
     def find_similar_passages(
-        self,
-        text: str,
-        n_results: int = 5,
-        threshold: float = 0.7
+        self, text: str, n_results: int = 5, threshold: float = 0.7
     ) -> list[dict]:
         """
         Find passages in the index similar to the given text.
@@ -208,28 +199,31 @@ class RedThreadEngine:
             return []
 
         results = self.vector_store.query(
-            query_text=text,
-            n_results=min(n_results, self.vector_store.count())
+            query_text=text, n_results=min(n_results, self.vector_store.count())
         )
 
         similar = []
-        for i, (doc, meta, dist) in enumerate(zip(
-            results["documents"][0],
-            results["metadatas"][0],
-            results["distances"][0]
-        )):
+        for i, (doc, meta, dist) in enumerate(
+            zip(
+                results["documents"][0],
+                results["metadatas"][0],
+                results["distances"][0],
+            )
+        ):
             # Convert distance to similarity (ChromaDB uses L2 distance by default)
             # Lower distance = more similar
             similarity = 1 / (1 + dist)
 
             if similarity >= threshold:
-                similar.append({
-                    "text": doc,
-                    "source_file": meta["source_file"],
-                    "paragraph_index": meta["paragraph_index"],
-                    "similarity": round(similarity, 3),
-                    "distance": round(dist, 3)
-                })
+                similar.append(
+                    {
+                        "text": doc,
+                        "source_file": meta["source_file"],
+                        "paragraph_index": meta["paragraph_index"],
+                        "similarity": round(similarity, 3),
+                        "distance": round(dist, 3),
+                    }
+                )
 
         return similar
 
@@ -245,26 +239,34 @@ class RedThreadEngine:
             List of potential contradictions with explanations
         """
         # Find similar passages
-        similar_passages = self.find_similar_passages(new_text, n_results=10, threshold=0.3)
+        similar_passages = self.find_similar_passages(
+            new_text, n_results=10, threshold=0.3
+        )
 
         if not similar_passages:
-            return [{
-                "status": "no_context",
-                "message": "No similar passages found in index. Consider indexing your drafts first."
-            }]
+            return [
+                {
+                    "status": "no_context",
+                    "message": "No similar passages found in index. Consider indexing your drafts first.",
+                }
+            ]
 
         if not self.claude_client:
-            return [{
-                "status": "no_api_key",
-                "message": "ANTHROPIC_API_KEY not set. Cannot perform contradiction analysis.",
-                "similar_passages": similar_passages[:5]
-            }]
+            return [
+                {
+                    "status": "no_api_key",
+                    "message": "ANTHROPIC_API_KEY not set. Cannot perform contradiction analysis.",
+                    "similar_passages": similar_passages[:5],
+                }
+            ]
 
         # Prepare context for Claude
-        context_texts = "\n\n---\n\n".join([
-            f"[From {p['source_file']}, similarity: {p['similarity']}]\n{p['text']}"
-            for p in similar_passages[:5]
-        ])
+        context_texts = "\n\n---\n\n".join(
+            [
+                f"[From {p['source_file']}, similarity: {p['similarity']}]\n{p['text']}"
+                for p in similar_passages[:5]
+            ]
+        )
 
         prompt = f"""Analyze the following NEW PARAGRAPH against EXISTING PASSAGES from a PhD thesis.
 Identify any potential logical contradictions, inconsistencies, or conflicts in claims, methodology, or findings.
@@ -292,7 +294,7 @@ Respond with ONLY valid JSON, no additional text."""
             response = self.claude_client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=2048,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             response_text = response.content[0].text
@@ -302,16 +304,10 @@ Respond with ONLY valid JSON, no additional text."""
                 contradictions = json.loads(response_text)
                 return contradictions
             except json.JSONDecodeError:
-                return [{
-                    "status": "parse_error",
-                    "raw_response": response_text
-                }]
+                return [{"status": "parse_error", "raw_response": response_text}]
 
         except Exception as e:
-            return [{
-                "status": "error",
-                "message": str(e)
-            }]
+            return [{"status": "error", "message": str(e)}]
 
     def get_stats(self) -> dict:
         """Get statistics about the current index."""
@@ -358,7 +354,7 @@ Respond with ONLY valid JSON, no additional text."""
             "total_paragraphs": 0,
             "total_words": 0,
             "chapters": [],
-            "storage_path": str(CHROMA_DIR)
+            "storage_path": str(CHROMA_DIR),
         }
 
         # Ensure directories exist
@@ -376,9 +372,9 @@ Respond with ONLY valid JSON, no additional text."""
             report["error"] = "No .docx files found in drafts folder"
             return report
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("PHDx Red Thread Engine - Indexing Chapters")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"Source: {drafts_dir}")
         print(f"Storage: {CHROMA_DIR}")
         print(f"Files found: {len(docx_files)}")
@@ -388,7 +384,9 @@ Respond with ONLY valid JSON, no additional text."""
             try:
                 # Read document
                 doc = Document(docx_file)
-                full_text = "\n\n".join([p.text for p in doc.paragraphs if p.text.strip()])
+                full_text = "\n\n".join(
+                    [p.text for p in doc.paragraphs if p.text.strip()]
+                )
 
                 # Extract paragraphs
                 paragraphs = self._extract_paragraphs(full_text, min_words=15)
@@ -412,43 +410,44 @@ Respond with ONLY valid JSON, no additional text."""
                         "paragraph_index": i,
                         "word_count": len(p.split()),
                         "char_count": len(p),
-                        "indexed_at": datetime.now().isoformat()
+                        "indexed_at": datetime.now().isoformat(),
                     }
                     for i, p in enumerate(paragraphs)
                 ]
 
                 # Upsert to vector store (update if exists)
                 self.vector_store.upsert(
-                    ids=ids,
-                    documents=paragraphs,
-                    metadatas=metadatas
+                    ids=ids, documents=paragraphs, metadatas=metadatas
                 )
 
                 # Update report
                 report["total_files"] += 1
                 report["total_paragraphs"] += len(paragraphs)
                 report["total_words"] += word_count
-                report["chapters"].append({
-                    "filename": docx_file.name,
-                    "chapter": chapter_name,
-                    "paragraphs": len(paragraphs),
-                    "words": word_count
-                })
+                report["chapters"].append(
+                    {
+                        "filename": docx_file.name,
+                        "chapter": chapter_name,
+                        "paragraphs": len(paragraphs),
+                        "words": word_count,
+                    }
+                )
 
-                print(f"  ✓ {docx_file.name}: {len(paragraphs)} paragraphs, {word_count:,} words")
+                print(
+                    f"  ✓ {docx_file.name}: {len(paragraphs)} paragraphs, {word_count:,} words"
+                )
 
             except Exception as e:
                 print(f"  ✗ {docx_file.name}: Error - {e}")
-                report["chapters"].append({
-                    "filename": docx_file.name,
-                    "error": str(e)
-                })
+                report["chapters"].append({"filename": docx_file.name, "error": str(e)})
 
         report["success"] = report["total_paragraphs"] > 0
 
         print("-" * 60)
-        print(f"Total: {report['total_paragraphs']} paragraphs, {report['total_words']:,} words")
-        print(f"{'='*60}\n")
+        print(
+            f"Total: {report['total_paragraphs']} paragraphs, {report['total_words']:,} words"
+        )
+        print(f"{'=' * 60}\n")
 
         return report
 
@@ -506,7 +505,7 @@ Respond with ONLY valid JSON, no additional text."""
         # Generate report ID
         report_id = hashlib.md5(
             f"{new_draft_text[:100]}{datetime.now().isoformat()}".encode(),
-            usedforsecurity=False
+            usedforsecurity=False,
         ).hexdigest()[:12]
 
         report = {
@@ -514,57 +513,65 @@ Respond with ONLY valid JSON, no additional text."""
             "timestamp": datetime.now().isoformat(),
             "status": "error",
             "overall_score": 0,
-            "new_text_preview": new_draft_text[:200] + "..." if len(new_draft_text) > 200 else new_draft_text,
+            "new_text_preview": new_draft_text[:200] + "..."
+            if len(new_draft_text) > 200
+            else new_draft_text,
             "corpus_stats": {
                 "total_indexed": self.vector_store.count(),
-                "sections_analyzed": 0
+                "sections_analyzed": 0,
             },
             "related_sections": [],
             "issues": [],
-            "terminology_analysis": {
-                "key_terms_new": [],
-                "potential_shifts": []
-            },
-            "summary": ""
+            "terminology_analysis": {"key_terms_new": [], "potential_shifts": []},
+            "summary": "",
         }
 
         # Check if we have indexed content
         if self.vector_store.count() == 0:
             report["status"] = "error"
-            report["summary"] = "No indexed content. Run index_existing_chapters() first."
+            report["summary"] = (
+                "No indexed content. Run index_existing_chapters() first."
+            )
             return report
 
         # Check for Claude API
         if not self.claude_client:
             report["status"] = "error"
-            report["summary"] = "ANTHROPIC_API_KEY not configured. Cannot perform AI analysis."
+            report["summary"] = (
+                "ANTHROPIC_API_KEY not configured. Cannot perform AI analysis."
+            )
             return report
 
         # Find semantically related sections (top 10)
         try:
             results = self.vector_store.query(
-                query_text=new_draft_text,
-                n_results=min(10, self.vector_store.count())
+                query_text=new_draft_text, n_results=min(10, self.vector_store.count())
             )
 
             related_sections = []
             for doc, meta, dist in zip(
                 results["documents"][0],
                 results["metadatas"][0],
-                results["distances"][0]
+                results["distances"][0],
             ):
                 similarity = round(1 / (1 + dist), 3)
-                related_sections.append({
-                    "text": doc[:500] + "..." if len(doc) > 500 else doc,
-                    "full_text": doc,
-                    "source": meta.get("source_file", "unknown"),
-                    "chapter": meta.get("chapter", "unknown"),
-                    "paragraph_index": meta.get("paragraph_index", 0),
-                    "similarity": similarity
-                })
+                related_sections.append(
+                    {
+                        "text": doc[:500] + "..." if len(doc) > 500 else doc,
+                        "full_text": doc,
+                        "source": meta.get("source_file", "unknown"),
+                        "chapter": meta.get("chapter", "unknown"),
+                        "paragraph_index": meta.get("paragraph_index", 0),
+                        "similarity": similarity,
+                    }
+                )
 
             report["related_sections"] = [
-                {"text": s["text"], "source": s["source"], "similarity": s["similarity"]}
+                {
+                    "text": s["text"],
+                    "source": s["source"],
+                    "similarity": s["similarity"],
+                }
                 for s in related_sections
             ]
             report["corpus_stats"]["sections_analyzed"] = len(related_sections)
@@ -575,10 +582,12 @@ Respond with ONLY valid JSON, no additional text."""
             return report
 
         # Prepare context for Claude analysis
-        context_for_claude = "\n\n---\n\n".join([
-            f"[SOURCE: {s['source']}, Chapter: {s['chapter']}, Similarity: {s['similarity']}]\n{s['full_text']}"
-            for s in related_sections[:7]  # Top 7 most relevant
-        ])
+        context_for_claude = "\n\n---\n\n".join(
+            [
+                f"[SOURCE: {s['source']}, Chapter: {s['chapter']}, Similarity: {s['similarity']}]\n{s['full_text']}"
+                for s in related_sections[:7]  # Top 7 most relevant
+            ]
+        )
 
         # Claude prompt for deep consistency analysis
         analysis_prompt = f"""You are an academic consistency analyzer for a PhD thesis. Analyze the NEW DRAFT TEXT against EXISTING THESIS SECTIONS.
@@ -624,15 +633,15 @@ Return ONLY valid JSON."""
             response = self.claude_client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=4096,
-                messages=[{"role": "user", "content": analysis_prompt}]
+                messages=[{"role": "user", "content": analysis_prompt}],
             )
 
             response_text = response.content[0].text.strip()
 
             # Clean potential markdown wrapping
             if response_text.startswith("```"):
-                response_text = re.sub(r'^```(?:json)?\n?', '', response_text)
-                response_text = re.sub(r'\n?```$', '', response_text)
+                response_text = re.sub(r"^```(?:json)?\n?", "", response_text)
+                response_text = re.sub(r"\n?```$", "", response_text)
 
             # Parse Claude's response
             analysis = json.loads(response_text)
@@ -640,17 +649,18 @@ Return ONLY valid JSON."""
             # Populate report
             report["overall_score"] = analysis.get("overall_score", 0)
             report["issues"] = analysis.get("issues", [])
-            report["terminology_analysis"] = analysis.get("terminology_analysis", {
-                "key_terms_new": [],
-                "potential_shifts": []
-            })
+            report["terminology_analysis"] = analysis.get(
+                "terminology_analysis", {"key_terms_new": [], "potential_shifts": []}
+            )
             report["summary"] = analysis.get("summary", "Analysis complete.")
 
             # Determine status
             if not report["issues"]:
                 report["status"] = "consistent"
             else:
-                high_severity = any(i.get("severity") == "high" for i in report["issues"])
+                high_severity = any(
+                    i.get("severity") == "high" for i in report["issues"]
+                )
                 report["status"] = "issues_found"
                 if high_severity:
                     report["status"] = "critical_issues"
@@ -658,7 +668,7 @@ Return ONLY valid JSON."""
         except json.JSONDecodeError as e:
             report["status"] = "error"
             report["summary"] = f"Failed to parse AI response: {str(e)}"
-            report["raw_response"] = response_text if 'response_text' in dir() else None
+            report["raw_response"] = response_text if "response_text" in dir() else None
 
         except Exception as e:
             report["status"] = "error"
@@ -679,7 +689,9 @@ Return ONLY valid JSON."""
         related_sections = full_report.get("related_sections", [])
         avg_similarity = 0
         if related_sections:
-            avg_similarity = sum(s.get("similarity", 0) for s in related_sections) / len(related_sections)
+            avg_similarity = sum(
+                s.get("similarity", 0) for s in related_sections
+            ) / len(related_sections)
             avg_similarity = round(avg_similarity * 100, 1)  # Convert to percentage
 
         # Thematic Threshold Warning - trigger when similarity < 50%
@@ -689,7 +701,7 @@ Return ONLY valid JSON."""
                 "triggered": True,
                 "message": "Low Argument Consistency detected. Check Chapter 2 for contradictions.",
                 "avg_similarity": avg_similarity,
-                "recommendation": "Your new text may be diverging from your thesis argument. Review your Literature Review chapter to ensure conceptual alignment."
+                "recommendation": "Your new text may be diverging from your thesis argument. Review your Literature Review chapter to ensure conceptual alignment.",
             }
 
         # Create UI-friendly version
@@ -700,16 +712,22 @@ Return ONLY valid JSON."""
             "summary": full_report["summary"],
             "issue_count": len(full_report["issues"]),
             "issues_by_severity": {
-                "high": [i for i in full_report["issues"] if i.get("severity") == "high"],
-                "medium": [i for i in full_report["issues"] if i.get("severity") == "medium"],
-                "low": [i for i in full_report["issues"] if i.get("severity") == "low"]
+                "high": [
+                    i for i in full_report["issues"] if i.get("severity") == "high"
+                ],
+                "medium": [
+                    i for i in full_report["issues"] if i.get("severity") == "medium"
+                ],
+                "low": [i for i in full_report["issues"] if i.get("severity") == "low"],
             },
             "key_terms": full_report["terminology_analysis"].get("key_terms_new", []),
-            "terminology_warnings": full_report["terminology_analysis"].get("potential_shifts", []),
+            "terminology_warnings": full_report["terminology_analysis"].get(
+                "potential_shifts", []
+            ),
             "related_count": len(full_report["related_sections"]),
             "avg_similarity_percent": avg_similarity,
             "low_consistency_warning": low_consistency_warning,
-            "full_report": full_report  # Include full report for detailed view
+            "full_report": full_report,  # Include full report for detailed view
         }
 
         return ui_report
@@ -731,6 +749,7 @@ Return ONLY valid JSON."""
 # =============================================================================
 # STANDALONE FUNCTIONS (for direct import)
 # =============================================================================
+
 
 def index_existing_chapters(drafts_dir: Path = DRAFTS_DIR) -> dict:
     """
@@ -770,7 +789,9 @@ def main():
     # Index drafts
     print("\n[1] Indexing drafts folder...")
     stats = engine.index_drafts_folder()
-    print(f"Indexed {stats['paragraphs_indexed']} paragraphs from {stats['files_processed']} files")
+    print(
+        f"Indexed {stats['paragraphs_indexed']} paragraphs from {stats['files_processed']} files"
+    )
 
     # Show stats
     print("\n[2] Current index stats:")
@@ -779,7 +800,7 @@ def main():
     print(f"  Storage: {index_stats['storage_path']}")
 
     # Demo check if we have content
-    if index_stats['total_paragraphs'] > 0:
+    if index_stats["total_paragraphs"] > 0:
         print("\n[3] Ready for continuity checks!")
         print("Use: engine.check_continuity('Your new paragraph here...')")
     else:

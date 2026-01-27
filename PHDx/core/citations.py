@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 # Attempt to import pyzotero (may fail due to legacy dependency issues)
 try:
     from pyzotero import zotero
+
     PYZOTERO_AVAILABLE = True
 except ImportError:
     PYZOTERO_AVAILABLE = False
@@ -29,6 +30,7 @@ except ImportError:
 
 # Direct API fallback using requests
 import requests
+
 ZOTERO_API_BASE = "https://api.zotero.org"
 
 # Import ethics utilities for AI usage logging
@@ -36,12 +38,15 @@ try:
     from core.ethics_utils import log_ai_usage
 except ImportError:
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     try:
         from core.ethics_utils import log_ai_usage
     except ImportError:
+
         def log_ai_usage(*args, **kwargs):
             pass
+
 
 load_dotenv()
 
@@ -52,7 +57,8 @@ def get_secret(key: str, default: str = None) -> str:
     """
     try:
         import streamlit as st
-        if hasattr(st, 'secrets') and key in st.secrets:
+
+        if hasattr(st, "secrets") and key in st.secrets:
             return st.secrets[key]
     except Exception:
         pass
@@ -69,6 +75,7 @@ CITATIONS_CACHE = DATA_DIR / "zotero_cache.json"
 # =============================================================================
 # MOCK ZOTERO - Synthetic Citation Library
 # =============================================================================
+
 
 class MockZoteroSource:
     """A mock Zotero item with .key attribute for compatibility."""
@@ -107,7 +114,13 @@ class MockZotero:
             "place": "New York",
             "abstractNote": "A comprehensive analysis of surveillance capitalism as a new economic order that claims human experience as free raw material for hidden commercial practices of extraction, prediction, and sales. Zuboff argues this represents an unprecedented form of power that threatens democratic norms and individual autonomy.",
             "ISBN": "978-1610395694",
-            "tags": ["surveillance capitalism", "digital economy", "privacy", "power", "technology"]
+            "tags": [
+                "surveillance capitalism",
+                "digital economy",
+                "privacy",
+                "power",
+                "technology",
+            ],
         },
         {
             "key": "FOUCAULT1977",
@@ -123,7 +136,7 @@ class MockZotero:
             "edition": "1st English",
             "abstractNote": "A foundational text examining the emergence of disciplinary society through the lens of penal institutions. Introduces the concept of the panopticon as a metaphor for modern surveillance and normalisation, arguing that power operates through visibility and the internalisation of disciplinary norms.",
             "ISBN": "978-0140137224",
-            "tags": ["panopticon", "discipline", "power", "surveillance", "governance"]
+            "tags": ["panopticon", "discipline", "power", "surveillance", "governance"],
         },
         {
             "key": "KITCHIN2014",
@@ -140,7 +153,13 @@ class MockZotero:
             "pages": "1-14",
             "DOI": "10.1007/s10708-013-9516-8",
             "abstractNote": "Critically examines the emergence of smart city initiatives and their reliance on big data analytics for urban governance. Argues that while real-time data offers new possibilities for urban management, it raises significant concerns regarding privacy, surveillance, and technocratic governance models.",
-            "tags": ["smart cities", "big data", "urban governance", "surveillance", "real-time analytics"]
+            "tags": [
+                "smart cities",
+                "big data",
+                "urban governance",
+                "surveillance",
+                "real-time analytics",
+            ],
         },
         {
             "key": "LYON2007",
@@ -155,14 +174,24 @@ class MockZotero:
             "place": "Cambridge",
             "abstractNote": "A comprehensive introduction to the field of surveillance studies, examining how contemporary societies have become increasingly monitored through technological systems. Lyon explores the social, political, and ethical implications of surveillance across domains including security, consumption, and digital communications.",
             "ISBN": "978-0745635927",
-            "tags": ["surveillance studies", "monitoring", "privacy", "security", "society"]
+            "tags": [
+                "surveillance studies",
+                "monitoring",
+                "privacy",
+                "security",
+                "society",
+            ],
         },
         {
             "key": "COULDRY2019",
             "title": "The Costs of Connection: How Data Is Colonizing Human Life and Appropriating It for Capitalism",
             "creators": [
                 {"creatorType": "author", "firstName": "Nick", "lastName": "Couldry"},
-                {"creatorType": "author", "firstName": "Ulises A.", "lastName": "Mejias"}
+                {
+                    "creatorType": "author",
+                    "firstName": "Ulises A.",
+                    "lastName": "Mejias",
+                },
             ],
             "year": "2019",
             "date": "2019",
@@ -171,8 +200,14 @@ class MockZotero:
             "place": "Stanford, CA",
             "abstractNote": "Develops the concept of 'data colonialism' to describe how technology corporations extract value from human life through data relations. The authors argue that contemporary data practices represent a new phase of colonialism that naturalises the exploitation of human beings for profit.",
             "ISBN": "978-1503609754",
-            "tags": ["data colonialism", "digital sovereignty", "exploitation", "capitalism", "technology"]
-        }
+            "tags": [
+                "data colonialism",
+                "digital sovereignty",
+                "exploitation",
+                "capitalism",
+                "technology",
+            ],
+        },
     ]
 
     def __init__(self):
@@ -233,7 +268,8 @@ def _show_mock_mode_toast():
     if not _MOCK_MODE_TOAST_SHOWN:
         try:
             import streamlit as st
-            if hasattr(st, 'toast'):
+
+            if hasattr(st, "toast"):
                 st.toast("⚠️ Using Synthetic Citation Library", icon="📚")
             _MOCK_MODE_TOAST_SHOWN = True
         except Exception:
@@ -256,7 +292,7 @@ class ZoteroSentinel:
         self,
         user_id: Optional[str] = None,
         library_type: str = "user",
-        api_key: Optional[str] = None
+        api_key: Optional[str] = None,
     ):
         """
         Initialize Zotero connection.
@@ -284,7 +320,9 @@ class ZoteroSentinel:
 
         # Initialize Anthropic for relevance analysis
         anthropic_key = get_secret("ANTHROPIC_API_KEY")
-        self.claude_client = anthropic.Anthropic(api_key=anthropic_key) if anthropic_key else None
+        self.claude_client = (
+            anthropic.Anthropic(api_key=anthropic_key) if anthropic_key else None
+        )
 
         # Load cached items
         self._load_cache()
@@ -314,29 +352,31 @@ class ZoteroSentinel:
         items = []
         for src in MockZotero.MOCK_SOURCES:
             creators = self._parse_creators(src.get("creators", []))
-            items.append({
-                "key": src.get("key", ""),
-                "title": src.get("title", "Untitled"),
-                "creators": creators,
-                "authors": creators["formatted"],
-                "authors_list": creators["list"],
-                "year": src.get("year", ""),
-                "date": src.get("date", ""),
-                "abstract": src.get("abstractNote", ""),
-                "publication": src.get("publicationTitle", ""),
-                "publisher": src.get("publisher", ""),
-                "place": src.get("place", ""),
-                "volume": src.get("volume", ""),
-                "issue": src.get("issue", ""),
-                "pages": src.get("pages", ""),
-                "doi": src.get("DOI", ""),
-                "url": src.get("url", ""),
-                "isbn": src.get("ISBN", ""),
-                "edition": src.get("edition", ""),
-                "tags": src.get("tags", []),
-                "item_type": src.get("itemType", ""),
-                "accessed": src.get("accessDate", "")
-            })
+            items.append(
+                {
+                    "key": src.get("key", ""),
+                    "title": src.get("title", "Untitled"),
+                    "creators": creators,
+                    "authors": creators["formatted"],
+                    "authors_list": creators["list"],
+                    "year": src.get("year", ""),
+                    "date": src.get("date", ""),
+                    "abstract": src.get("abstractNote", ""),
+                    "publication": src.get("publicationTitle", ""),
+                    "publisher": src.get("publisher", ""),
+                    "place": src.get("place", ""),
+                    "volume": src.get("volume", ""),
+                    "issue": src.get("issue", ""),
+                    "pages": src.get("pages", ""),
+                    "doi": src.get("DOI", ""),
+                    "url": src.get("url", ""),
+                    "isbn": src.get("ISBN", ""),
+                    "edition": src.get("edition", ""),
+                    "tags": src.get("tags", []),
+                    "item_type": src.get("itemType", ""),
+                    "accessed": src.get("accessDate", ""),
+                }
+            )
         return items
 
     def _connect(self) -> bool:
@@ -350,11 +390,7 @@ class ZoteroSentinel:
         # Try pyzotero first if available
         if PYZOTERO_AVAILABLE:
             try:
-                self.zot = zotero.Zotero(
-                    self.user_id,
-                    self.library_type,
-                    self.api_key
-                )
+                self.zot = zotero.Zotero(self.user_id, self.library_type, self.api_key)
                 self.zot.num_items()
                 self.connected = True
                 self._use_direct_api = False
@@ -433,7 +469,7 @@ class ZoteroSentinel:
         """Load cached items from disk."""
         if CITATIONS_CACHE.exists():
             try:
-                with open(CITATIONS_CACHE, 'r', encoding='utf-8') as f:
+                with open(CITATIONS_CACHE, "r", encoding="utf-8") as f:
                     cache_data = json.load(f)
                     self.items_cache = cache_data.get("items", [])
                     self.last_fetch = cache_data.get("last_fetch")
@@ -443,12 +479,16 @@ class ZoteroSentinel:
     def _save_cache(self):
         """Save items to cache file."""
         CITATIONS_CACHE.parent.mkdir(parents=True, exist_ok=True)
-        with open(CITATIONS_CACHE, 'w', encoding='utf-8') as f:
-            json.dump({
-                "items": self.items_cache,
-                "last_fetch": datetime.now().isoformat(),
-                "user_id": self.user_id
-            }, f, indent=2)
+        with open(CITATIONS_CACHE, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "items": self.items_cache,
+                    "last_fetch": datetime.now().isoformat(),
+                    "user_id": self.user_id,
+                },
+                f,
+                indent=2,
+            )
 
     def get_connection_status(self) -> dict:
         """Get current connection status."""
@@ -459,10 +499,10 @@ class ZoteroSentinel:
             "library_type": self.library_type,
             "has_api_key": bool(self.api_key),
             "pyzotero_available": PYZOTERO_AVAILABLE,
-            "using_direct_api": getattr(self, '_use_direct_api', False),
+            "using_direct_api": getattr(self, "_use_direct_api", False),
             "cached_items": len(self.items_cache),
             "last_fetch": self.last_fetch,
-            "connection_error": getattr(self, 'connection_error', None)
+            "connection_error": getattr(self, "connection_error", None),
         }
 
     def _parse_creators(self, creators: list) -> dict:
@@ -479,19 +519,23 @@ class ZoteroSentinel:
                     "firstName": c.get("firstName", ""),
                     "lastName": c.get("lastName", ""),
                     "name": c.get("name", ""),
-                    "type": c.get("creatorType", "author")
+                    "type": c.get("creatorType", "author"),
                 }
                 if author["name"]:
                     # Single name field (organization)
                     author["display"] = author["name"]
                 else:
-                    author["display"] = f"{author['lastName']}, {author['firstName'][0]}." if author['firstName'] else author['lastName']
+                    author["display"] = (
+                        f"{author['lastName']}, {author['firstName'][0]}."
+                        if author["firstName"]
+                        else author["lastName"]
+                    )
                 authors.append(author)
 
         return {
             "list": authors,
             "count": len(authors),
-            "formatted": self._format_authors_harvard(authors)
+            "formatted": self._format_authors_harvard(authors),
         }
 
     def _format_authors_harvard(self, authors: list) -> str:
@@ -537,7 +581,7 @@ class ZoteroSentinel:
             start += limit
 
             # Check if we got all items
-            total = int(response.headers.get('Total-Results', 0))
+            total = int(response.headers.get("Total-Results", 0))
             if start >= total:
                 break
 
@@ -562,7 +606,7 @@ class ZoteroSentinel:
 
         try:
             # Fetch items via pyzotero or direct API
-            if getattr(self, '_use_direct_api', False) or not PYZOTERO_AVAILABLE:
+            if getattr(self, "_use_direct_api", False) or not PYZOTERO_AVAILABLE:
                 raw_items = self._fetch_via_direct_api()
             else:
                 raw_items = self.zot.everything(self.zot.items())
@@ -583,33 +627,37 @@ class ZoteroSentinel:
                 year = ""
                 if date_str:
                     # Try to extract year from various date formats
-                    year_match = re.search(r'\b(19|20)\d{2}\b', date_str)
+                    year_match = re.search(r"\b(19|20)\d{2}\b", date_str)
                     if year_match:
                         year = year_match.group()
 
-                items.append({
-                    "key": data.get("key", ""),
-                    "title": data.get("title", "Untitled"),
-                    "creators": creators,
-                    "authors": creators["formatted"],
-                    "authors_list": creators["list"],
-                    "year": year,
-                    "date": date_str,
-                    "abstract": data.get("abstractNote", ""),
-                    "publication": data.get("publicationTitle", data.get("bookTitle", "")),
-                    "publisher": data.get("publisher", ""),
-                    "place": data.get("place", ""),
-                    "volume": data.get("volume", ""),
-                    "issue": data.get("issue", ""),
-                    "pages": data.get("pages", ""),
-                    "doi": data.get("DOI", ""),
-                    "url": data.get("url", ""),
-                    "isbn": data.get("ISBN", ""),
-                    "edition": data.get("edition", ""),
-                    "tags": [t.get("tag", "") for t in data.get("tags", [])],
-                    "item_type": item_type,
-                    "accessed": data.get("accessDate", "")
-                })
+                items.append(
+                    {
+                        "key": data.get("key", ""),
+                        "title": data.get("title", "Untitled"),
+                        "creators": creators,
+                        "authors": creators["formatted"],
+                        "authors_list": creators["list"],
+                        "year": year,
+                        "date": date_str,
+                        "abstract": data.get("abstractNote", ""),
+                        "publication": data.get(
+                            "publicationTitle", data.get("bookTitle", "")
+                        ),
+                        "publisher": data.get("publisher", ""),
+                        "place": data.get("place", ""),
+                        "volume": data.get("volume", ""),
+                        "issue": data.get("issue", ""),
+                        "pages": data.get("pages", ""),
+                        "doi": data.get("DOI", ""),
+                        "url": data.get("url", ""),
+                        "isbn": data.get("ISBN", ""),
+                        "edition": data.get("edition", ""),
+                        "tags": [t.get("tag", "") for t in data.get("tags", [])],
+                        "item_type": item_type,
+                        "accessed": data.get("accessDate", ""),
+                    }
+                )
 
             self.items_cache = items
             self._save_cache()
@@ -644,7 +692,7 @@ class ZoteroSentinel:
                 search_terms = self._extract_key_terms(query)
 
                 # Use direct API or pyzotero based on connection type
-                if getattr(self, '_use_direct_api', False) or not PYZOTERO_AVAILABLE:
+                if getattr(self, "_use_direct_api", False) or not PYZOTERO_AVAILABLE:
                     # Direct API search
                     headers = {"Zotero-API-Key": self.api_key}
                     url = f"{ZOTERO_API_BASE}/users/{self.user_id}/items?q={search_terms}&limit={limit * 2}"
@@ -663,26 +711,28 @@ class ZoteroSentinel:
                         continue
 
                     creators = self._parse_creators(data.get("creators", []))
-                    year_match = re.search(r'\b(19|20)\d{2}\b', data.get("date", ""))
+                    year_match = re.search(r"\b(19|20)\d{2}\b", data.get("date", ""))
 
-                    results.append({
-                        "key": data.get("key", ""),
-                        "title": data.get("title", "Untitled"),
-                        "authors": creators["formatted"],
-                        "authors_list": creators["list"],
-                        "year": year_match.group() if year_match else "",
-                        "abstract": data.get("abstractNote", ""),
-                        "publication": data.get("publicationTitle", ""),
-                        "item_type": data.get("itemType", ""),
-                        "relevance_source": "api_search"
-                    })
+                    results.append(
+                        {
+                            "key": data.get("key", ""),
+                            "title": data.get("title", "Untitled"),
+                            "authors": creators["formatted"],
+                            "authors_list": creators["list"],
+                            "year": year_match.group() if year_match else "",
+                            "abstract": data.get("abstractNote", ""),
+                            "publication": data.get("publicationTitle", ""),
+                            "item_type": data.get("itemType", ""),
+                            "relevance_source": "api_search",
+                        }
+                    )
             except Exception as e:
                 print(f"API search error: {e}")
 
         # Strategy 2: Local cache search with keyword matching
         if self.items_cache:
             query_lower = query.lower()
-            keywords = set(re.findall(r'\b\w{4,}\b', query_lower))
+            keywords = set(re.findall(r"\b\w{4,}\b", query_lower))
 
             for item in self.items_cache:
                 # Skip if already in results
@@ -695,7 +745,9 @@ class ZoteroSentinel:
 
                 if matches > 0:
                     item_copy = item.copy()
-                    item_copy["relevance_score"] = matches / len(keywords) if keywords else 0
+                    item_copy["relevance_score"] = (
+                        matches / len(keywords) if keywords else 0
+                    )
                     item_copy["relevance_source"] = "cache_search"
                     results.append(item_copy)
 
@@ -707,16 +759,66 @@ class ZoteroSentinel:
         """Extract key search terms from text."""
         # Remove common words and keep significant terms
         stopwords = {
-            'the', 'and', 'for', 'that', 'this', 'with', 'are', 'was', 'were',
-            'been', 'being', 'have', 'has', 'had', 'does', 'did', 'will',
-            'would', 'could', 'should', 'from', 'into', 'through', 'during',
-            'before', 'after', 'above', 'below', 'between', 'under', 'again',
-            'further', 'then', 'once', 'here', 'there', 'when', 'where', 'why',
-            'how', 'all', 'each', 'few', 'more', 'most', 'other', 'some', 'such',
-            'only', 'own', 'same', 'than', 'too', 'very', 'can', 'just', 'also'
+            "the",
+            "and",
+            "for",
+            "that",
+            "this",
+            "with",
+            "are",
+            "was",
+            "were",
+            "been",
+            "being",
+            "have",
+            "has",
+            "had",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "from",
+            "into",
+            "through",
+            "during",
+            "before",
+            "after",
+            "above",
+            "below",
+            "between",
+            "under",
+            "again",
+            "further",
+            "then",
+            "once",
+            "here",
+            "there",
+            "when",
+            "where",
+            "why",
+            "how",
+            "all",
+            "each",
+            "few",
+            "more",
+            "most",
+            "other",
+            "some",
+            "such",
+            "only",
+            "own",
+            "same",
+            "than",
+            "too",
+            "very",
+            "can",
+            "just",
+            "also",
         }
 
-        words = re.findall(r'\b[a-zA-Z]{4,}\b', text.lower())
+        words = re.findall(r"\b[a-zA-Z]{4,}\b", text.lower())
         key_terms = [w for w in words if w not in stopwords]
 
         # Return top 5 unique terms
@@ -732,10 +834,7 @@ class ZoteroSentinel:
         return " ".join(unique_terms)
 
     def get_relevant_papers(
-        self,
-        drafting_context: str,
-        chapter_topic: str = "",
-        top_n: int = 5
+        self, drafting_context: str, chapter_topic: str = "", top_n: int = 5
     ) -> list[dict]:
         """
         Get the most relevant papers for the current drafting context.
@@ -764,11 +863,13 @@ class ZoteroSentinel:
 
         # Prepare papers summary for Claude (limit to prevent token overflow)
         papers_for_analysis = self.items_cache[:50]
-        papers_summary = "\n".join([
-            f"[{i}] {p['title']} ({p['year']}) by {p['authors']}\n    Abstract: {p['abstract'][:150]}..."
-            for i, p in enumerate(papers_for_analysis)
-            if p.get('title')
-        ])
+        papers_summary = "\n".join(
+            [
+                f"[{i}] {p['title']} ({p['year']}) by {p['authors']}\n    Abstract: {p['abstract'][:150]}..."
+                for i, p in enumerate(papers_for_analysis)
+                if p.get("title")
+            ]
+        )
 
         prompt = f"""You are a PhD research assistant. Analyze the DRAFTING CONTEXT and identify the most relevant papers from the LIBRARY for citation.
 
@@ -782,7 +883,7 @@ LIBRARY ({len(papers_for_analysis)} papers):
 
 Return a JSON array of the {top_n} most relevant papers for citing in this context.
 Each entry must have:
-- "index": The paper index number [0-{len(papers_for_analysis)-1}]
+- "index": The paper index number [0-{len(papers_for_analysis) - 1}]
 - "relevance_score": 0.0 to 1.0 (1.0 = highly relevant)
 - "reason": Brief explanation (1 sentence) of why this paper supports the argument
 
@@ -800,22 +901,22 @@ Respond with ONLY valid JSON array, no markdown."""
             data_source="zotero_library",
             prompt=f"Finding relevant papers for: {drafting_context[:100]}...",
             was_scrubbed=False,
-            redactions_count=0
+            redactions_count=0,
         )
 
         try:
             response = self.claude_client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=1024,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             response_text = response.content[0].text.strip()
 
             # Clean markdown if present
             if response_text.startswith("```"):
-                response_text = re.sub(r'^```(?:json)?\n?', '', response_text)
-                response_text = re.sub(r'\n?```$', '', response_text)
+                response_text = re.sub(r"^```(?:json)?\n?", "", response_text)
+                response_text = re.sub(r"\n?```$", "", response_text)
 
             result = json.loads(response_text)
 
@@ -943,7 +1044,7 @@ Respond with ONLY valid JSON array, no markdown."""
             if accessed:
                 # Format access date
                 try:
-                    acc_date = datetime.fromisoformat(accessed.replace('Z', '+00:00'))
+                    acc_date = datetime.fromisoformat(accessed.replace("Z", "+00:00"))
                     citation += f" (Accessed: {acc_date.strftime('%d %B %Y')})"
                 except (ValueError, AttributeError):
                     citation += f" (Accessed: {accessed})"
@@ -983,7 +1084,9 @@ Respond with ONLY valid JSON array, no markdown."""
             elif " " in authors_display:
                 authors_display = authors_display.split()[-1]
         elif len(authors_list) == 1:
-            authors_display = authors_list[0].get("lastName", authors_list[0].get("display", "Unknown"))
+            authors_display = authors_list[0].get(
+                "lastName", authors_list[0].get("display", "Unknown")
+            )
         elif len(authors_list) == 2:
             authors_display = f"{authors_list[0].get('lastName', '')} and {authors_list[1].get('lastName', '')}"
         else:
@@ -996,7 +1099,7 @@ Respond with ONLY valid JSON array, no markdown."""
         stats = {
             "connected": self.connected,
             "cached_items": len(self.items_cache),
-            "last_fetch": self.last_fetch
+            "last_fetch": self.last_fetch,
         }
 
         if self.connected:
@@ -1022,7 +1125,7 @@ Respond with ONLY valid JSON array, no markdown."""
         self,
         citation_keys: list[str] = None,
         items: list[dict] = None,
-        sort_by: str = "author"
+        sort_by: str = "author",
     ) -> str:
         """
         Generate a formatted bibliography in Oxford Brookes Harvard style.
@@ -1040,8 +1143,7 @@ Respond with ONLY valid JSON array, no markdown."""
             bib_items = items
         elif citation_keys:
             bib_items = [
-                item for item in self.items_cache
-                if item.get("key") in citation_keys
+                item for item in self.items_cache if item.get("key") in citation_keys
             ]
         else:
             bib_items = self.items_cache
@@ -1053,7 +1155,9 @@ Respond with ONLY valid JSON array, no markdown."""
         if sort_by == "author":
             bib_items = sorted(bib_items, key=lambda x: x.get("authors", "").lower())
         elif sort_by == "year":
-            bib_items = sorted(bib_items, key=lambda x: x.get("year", "9999"), reverse=True)
+            bib_items = sorted(
+                bib_items, key=lambda x: x.get("year", "9999"), reverse=True
+            )
         elif sort_by == "title":
             bib_items = sorted(bib_items, key=lambda x: x.get("title", "").lower())
 
@@ -1066,9 +1170,7 @@ Respond with ONLY valid JSON array, no markdown."""
         return "\n\n".join(bibliography_lines)
 
     def export_bibliography(
-        self,
-        citation_keys: list[str] = None,
-        format: str = "harvard"
+        self, citation_keys: list[str] = None, format: str = "harvard"
     ) -> dict:
         """
         Export bibliography in various formats.
@@ -1098,7 +1200,7 @@ Respond with ONLY valid JSON array, no markdown."""
             "format": format,
             "content": content,
             "item_count": len(items),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     def _export_bibtex(self, items: list[dict]) -> str:
@@ -1112,15 +1214,21 @@ Respond with ONLY valid JSON array, no markdown."""
                 "bookSection": "incollection",
                 "conferencePaper": "inproceedings",
                 "thesis": "phdthesis",
-                "webpage": "misc"
+                "webpage": "misc",
             }.get(item_type, "misc")
 
             key = item.get("key", "unknown")
             authors_list = item.get("authors_list", [])
-            authors = " and ".join([
-                f"{a.get('lastName', '')}, {a.get('firstName', '')}"
-                for a in authors_list
-            ]) if authors_list else item.get("authors", "Unknown")
+            authors = (
+                " and ".join(
+                    [
+                        f"{a.get('lastName', '')}, {a.get('firstName', '')}"
+                        for a in authors_list
+                    ]
+                )
+                if authors_list
+                else item.get("authors", "Unknown")
+            )
 
             entry = f"@{bibtex_type}{{{key},\n"
             entry += f"  author = {{{authors}}},\n"
@@ -1158,7 +1266,7 @@ Respond with ONLY valid JSON array, no markdown."""
                 "bookSection": "CHAP",
                 "conferencePaper": "CONF",
                 "thesis": "THES",
-                "webpage": "ELEC"
+                "webpage": "ELEC",
             }.get(item_type, "GEN")
 
             entry = f"TY  - {ris_type}\n"
@@ -1189,9 +1297,7 @@ Respond with ONLY valid JSON array, no markdown."""
     # =========================================================================
 
     def analyze_citation_coverage(
-        self,
-        draft_text: str,
-        chapter_type: str = ""
+        self, draft_text: str, chapter_type: str = ""
     ) -> dict:
         """
         Analyze citation coverage in a draft against the Zotero library.
@@ -1212,43 +1318,55 @@ Respond with ONLY valid JSON array, no markdown."""
         if not draft_text or not self.items_cache:
             return {
                 "status": "error",
-                "message": "No draft text or library items available"
+                "message": "No draft text or library items available",
             }
 
         # Extract existing citations from draft
         # Pattern matches (Author, Year) or (Author et al., Year)
-        citation_pattern = r'\(([A-Z][a-zA-Z]+(?:\s+(?:and|&)\s+[A-Z][a-zA-Z]+)?(?:\s+et\s+al\.)?),?\s*(\d{4}[a-z]?)\)'
+        citation_pattern = r"\(([A-Z][a-zA-Z]+(?:\s+(?:and|&)\s+[A-Z][a-zA-Z]+)?(?:\s+et\s+al\.)?),?\s*(\d{4}[a-z]?)\)"
         found_citations = re.findall(citation_pattern, draft_text)
 
         # Match found citations to library items
         cited_items = []
         for author_part, year in found_citations:
-            author_clean = author_part.replace(" et al.", "").replace(" and ", " ").strip()
+            author_clean = (
+                author_part.replace(" et al.", "").replace(" and ", " ").strip()
+            )
             for item in self.items_cache:
                 item_author = item.get("authors", "").split(",")[0].strip()
-                if author_clean.lower() in item_author.lower() and item.get("year") == year:
+                if (
+                    author_clean.lower() in item_author.lower()
+                    and item.get("year") == year
+                ):
                     if item not in cited_items:
                         cited_items.append(item)
 
         # Find relevant uncited papers
         uncited_relevant = self.get_relevant_papers(draft_text, chapter_type, top_n=10)
         uncited_relevant = [
-            p for p in uncited_relevant
+            p
+            for p in uncited_relevant
             if p.get("key") not in [c.get("key") for c in cited_items]
         ][:5]
 
         # Calculate metrics
         word_count = len(draft_text.split())
         citation_count = len(found_citations)
-        citations_per_1000_words = (citation_count / word_count * 1000) if word_count > 0 else 0
+        citations_per_1000_words = (
+            (citation_count / word_count * 1000) if word_count > 0 else 0
+        )
 
         # Determine coverage quality
         if citations_per_1000_words < 2:
             coverage_level = "low"
-            coverage_advice = "Consider adding more citations to support your arguments."
+            coverage_advice = (
+                "Consider adding more citations to support your arguments."
+            )
         elif citations_per_1000_words < 5:
             coverage_level = "moderate"
-            coverage_advice = "Citation coverage is acceptable but could be strengthened."
+            coverage_advice = (
+                "Citation coverage is acceptable but could be strengthened."
+            )
         else:
             coverage_level = "good"
             coverage_advice = "Citation coverage is strong."
@@ -1261,14 +1379,14 @@ Respond with ONLY valid JSON array, no markdown."""
                 "citation_count": citation_count,
                 "citations_per_1000_words": round(citations_per_1000_words, 2),
                 "coverage_level": coverage_level,
-                "coverage_advice": coverage_advice
+                "coverage_advice": coverage_advice,
             },
             "cited_papers": [
                 {
                     "key": c.get("key"),
                     "title": c.get("title"),
                     "authors": c.get("authors"),
-                    "year": c.get("year")
+                    "year": c.get("year"),
                 }
                 for c in cited_items
             ],
@@ -1279,18 +1397,15 @@ Respond with ONLY valid JSON array, no markdown."""
                     "authors": p.get("authors"),
                     "year": p.get("year"),
                     "relevance_score": p.get("relevance_score", 0),
-                    "relevance_reason": p.get("relevance_reason", "")
+                    "relevance_reason": p.get("relevance_reason", ""),
                 }
                 for p in uncited_relevant
             ],
-            "chapter_type": chapter_type
+            "chapter_type": chapter_type,
         }
 
     def suggest_citations_for_claim(
-        self,
-        claim: str,
-        context: str = "",
-        top_n: int = 3
+        self, claim: str, context: str = "", top_n: int = 3
     ) -> list[dict]:
         """
         Suggest citations to support a specific claim or argument.
@@ -1311,10 +1426,9 @@ Respond with ONLY valid JSON array, no markdown."""
 # STREAMLIT WIDGET FOR SIDEBAR
 # =============================================================================
 
+
 def render_sentinel_widget(
-    sentinel: ZoteroSentinel,
-    drafting_context: str,
-    chapter: str = ""
+    sentinel: ZoteroSentinel, drafting_context: str, chapter: str = ""
 ):
     """
     Render the Zotero Sentinel widget for Streamlit sidebar.
@@ -1343,7 +1457,7 @@ def render_sentinel_widget(
         st.caption("Using Synthetic Citation Library")
 
         # Trigger toast notification
-        if hasattr(st, 'toast'):
+        if hasattr(st, "toast"):
             # Use session state to only show once per session
             if "mock_mode_toast_shown" not in st.session_state:
                 st.toast("⚠️ Using Synthetic Citation Library", icon="📚")
@@ -1356,14 +1470,19 @@ def render_sentinel_widget(
             st.error("🔒 **Invalid Zotero API Key**")
             st.markdown("Please check your PHDx `.env` file.")
             st.markdown("**To fix this:**")
-            st.markdown("1. Go to [Zotero API Keys](https://www.zotero.org/settings/keys)")
+            st.markdown(
+                "1. Go to [Zotero API Keys](https://www.zotero.org/settings/keys)"
+            )
             st.markdown("2. Create a new key with library read access")
             st.markdown("3. Update `ZOTERO_API_KEY` in your `.env` file")
 
         elif not status["user_id"] or not status["has_api_key"]:
             st.warning("Zotero credentials not configured")
             st.markdown("Add to `.env`:")
-            st.code("ZOTERO_USER_ID=your_user_id\nZOTERO_API_KEY=your_api_key", language="bash")
+            st.code(
+                "ZOTERO_USER_ID=your_user_id\nZOTERO_API_KEY=your_api_key",
+                language="bash",
+            )
             st.markdown("[Get your API key](https://www.zotero.org/settings/keys)")
 
         elif status.get("connection_error") == "timeout":
@@ -1431,9 +1550,7 @@ def render_sentinel_widget(
         if context_key not in st.session_state:
             with st.spinner("Finding relevant papers..."):
                 papers = sentinel.get_relevant_papers(
-                    drafting_context,
-                    chapter,
-                    top_n=5
+                    drafting_context, chapter, top_n=5
                 )
                 st.session_state[context_key] = papers
         else:
@@ -1442,7 +1559,9 @@ def render_sentinel_widget(
         if papers:
             for i, paper in enumerate(papers):
                 with st.expander(
-                    f"📄 {paper['title'][:45]}..." if len(paper['title']) > 45 else f"📄 {paper['title']}"
+                    f"📄 {paper['title'][:45]}..."
+                    if len(paper["title"]) > 45
+                    else f"📄 {paper['title']}"
                 ):
                     st.markdown(f"**{paper['title']}**")
                     st.markdown(f"*{paper['authors']}* ({paper['year']})")
@@ -1462,20 +1581,24 @@ def render_sentinel_widget(
                     if st.button(
                         "📎 Insert Citation",
                         key=f"insert_cite_{i}_{paper['key']}",
-                        use_container_width=True
+                        use_container_width=True,
                     ):
                         st.session_state.pending_citation = {
                             "inline": inline,
                             "full": full_ref,
-                            "paper": paper
+                            "paper": paper,
                         }
                         # Add to history
-                        if inline not in [h["inline"] for h in st.session_state.citation_history]:
-                            st.session_state.citation_history.append({
-                                "inline": inline,
-                                "full": full_ref,
-                                "title": paper["title"]
-                            })
+                        if inline not in [
+                            h["inline"] for h in st.session_state.citation_history
+                        ]:
+                            st.session_state.citation_history.append(
+                                {
+                                    "inline": inline,
+                                    "full": full_ref,
+                                    "title": paper["title"],
+                                }
+                            )
                         st.rerun()
         else:
             st.info("No matching papers found")
@@ -1485,7 +1608,7 @@ def render_sentinel_widget(
         search_query = st.text_input(
             "Search library",
             placeholder="e.g., Bourdieu cultural capital",
-            key="zotero_search"
+            key="zotero_search",
         )
 
         if search_query:
@@ -1502,7 +1625,7 @@ def render_sentinel_widget(
                             st.session_state.pending_citation = {
                                 "inline": inline,
                                 "full": sentinel.format_as_brookes_harvard(result),
-                                "paper": result
+                                "paper": result,
                             }
                             st.rerun()
             else:
@@ -1521,6 +1644,7 @@ def render_sentinel_widget(
 # =============================================================================
 # STANDALONE FUNCTIONS
 # =============================================================================
+
 
 def search_library(query: str, limit: int = 5) -> list[dict]:
     """
@@ -1562,6 +1686,7 @@ def get_inline_citation(item: dict) -> str:
 # CLI
 # =============================================================================
 
+
 def main():
     """CLI for Zotero Sentinel."""
     print("=" * 60)
@@ -1576,7 +1701,7 @@ def main():
     print(f"API Key: {'Configured' if status['has_api_key'] else 'Not set'}")
     print(f"Cached items: {status['cached_items']}")
 
-    if status['connected']:
+    if status["connected"]:
         stats = sentinel.get_library_stats()
         print(f"\nLibrary items: {stats.get('total_items', 'unknown')}")
 

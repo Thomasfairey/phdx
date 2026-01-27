@@ -6,7 +6,8 @@ import streamlit as st
 
 
 def load_css():
-    st.markdown("""
+    st.markdown(
+        """
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
@@ -64,4 +65,6 @@ def load_css():
         .model-badge.claude { background: rgba(99,102,241,0.2); color: #a5b4fc; }
         .model-badge.gpt { background: rgba(16,185,129,0.2); color: #6ee7b7; }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+        unsafe_allow_html=True,
+    )

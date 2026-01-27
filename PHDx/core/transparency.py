@@ -28,6 +28,7 @@ AI_DECLARATION_DIR = DATA_DIR / "declarations"
 
 class AITaskType(Enum):
     """Types of AI-assisted tasks."""
+
     DRAFT_GENERATION = "draft_generation"
     STYLE_CHECK = "style_check"
     FEEDBACK_SUGGESTION = "feedback_suggestion"
@@ -43,6 +44,7 @@ class AITaskType(Enum):
 @dataclass
 class AIUsageEntry:
     """A single AI usage log entry."""
+
     id: str
     timestamp: str
     task_type: str
@@ -84,7 +86,7 @@ class TransparencyLog:
             "student_id": "",
             "supervisor": "",
             "start_date": "",
-            "target_words": 80000
+            "target_words": 80000,
         }
         self._load()
 
@@ -92,7 +94,7 @@ class TransparencyLog:
         """Load existing transparency log."""
         if TRANSPARENCY_LOG.exists():
             try:
-                with open(TRANSPARENCY_LOG, 'r', encoding='utf-8') as f:
+                with open(TRANSPARENCY_LOG, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     self.entries = [
                         AIUsageEntry.from_dict(e) for e in data.get("entries", [])
@@ -104,24 +106,28 @@ class TransparencyLog:
     def _save(self):
         """Save transparency log."""
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        with open(TRANSPARENCY_LOG, 'w', encoding='utf-8') as f:
-            json.dump({
-                "entries": [e.to_dict() for e in self.entries],
-                "metadata": self.metadata,
-                "last_updated": datetime.now().isoformat()
-            }, f, indent=2)
+        with open(TRANSPARENCY_LOG, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "entries": [e.to_dict() for e in self.entries],
+                    "metadata": self.metadata,
+                    "last_updated": datetime.now().isoformat(),
+                },
+                f,
+                indent=2,
+            )
 
     def _generate_id(self) -> str:
         """Generate unique entry ID."""
         import hashlib
+
         timestamp = datetime.now().isoformat()
-        return hashlib.md5(f"{timestamp}{len(self.entries)}".encode(), usedforsecurity=False).hexdigest()[:12]
+        return hashlib.md5(
+            f"{timestamp}{len(self.entries)}".encode(), usedforsecurity=False
+        ).hexdigest()[:12]
 
     def _calculate_ai_contribution(
-        self,
-        input_text: str,
-        output_text: str,
-        task_type: str
+        self, input_text: str, output_text: str, task_type: str
     ) -> float:
         """
         Calculate the AI contribution percentage for a task.
@@ -148,7 +154,7 @@ class TransparencyLog:
             AITaskType.DNA_ANALYSIS.value: 5,
             AITaskType.COMPLEXITY_CHECK.value: 5,
             AITaskType.PII_SCRUB.value: 5,
-            AITaskType.OTHER.value: 25
+            AITaskType.OTHER.value: 25,
         }.get(task_type, 25)
 
         # Adjust based on output/input ratio
@@ -168,7 +174,7 @@ class TransparencyLog:
         chapter: str = "",
         section: str = "",
         model: str = "claude-sonnet-4",
-        notes: str = ""
+        notes: str = "",
     ) -> AIUsageEntry:
         """Log a draft generation event."""
         entry = AIUsageEntry(
@@ -184,7 +190,7 @@ class TransparencyLog:
             chapter=chapter,
             section=section,
             model_used=model,
-            notes=notes
+            notes=notes,
         )
         self.entries.append(entry)
         self._save()
@@ -197,25 +203,32 @@ class TransparencyLog:
         accepted: bool = False,
         chapter: str = "",
         section: str = "",
-        model: str = "claude-sonnet-4"
+        model: str = "claude-sonnet-4",
     ) -> AIUsageEntry:
         """Log a feedback suggestion generation."""
-        task_type = AITaskType.REVISION_ACCEPTED.value if accepted else AITaskType.FEEDBACK_SUGGESTION.value
+        task_type = (
+            AITaskType.REVISION_ACCEPTED.value
+            if accepted
+            else AITaskType.FEEDBACK_SUGGESTION.value
+        )
 
         entry = AIUsageEntry(
             id=self._generate_id(),
             timestamp=datetime.now().isoformat(),
             task_type=task_type,
-            task_description="Supervisor feedback revision suggestion" + (" (accepted)" if accepted else ""),
+            task_description="Supervisor feedback revision suggestion"
+            + (" (accepted)" if accepted else ""),
             input_word_count=len(feedback_text.split()) if feedback_text else 0,
-            output_word_count=len(suggested_revision.split()) if suggested_revision else 0,
+            output_word_count=len(suggested_revision.split())
+            if suggested_revision
+            else 0,
             ai_contribution_percent=self._calculate_ai_contribution(
                 feedback_text, suggested_revision, task_type
             ),
             chapter=chapter,
             section=section,
             model_used=model,
-            accepted=accepted
+            accepted=accepted,
         )
         self.entries.append(entry)
         self._save()
@@ -226,7 +239,7 @@ class TransparencyLog:
         text: str,
         suggestions: str,
         chapter: str = "",
-        model: str = "claude-sonnet-4"
+        model: str = "claude-sonnet-4",
     ) -> AIUsageEntry:
         """Log a style check operation."""
         entry = AIUsageEntry(
@@ -241,17 +254,14 @@ class TransparencyLog:
             ),
             chapter=chapter,
             section="",
-            model_used=model
+            model_used=model,
         )
         self.entries.append(entry)
         self._save()
         return entry
 
     def log_citation_assist(
-        self,
-        query: str,
-        citations_found: int,
-        chapter: str = ""
+        self, query: str, citations_found: int, chapter: str = ""
     ) -> AIUsageEntry:
         """Log a citation assistance operation."""
         entry = AIUsageEntry(
@@ -264,7 +274,7 @@ class TransparencyLog:
             ai_contribution_percent=20,  # Fixed low contribution
             chapter=chapter,
             section="",
-            model_used="zotero-api"
+            model_used="zotero-api",
         )
         self.entries.append(entry)
         self._save()
@@ -278,7 +288,7 @@ class TransparencyLog:
         output_text: str = "",
         chapter: str = "",
         section: str = "",
-        model: str = "claude-sonnet-4"
+        model: str = "claude-sonnet-4",
     ) -> AIUsageEntry:
         """Log a generic AI operation."""
         entry = AIUsageEntry(
@@ -293,7 +303,7 @@ class TransparencyLog:
             ),
             chapter=chapter,
             section=section,
-            model_used=model
+            model_used=model,
         )
         self.entries.append(entry)
         self._save()
@@ -308,11 +318,13 @@ class TransparencyLog:
                 "avg_contribution": 0,
                 "by_task_type": {},
                 "by_chapter": {},
-                "date_range": {"start": None, "end": None}
+                "date_range": {"start": None, "end": None},
             }
 
         total_ai_words = sum(e.output_word_count for e in self.entries)
-        avg_contribution = sum(e.ai_contribution_percent for e in self.entries) / len(self.entries)
+        avg_contribution = sum(e.ai_contribution_percent for e in self.entries) / len(
+            self.entries
+        )
 
         # Group by task type
         by_task = {}
@@ -334,9 +346,11 @@ class TransparencyLog:
         # Calculate average contribution per chapter
         for ch in by_chapter:
             ch_entries = [e for e in self.entries if (e.chapter or "General") == ch]
-            by_chapter[ch]["avg_contribution"] = sum(
-                e.ai_contribution_percent for e in ch_entries
-            ) / len(ch_entries) if ch_entries else 0
+            by_chapter[ch]["avg_contribution"] = (
+                sum(e.ai_contribution_percent for e in ch_entries) / len(ch_entries)
+                if ch_entries
+                else 0
+            )
 
         # Date range
         timestamps = [e.timestamp for e in self.entries]
@@ -350,8 +364,8 @@ class TransparencyLog:
             "by_chapter": by_chapter,
             "date_range": {
                 "start": timestamps[0] if timestamps else None,
-                "end": timestamps[-1] if timestamps else None
-            }
+                "end": timestamps[-1] if timestamps else None,
+            },
         }
 
     def update_metadata(self, **kwargs):
@@ -365,25 +379,37 @@ class TransparencyLog:
         writer = csv.writer(output)
 
         # Header
-        writer.writerow([
-            "Date", "Task Type", "Description", "Chapter", "Section",
-            "Input Words", "Output Words", "AI Contribution %", "Model", "Accepted"
-        ])
+        writer.writerow(
+            [
+                "Date",
+                "Task Type",
+                "Description",
+                "Chapter",
+                "Section",
+                "Input Words",
+                "Output Words",
+                "AI Contribution %",
+                "Model",
+                "Accepted",
+            ]
+        )
 
         # Data
         for e in self.entries:
-            writer.writerow([
-                e.timestamp[:10],
-                e.task_type,
-                e.task_description,
-                e.chapter,
-                e.section,
-                e.input_word_count,
-                e.output_word_count,
-                e.ai_contribution_percent,
-                e.model_used,
-                "Yes" if e.accepted else "No"
-            ])
+            writer.writerow(
+                [
+                    e.timestamp[:10],
+                    e.task_type,
+                    e.task_description,
+                    e.chapter,
+                    e.section,
+                    e.input_word_count,
+                    e.output_word_count,
+                    e.ai_contribution_percent,
+                    e.model_used,
+                    "Yes" if e.accepted else "No",
+                ]
+            )
 
         return output.getvalue()
 
@@ -405,7 +431,9 @@ class TransparencyLog:
 
         # Calculate overall AI involvement
         total_ai_words = stats["total_ai_words"]
-        ai_percentage = (total_ai_words / final_word_count * 100) if final_word_count > 0 else 0
+        ai_percentage = (
+            (total_ai_words / final_word_count * 100) if final_word_count > 0 else 0
+        )
         weighted_contribution = stats["avg_contribution"]
 
         # Date range
@@ -428,12 +456,12 @@ class TransparencyLog:
 
 | Field | Value |
 |-------|-------|
-| **Thesis Title** | {meta.get('thesis_title', '[Not specified]')} |
-| **Author** | {meta.get('author_name', '[Not specified]')} |
-| **Student ID** | {meta.get('student_id', '[Not specified]')} |
-| **Supervisor** | {meta.get('supervisor', '[Not specified]')} |
+| **Thesis Title** | {meta.get("thesis_title", "[Not specified]")} |
+| **Author** | {meta.get("author_name", "[Not specified]")} |
+| **Student ID** | {meta.get("student_id", "[Not specified]")} |
+| **Supervisor** | {meta.get("supervisor", "[Not specified]")} |
 | **Final Word Count** | {final_word_count:,} |
-| **Declaration Date** | {datetime.now().strftime('%d %B %Y')} |
+| **Declaration Date** | {datetime.now().strftime("%d %B %Y")} |
 
 ---
 
@@ -449,11 +477,11 @@ This declaration documents the use of artificial intelligence tools during the r
 
 | Metric | Value |
 |--------|-------|
-| **Total AI-Assisted Operations** | {stats['total_entries']} |
+| **Total AI-Assisted Operations** | {stats["total_entries"]} |
 | **AI-Assisted Word Count** | {total_ai_words:,} words |
 | **Percentage of Final Thesis** | {ai_percentage:.1f}% |
 | **Average AI Contribution per Task** | {weighted_contribution:.1f}% |
-| **Usage Period** | {start_date or 'N/A'} to {end_date or 'N/A'} |
+| **Usage Period** | {start_date or "N/A"} to {end_date or "N/A"} |
 
 ---
 
@@ -467,8 +495,12 @@ PHDx is a custom research assistant built on the Claude AI platform (Anthropic).
         # Add task type breakdown
         if stats["by_task_type"]:
             declaration += "### Usage by Task Type\n\n"
-            declaration += "| Task Type | Operations | Words Processed | Description |\n"
-            declaration += "|-----------|------------|-----------------|-------------|\n"
+            declaration += (
+                "| Task Type | Operations | Words Processed | Description |\n"
+            )
+            declaration += (
+                "|-----------|------------|-----------------|-------------|\n"
+            )
 
             task_descriptions = {
                 "draft_generation": "AI-assisted paragraph drafting with author voice matching",
@@ -480,7 +512,7 @@ PHDx is a custom research assistant built on the Claude AI platform (Anthropic).
                 "dna_analysis": "Linguistic fingerprint extraction from writing samples",
                 "complexity_check": "Flesch-Kincaid readability analysis",
                 "pii_scrub": "Personal data anonymization before AI processing",
-                "other": "Miscellaneous AI assistance"
+                "other": "Miscellaneous AI assistance",
             }
 
             for task_type, data in stats["by_task_type"].items():
@@ -546,7 +578,7 @@ I hereby declare that:
 ---
 
 *This declaration was generated by PHDx Transparency Module v1.0*
-*Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*
+*Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}*
 """
 
         return declaration
@@ -563,7 +595,9 @@ I hereby declare that:
         try:
             from fpdf import FPDF
 
-            self.generate_brookes_declaration(final_word_count)  # Generate but not used in PDF
+            self.generate_brookes_declaration(
+                final_word_count
+            )  # Generate but not used in PDF
             stats = self.get_summary_stats()
             meta = self.metadata
 
@@ -574,7 +608,13 @@ I hereby declare that:
 
             # Title
             pdf.set_font("Helvetica", "B", 18)
-            pdf.cell(0, 15, "Declaration of AI Usage in Academic Research", ln=True, align="C")
+            pdf.cell(
+                0,
+                15,
+                "Declaration of AI Usage in Academic Research",
+                ln=True,
+                align="C",
+            )
 
             pdf.set_font("Helvetica", "B", 14)
             pdf.cell(0, 10, "Oxford Brookes University", ln=True, align="C")
@@ -593,12 +633,12 @@ I hereby declare that:
 
             pdf.set_font("Helvetica", "", 10)
             info_items = [
-                ("Thesis Title", meta.get('thesis_title', '[Not specified]')),
-                ("Author", meta.get('author_name', '[Not specified]')),
-                ("Student ID", meta.get('student_id', '[Not specified]')),
-                ("Supervisor", meta.get('supervisor', '[Not specified]')),
+                ("Thesis Title", meta.get("thesis_title", "[Not specified]")),
+                ("Author", meta.get("author_name", "[Not specified]")),
+                ("Student ID", meta.get("student_id", "[Not specified]")),
+                ("Supervisor", meta.get("supervisor", "[Not specified]")),
                 ("Final Word Count", f"{final_word_count:,}"),
-                ("Declaration Date", datetime.now().strftime('%d %B %Y'))
+                ("Declaration Date", datetime.now().strftime("%d %B %Y")),
             ]
 
             for label, value in info_items:
@@ -616,14 +656,19 @@ I hereby declare that:
             pdf.ln(5)
 
             total_ai_words = stats["total_ai_words"]
-            ai_percentage = (total_ai_words / final_word_count * 100) if final_word_count > 0 else 0
+            ai_percentage = (
+                (total_ai_words / final_word_count * 100) if final_word_count > 0 else 0
+            )
 
             pdf.set_font("Helvetica", "", 10)
             overview_items = [
-                ("Total AI-Assisted Operations", str(stats['total_entries'])),
+                ("Total AI-Assisted Operations", str(stats["total_entries"])),
                 ("AI-Assisted Word Count", f"{total_ai_words:,} words"),
                 ("Percentage of Final Thesis", f"{ai_percentage:.1f}%"),
-                ("Average AI Contribution per Task", f"{stats['avg_contribution']:.1f}%")
+                (
+                    "Average AI Contribution per Task",
+                    f"{stats['avg_contribution']:.1f}%",
+                ),
             ]
 
             for label, value in overview_items:
@@ -649,8 +694,8 @@ I hereby declare that:
 
                 pdf.set_font("Helvetica", "", 9)
                 for task_type, data in stats["by_task_type"].items():
-                    pdf.cell(60, 6, task_type.replace('_', ' ').title(), border=1)
-                    pdf.cell(30, 6, str(data['count']), border=1, align="C")
+                    pdf.cell(60, 6, task_type.replace("_", " ").title(), border=1)
+                    pdf.cell(30, 6, str(data["count"]), border=1, align="C")
                     pdf.cell(40, 6, f"{data['words']:,}", border=1, align="C")
                     pdf.ln()
 
@@ -676,24 +721,41 @@ I hereby declare that:
 
             # Signatures
             pdf.set_font("Helvetica", "B", 10)
-            pdf.cell(0, 8, "Author Signature: ___________________________ Date: ___________", ln=True)
+            pdf.cell(
+                0,
+                8,
+                "Author Signature: ___________________________ Date: ___________",
+                ln=True,
+            )
             pdf.ln(5)
-            pdf.cell(0, 8, "Supervisor Signature: ________________________ Date: ___________", ln=True)
+            pdf.cell(
+                0,
+                8,
+                "Supervisor Signature: ________________________ Date: ___________",
+                ln=True,
+            )
 
             pdf.ln(15)
             pdf.set_font("Helvetica", "I", 8)
-            pdf.cell(0, 5, f"Generated by PHDx Transparency Module - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True, align="C")
+            pdf.cell(
+                0,
+                5,
+                f"Generated by PHDx Transparency Module - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                ln=True,
+                align="C",
+            )
 
             return pdf.output()
 
         except ImportError:
             # Fallback: return markdown as text
-            return self.generate_brookes_declaration(final_word_count).encode('utf-8')
+            return self.generate_brookes_declaration(final_word_count).encode("utf-8")
 
 
 # =============================================================================
 # STREAMLIT UI COMPONENTS
 # =============================================================================
+
 
 def render_transparency_widget(log: TransparencyLog):
     """Render transparency summary widget for sidebar."""
@@ -729,24 +791,22 @@ def render_declaration_export(log: TransparencyLog):
             title = st.text_input(
                 "Thesis Title",
                 value=log.metadata.get("thesis_title", ""),
-                key="meta_title"
+                key="meta_title",
             )
             author = st.text_input(
                 "Author Name",
                 value=log.metadata.get("author_name", ""),
-                key="meta_author"
+                key="meta_author",
             )
 
         with col2:
             student_id = st.text_input(
-                "Student ID",
-                value=log.metadata.get("student_id", ""),
-                key="meta_id"
+                "Student ID", value=log.metadata.get("student_id", ""), key="meta_id"
             )
             supervisor = st.text_input(
                 "Supervisor",
                 value=log.metadata.get("supervisor", ""),
-                key="meta_supervisor"
+                key="meta_supervisor",
             )
 
         if st.button("Save Metadata"):
@@ -754,7 +814,7 @@ def render_declaration_export(log: TransparencyLog):
                 thesis_title=title,
                 author_name=author,
                 student_id=student_id,
-                supervisor=supervisor
+                supervisor=supervisor,
             )
             st.success("Metadata saved!")
 
@@ -766,41 +826,51 @@ def render_declaration_export(log: TransparencyLog):
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="text-align: center; padding: 0.5rem; background: rgba(0, 113, 206, 0.15);
                     border-radius: 8px;">
             <div style="font-size: 1.5rem; font-weight: bold; color: #0071ce;">
-                {stats['total_entries']}
+                {stats["total_entries"]}
             </div>
             <div style="font-size: 0.75rem; color: rgba(224, 224, 224, 0.7);">Operations</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col2:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="text-align: center; padding: 0.5rem; background: rgba(76, 175, 80, 0.15);
                     border-radius: 8px;">
             <div style="font-size: 1.5rem; font-weight: bold; color: #4caf50;">
-                {stats['total_ai_words']:,}
+                {stats["total_ai_words"]:,}
             </div>
             <div style="font-size: 0.75rem; color: rgba(224, 224, 224, 0.7);">AI Words</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col3:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="text-align: center; padding: 0.5rem; background: rgba(255, 193, 7, 0.15);
                     border-radius: 8px;">
             <div style="font-size: 1.5rem; font-weight: bold; color: #ffc107;">
-                {stats['avg_contribution']:.0f}%
+                {stats["avg_contribution"]:.0f}%
             </div>
             <div style="font-size: 0.75rem; color: rgba(224, 224, 224, 0.7);">Avg Contribution</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     with col4:
         task_count = len(stats.get("by_task_type", {}))
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="text-align: center; padding: 0.5rem; background: rgba(156, 39, 176, 0.15);
                     border-radius: 8px;">
             <div style="font-size: 1.5rem; font-weight: bold; color: #9c27b0;">
@@ -808,7 +878,9 @@ def render_declaration_export(log: TransparencyLog):
             </div>
             <div style="font-size: 0.75rem; color: rgba(224, 224, 224, 0.7);">Task Types</div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
     st.markdown("---")
 
@@ -821,22 +893,26 @@ def render_declaration_export(log: TransparencyLog):
         max_value=200000,
         value=50000,
         step=1000,
-        help="Enter your final thesis word count for percentage calculations"
+        help="Enter your final thesis word count for percentage calculations",
     )
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if st.button("📄 Export Brookes AI Declaration", type="primary", use_container_width=True):
+        if st.button(
+            "📄 Export Brookes AI Declaration", type="primary", use_container_width=True
+        ):
             try:
                 pdf_bytes = log.export_declaration_pdf(final_words)
 
                 # Save to file
                 AI_DECLARATION_DIR.mkdir(parents=True, exist_ok=True)
-                filename = f"ai_declaration_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                filename = (
+                    f"ai_declaration_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+                )
                 filepath = AI_DECLARATION_DIR / filename
 
-                with open(filepath, 'wb') as f:
+                with open(filepath, "wb") as f:
                     f.write(pdf_bytes)
 
                 st.success(f"Declaration saved to: {filepath}")
@@ -846,7 +922,7 @@ def render_declaration_export(log: TransparencyLog):
                     label="⬇️ Download PDF",
                     data=pdf_bytes,
                     file_name=filename,
-                    mime="application/pdf"
+                    mime="application/pdf",
                 )
 
             except Exception as e:
@@ -858,7 +934,7 @@ def render_declaration_export(log: TransparencyLog):
                     label="⬇️ Download Markdown",
                     data=md_text,
                     file_name="ai_declaration.md",
-                    mime="text/markdown"
+                    mime="text/markdown",
                 )
 
     with col2:
@@ -868,7 +944,7 @@ def render_declaration_export(log: TransparencyLog):
                 label="⬇️ Download CSV",
                 data=csv_data,
                 file_name=f"ai_usage_log_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
+                mime="text/csv",
             )
 
     with col3:
@@ -881,6 +957,7 @@ def render_declaration_export(log: TransparencyLog):
 # =============================================================================
 # CLI
 # =============================================================================
+
 
 def main():
     """CLI for testing transparency module."""
@@ -896,22 +973,23 @@ def main():
 
         log.log_draft_generation(
             input_text="Write about the theoretical framework for digital sovereignty",
-            output_text="The theoretical framework underpinning this research draws upon multiple disciplinary perspectives. " * 10,
+            output_text="The theoretical framework underpinning this research draws upon multiple disciplinary perspectives. "
+            * 10,
             chapter="Chapter 2",
-            section="2.3 Theoretical Framework"
+            section="2.3 Theoretical Framework",
         )
 
         log.log_feedback_suggestion(
             feedback_text="The transition between sections is abrupt",
             suggested_revision="Furthermore, having established the conceptual foundations, it becomes necessary to consider...",
             accepted=True,
-            chapter="Chapter 2"
+            chapter="Chapter 2",
         )
 
         log.log_style_check(
             text="This research examines the various aspects of governance." * 5,
             suggestions="Consider using more hedging language",
-            chapter="Chapter 1"
+            chapter="Chapter 1",
         )
 
     # Show stats

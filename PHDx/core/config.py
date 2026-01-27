@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 
 class Environment(Enum):
     """Application environment."""
+
     DEVELOPMENT = "development"
     STAGING = "staging"
     PRODUCTION = "production"
@@ -23,15 +24,19 @@ class Environment(Enum):
 @dataclass
 class CORSConfig:
     """CORS configuration."""
+
     allowed_origins: List[str] = field(default_factory=list)
     allow_credentials: bool = True
-    allowed_methods: List[str] = field(default_factory=lambda: ["GET", "POST", "PUT", "DELETE"])
+    allowed_methods: List[str] = field(
+        default_factory=lambda: ["GET", "POST", "PUT", "DELETE"]
+    )
     allowed_headers: List[str] = field(default_factory=lambda: ["*"])
 
 
 @dataclass
 class RateLimitConfig:
     """Rate limiting configuration."""
+
     enabled: bool = True
     requests_per_minute: int = 60
     burst_size: int = 10
@@ -40,6 +45,7 @@ class RateLimitConfig:
 @dataclass
 class DatabaseConfig:
     """Vector database configuration."""
+
     use_pinecone: bool = False
     pinecone_api_key: Optional[str] = None
     pinecone_index: str = "phdx-thesis"
@@ -49,6 +55,7 @@ class DatabaseConfig:
 @dataclass
 class LLMConfig:
     """LLM service configuration."""
+
     anthropic_api_key: Optional[str] = None
     anthropic_model: str = "claude-sonnet-4-20250514"
     openai_api_key: Optional[str] = None
@@ -61,6 +68,7 @@ class LLMConfig:
 @dataclass
 class GoogleConfig:
     """Google API configuration."""
+
     client_secret_path: str = "config/client_secret.json"
     token_path: str = "config/token.json"
     credentials_path: Optional[str] = None
@@ -69,6 +77,7 @@ class GoogleConfig:
 @dataclass
 class AppConfig:
     """Main application configuration."""
+
     environment: Environment = Environment.DEVELOPMENT
     debug: bool = True
     log_level: str = "INFO"
@@ -96,7 +105,11 @@ class AppConfig:
         load_dotenv()
 
         env_name = os.getenv("PHDX_ENV", "development").lower()
-        environment = Environment(env_name) if env_name in [e.value for e in Environment] else Environment.DEVELOPMENT
+        environment = (
+            Environment(env_name)
+            if env_name in [e.value for e in Environment]
+            else Environment.DEVELOPMENT
+        )
 
         # Determine CORS origins based on environment
         if environment == Environment.PRODUCTION:
@@ -107,17 +120,26 @@ class AppConfig:
         elif environment == Environment.STAGING:
             cors_origins = ["https://staging.phdx.ai", "http://localhost:3000"]
         else:
-            cors_origins = ["http://localhost:3000", "http://localhost:8501", "http://127.0.0.1:3000"]
+            cors_origins = [
+                "http://localhost:3000",
+                "http://localhost:8501",
+                "http://127.0.0.1:3000",
+            ]
 
         return cls(
             environment=environment,
             debug=environment != Environment.PRODUCTION,
-            log_level=os.getenv("LOG_LEVEL", "INFO" if environment == Environment.PRODUCTION else "DEBUG"),
+            log_level=os.getenv(
+                "LOG_LEVEL",
+                "INFO" if environment == Environment.PRODUCTION else "DEBUG",
+            ),
             host=os.getenv("HOST", "0.0.0.0"),
             port=int(os.getenv("PORT", "8000")),
-            enable_google_auth=os.getenv("ENABLE_GOOGLE_AUTH", "true").lower() == "true",
+            enable_google_auth=os.getenv("ENABLE_GOOGLE_AUTH", "true").lower()
+            == "true",
             enable_spacy_ner=os.getenv("ENABLE_SPACY_NER", "true").lower() == "true",
-            enable_usage_logging=os.getenv("ENABLE_USAGE_LOGGING", "true").lower() == "true",
+            enable_usage_logging=os.getenv("ENABLE_USAGE_LOGGING", "true").lower()
+            == "true",
             mock_mode=os.getenv("MOCK_MODE", "false").lower() == "true",
             cors=CORSConfig(
                 allowed_origins=cors_origins,
@@ -134,14 +156,18 @@ class AppConfig:
             ),
             llm=LLMConfig(
                 anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),
-                anthropic_model=os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514"),
+                anthropic_model=os.getenv(
+                    "ANTHROPIC_MODEL", "claude-sonnet-4-20250514"
+                ),
                 openai_api_key=os.getenv("OPENAI_API_KEY"),
                 openai_model=os.getenv("OPENAI_MODEL", "gpt-4o"),
                 google_api_key=os.getenv("GOOGLE_API_KEY"),
                 google_model=os.getenv("GOOGLE_MODEL", "gemini-1.5-pro"),
             ),
             google=GoogleConfig(
-                client_secret_path=os.getenv("GOOGLE_CLIENT_SECRET_PATH", "config/client_secret.json"),
+                client_secret_path=os.getenv(
+                    "GOOGLE_CLIENT_SECRET_PATH", "config/client_secret.json"
+                ),
                 token_path=os.getenv("GOOGLE_TOKEN_PATH", "config/token.json"),
                 credentials_path=os.getenv("GOOGLE_CREDENTIALS_PATH"),
             ),

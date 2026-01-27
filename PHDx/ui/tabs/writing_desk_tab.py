@@ -21,14 +21,14 @@ def render_writing_desk_tab():
     st.markdown(
         "<h2 style='font-family:Inter;font-weight:400;color:#9ca3af;'>"
         "✍️ Writing Desk</h2>",
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
     st.caption("AI-assisted drafting with your voice and style")
 
     # Sub-tabs for different writing modes
-    outline_tab, draft_tab, refine_tab, cite_tab = st.tabs([
-        "📋 Outline", "📝 Draft", "🔧 Refine", "📚 Cite"
-    ])
+    outline_tab, draft_tab, refine_tab, cite_tab = st.tabs(
+        ["📋 Outline", "📝 Draft", "🔧 Refine", "📚 Cite"]
+    )
 
     with outline_tab:
         _render_outline_section()
@@ -72,14 +72,15 @@ def _render_outline_section():
             "methodology",
             "findings",
             "discussion",
-            "conclusion"
+            "conclusion",
         ],
-        format_func=lambda x: x.replace("_", " ").title()
+        format_func=lambda x: x.replace("_", " ").title(),
     )
 
     # Get template info
     try:
         from core.writing_desk import WritingDesk, CHAPTER_TEMPLATES
+
         desk = WritingDesk()
         template = CHAPTER_TEMPLATES.get(chapter_type, {})
     except ImportError:
@@ -104,18 +105,18 @@ def _render_outline_section():
 
     thesis_title = st.text_input(
         "Thesis title",
-        placeholder="e.g., 'Animal Welfare in Tourism: A Multi-Platform Analysis'"
+        placeholder="e.g., 'Animal Welfare in Tourism: A Multi-Platform Analysis'",
     )
 
     research_questions = st.text_area(
         "Research questions",
         placeholder="List your main research questions (one per line)",
-        height=100
+        height=100,
     )
 
     key_themes = st.text_input(
         "Key themes/concepts",
-        placeholder="e.g., animal welfare, responsible tourism, sentiment analysis"
+        placeholder="e.g., animal welfare, responsible tourism, sentiment analysis",
     )
 
     # Generate outline
@@ -131,9 +132,13 @@ def _render_outline_section():
                         chapter_type,
                         {
                             "thesis_title": thesis_title,
-                            "research_questions": research_questions.split("\n") if research_questions else [],
-                            "key_themes": [t.strip() for t in key_themes.split(",")] if key_themes else []
-                        }
+                            "research_questions": research_questions.split("\n")
+                            if research_questions
+                            else [],
+                            "key_themes": [t.strip() for t in key_themes.split(",")]
+                            if key_themes
+                            else [],
+                        },
                     )
                 else:
                     outline = _generate_basic_outline(chapter_type, thesis_title)
@@ -155,11 +160,15 @@ def _render_outline_section():
             st.error(outline["error"])
         else:
             # Chapter title
-            st.markdown(f"### {outline.get('chapter_title', chapter_type.replace('_', ' ').title())}")
+            st.markdown(
+                f"### {outline.get('chapter_title', chapter_type.replace('_', ' ').title())}"
+            )
 
             # Sections
             for i, section in enumerate(outline.get("sections", []), 1):
-                with st.expander(f"{i}. {section.get('title', 'Section')}", expanded=True):
+                with st.expander(
+                    f"{i}. {section.get('title', 'Section')}", expanded=True
+                ):
                     st.markdown(f"**Purpose:** {section.get('purpose', '')}")
                     st.markdown(f"**Target words:** {section.get('target_words', 0)}")
 
@@ -174,7 +183,7 @@ def _render_outline_section():
                 "📥 Download Outline",
                 outline_md,
                 f"outline_{chapter_type}.md",
-                "text/markdown"
+                "text/markdown",
             )
 
 
@@ -186,6 +195,7 @@ def _render_draft_section():
     # Check for DNA profile
     try:
         from core.services import get_services
+
         services = get_services()
         has_dna = services.has_dna_profile()
     except ImportError:
@@ -201,20 +211,27 @@ def _render_draft_section():
     with col1:
         section_type = st.selectbox(
             "Section type",
-            ["introduction", "literature_review", "methodology", "findings", "discussion", "conclusion", "general"],
-            format_func=lambda x: x.replace("_", " ").title()
+            [
+                "introduction",
+                "literature_review",
+                "methodology",
+                "findings",
+                "discussion",
+                "conclusion",
+                "general",
+            ],
+            format_func=lambda x: x.replace("_", " ").title(),
         )
     with col2:
         tone = st.selectbox(
-            "Tone",
-            ["academic", "analytical", "descriptive", "argumentative"]
+            "Tone", ["academic", "analytical", "descriptive", "argumentative"]
         )
 
     # Drafting prompt
     prompt = st.text_area(
         "What would you like to draft?",
         placeholder="Describe what you want to write. Be specific about:\n- The argument or point to make\n- Key evidence to include\n- How it connects to your thesis",
-        height=150
+        height=150,
     )
 
     # Additional context
@@ -222,20 +239,24 @@ def _render_draft_section():
         existing_text = st.text_area(
             "Existing text to build upon",
             placeholder="Paste any existing draft text you want to continue or expand",
-            height=100
+            height=100,
         )
         notes = st.text_area(
             "Research notes",
             placeholder="Any notes, quotes, or data points to incorporate",
-            height=100
+            height=100,
         )
 
     # Generate draft
     col1, col2 = st.columns(2)
     with col1:
-        use_dna = st.checkbox("Use DNA voice matching", value=has_dna, disabled=not has_dna)
+        use_dna = st.checkbox(
+            "Use DNA voice matching", value=has_dna, disabled=not has_dna
+        )
     with col2:
-        target_words = st.number_input("Target words", min_value=100, max_value=5000, value=500, step=100)
+        target_words = st.number_input(
+            "Target words", min_value=100, max_value=5000, value=500, step=100
+        )
 
     if st.button("📝 Generate Draft", type="primary"):
         if not prompt:
@@ -245,6 +266,7 @@ def _render_draft_section():
         with st.spinner("Generating draft..."):
             try:
                 from core.writing_desk import WritingDesk
+
                 desk = WritingDesk()
 
                 section_context = {
@@ -252,7 +274,7 @@ def _render_draft_section():
                     "tone": tone,
                     "target_words": target_words,
                     "existing_text": existing_text,
-                    "notes": notes
+                    "notes": notes,
                 }
 
                 result = desk.generate_draft(prompt, section_context, use_dna=use_dna)
@@ -279,22 +301,14 @@ def _render_draft_section():
 
         # Editable draft
         edited_draft = st.text_area(
-            "Edit draft",
-            value=draft,
-            height=400,
-            label_visibility="collapsed"
+            "Edit draft", value=draft, height=400, label_visibility="collapsed"
         )
         st.session_state["writing_draft"] = edited_draft
 
         # Actions
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.download_button(
-                "📥 Download",
-                edited_draft,
-                "draft.md",
-                "text/markdown"
-            )
+            st.download_button("📥 Download", edited_draft, "draft.md", "text/markdown")
         with col2:
             if st.button("🔧 Analyze Gaps"):
                 st.session_state["_analyze_gaps"] = True
@@ -314,7 +328,7 @@ def _render_refine_section():
         "Draft to refine",
         value=st.session_state.get("writing_draft", ""),
         height=200,
-        placeholder="Paste or type the draft text you want to refine"
+        placeholder="Paste or type the draft text you want to refine",
     )
 
     if not draft_text:
@@ -331,6 +345,7 @@ def _render_refine_section():
             with st.spinner("Analyzing for gaps..."):
                 try:
                     from core.writing_desk import WritingDesk
+
                     desk = WritingDesk()
                     gaps = desk.identify_gaps(draft_text)
                     st.session_state["writing_gaps"] = gaps
@@ -341,6 +356,7 @@ def _render_refine_section():
             with st.spinner("Generating counter-arguments..."):
                 try:
                     from core.writing_desk import WritingDesk
+
                     desk = WritingDesk()
                     counter = desk.generate_counter_arguments(draft_text)
                     st.session_state["writing_counter_args"] = counter
@@ -352,11 +368,14 @@ def _render_refine_section():
             with st.spinner("Strengthening argument..."):
                 try:
                     from core.writing_desk import WritingDesk
+
                     desk = WritingDesk()
                     strengthened = desk.strengthen_argument(draft_text)
 
                     if strengthened.get("strengthened_text"):
-                        st.session_state["writing_draft"] = strengthened["strengthened_text"]
+                        st.session_state["writing_draft"] = strengthened[
+                            "strengthened_text"
+                        ]
                         st.success("Argument strengthened - see Draft tab")
                 except Exception as e:
                     st.error(f"Error: {e}")
@@ -365,6 +384,7 @@ def _render_refine_section():
             with st.spinner("Checking coherence..."):
                 try:
                     from core.services import get_services
+
                     services = get_services()
                     result = services.check_consistency(draft_text)
 
@@ -420,11 +440,15 @@ def _render_refine_section():
             st.error(counter["error"])
         else:
             for i, arg in enumerate(counter.get("counter_arguments", []), 1):
-                with st.expander(f"Counter-argument {i}: {arg.get('argument', '')[:50]}..."):
+                with st.expander(
+                    f"Counter-argument {i}: {arg.get('argument', '')[:50]}..."
+                ):
                     st.markdown(f"**Argument:** {arg.get('argument', '')}")
                     st.markdown(f"**Strength:** {arg.get('strength', 'medium')}")
                     if arg.get("response_strategy"):
-                        st.markdown(f"**Response strategy:** {arg['response_strategy']}")
+                        st.markdown(
+                            f"**Response strategy:** {arg['response_strategy']}"
+                        )
 
 
 def _render_citation_section():
@@ -436,6 +460,7 @@ def _render_citation_section():
     # Check Zotero connection
     try:
         from core.services import get_services
+
         services = get_services()
         # Try to access zotero property
         zotero_available = True
@@ -450,7 +475,7 @@ def _render_citation_section():
     context = st.text_area(
         "What are you writing about?",
         placeholder="Describe the topic or paste the text that needs citations",
-        height=150
+        height=150,
     )
 
     num_citations = st.slider("Number of suggestions", 3, 10, 5)
@@ -480,9 +505,9 @@ def _render_citation_section():
                 with st.expander(f"{i}. {cit.get('title', 'Untitled')[:60]}..."):
                     # Author and year
                     authors = cit.get("creators", [])
-                    author_str = ", ".join([
-                        f"{a.get('lastName', '')}" for a in authors[:3]
-                    ])
+                    author_str = ", ".join(
+                        [f"{a.get('lastName', '')}" for a in authors[:3]]
+                    )
                     if len(authors) > 3:
                         author_str += " et al."
 
@@ -512,8 +537,8 @@ def _get_fallback_template(chapter_type: str) -> dict:
                 "Problem statement",
                 "Research questions",
                 "Significance of the study",
-                "Thesis structure overview"
-            ]
+                "Thesis structure overview",
+            ],
         },
         "literature_review": {
             "target_words": 8000,
@@ -522,8 +547,8 @@ def _get_fallback_template(chapter_type: str) -> dict:
                 "Key concepts and definitions",
                 "Previous research",
                 "Research gaps",
-                "Chapter summary"
-            ]
+                "Chapter summary",
+            ],
         },
         "methodology": {
             "target_words": 5000,
@@ -533,8 +558,8 @@ def _get_fallback_template(chapter_type: str) -> dict:
                 "Data collection methods",
                 "Data analysis approach",
                 "Ethical considerations",
-                "Limitations"
-            ]
+                "Limitations",
+            ],
         },
         "findings": {
             "target_words": 6000,
@@ -543,8 +568,8 @@ def _get_fallback_template(chapter_type: str) -> dict:
                 "Theme/Finding 1",
                 "Theme/Finding 2",
                 "Theme/Finding 3",
-                "Summary of key results"
-            ]
+                "Summary of key results",
+            ],
         },
         "discussion": {
             "target_words": 5000,
@@ -553,8 +578,8 @@ def _get_fallback_template(chapter_type: str) -> dict:
                 "Interpretation and analysis",
                 "Relation to literature",
                 "Implications",
-                "Limitations revisited"
-            ]
+                "Limitations revisited",
+            ],
         },
         "conclusion": {
             "target_words": 2000,
@@ -563,9 +588,9 @@ def _get_fallback_template(chapter_type: str) -> dict:
                 "Key contributions",
                 "Practical implications",
                 "Future research",
-                "Final remarks"
-            ]
-        }
+                "Final remarks",
+            ],
+        },
     }
     return templates.get(chapter_type, {"target_words": 3000, "sections": []})
 
@@ -580,10 +605,10 @@ def _generate_basic_outline(chapter_type: str, thesis_title: str) -> dict:
                 "title": section,
                 "purpose": f"Address {section.lower()} for the thesis",
                 "target_words": template["target_words"] // len(template["sections"]),
-                "key_points": []
+                "key_points": [],
             }
             for section in template["sections"]
-        ]
+        ],
     }
 
 

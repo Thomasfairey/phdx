@@ -23,9 +23,8 @@ def render_data_lab_tab():
     _init_session_state()
 
     st.markdown(
-        "<h2 style='font-family:Inter;font-weight:400;color:#9ca3af;'>"
-        "📊 Data Lab</h2>",
-        unsafe_allow_html=True
+        "<h2 style='font-family:Inter;font-weight:400;color:#9ca3af;'>📊 Data Lab</h2>",
+        unsafe_allow_html=True,
     )
     st.caption("Upload, analyze, and visualize your research data")
 
@@ -56,19 +55,21 @@ def _init_session_state():
 def _render_import_section():
     """Render data import controls."""
 
-    with st.expander("📁 Data Import", expanded=st.session_state.get("data_lab_df") is None):
+    with st.expander(
+        "📁 Data Import", expanded=st.session_state.get("data_lab_df") is None
+    ):
         import_method = st.radio(
             "Import method",
             ["Upload file", "Google Sheets URL", "Paste CSV"],
             horizontal=True,
-            label_visibility="collapsed"
+            label_visibility="collapsed",
         )
 
         if import_method == "Upload file":
             uploaded = st.file_uploader(
                 "Upload CSV or Excel",
                 type=["csv", "xlsx", "xls"],
-                label_visibility="collapsed"
+                label_visibility="collapsed",
             )
             if uploaded:
                 try:
@@ -88,7 +89,7 @@ def _render_import_section():
             sheets_url = st.text_input(
                 "Google Sheets URL",
                 placeholder="https://docs.google.com/spreadsheets/d/...",
-                label_visibility="collapsed"
+                label_visibility="collapsed",
             )
             if st.button("Load Sheet") and sheets_url:
                 df = _load_google_sheet(sheets_url)
@@ -103,7 +104,7 @@ def _render_import_section():
                 "Paste CSV data",
                 height=150,
                 placeholder="col1,col2,col3\nval1,val2,val3\n...",
-                label_visibility="collapsed"
+                label_visibility="collapsed",
             )
             if st.button("Parse CSV") and csv_text:
                 try:
@@ -118,7 +119,9 @@ def _render_import_section():
         # Show current data info
         if st.session_state.get("data_lab_df") is not None:
             df = st.session_state["data_lab_df"]
-            st.info(f"**Current data**: {st.session_state['data_lab_filename']} | {len(df):,} rows | {len(df.columns)} columns")
+            st.info(
+                f"**Current data**: {st.session_state['data_lab_filename']} | {len(df):,} rows | {len(df.columns)} columns"
+            )
 
             if st.button("Clear data"):
                 st.session_state["data_lab_df"] = None
@@ -134,18 +137,24 @@ def _load_google_sheet(url: str) -> Optional[pd.DataFrame]:
         # Convert to CSV export URL
         if "/edit" in url:
             sheet_id = url.split("/d/")[1].split("/")[0]
-            csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+            csv_url = (
+                f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+            )
         elif "export?format=csv" in url:
             csv_url = url
         else:
             sheet_id = url.split("/d/")[1].split("/")[0] if "/d/" in url else url
-            csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+            csv_url = (
+                f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+            )
 
         df = pd.read_csv(csv_url)
         return df
     except Exception as e:
         st.error(f"Error loading Google Sheet: {e}")
-        st.caption("Note: The sheet must be publicly accessible or shared with 'Anyone with the link'")
+        st.caption(
+            "Note: The sheet must be publicly accessible or shared with 'Anyone with the link'"
+        )
         return None
 
 
@@ -163,14 +172,14 @@ def _render_analysis_section():
         with col2:
             st.metric("Columns", len(df.columns))
         with col3:
-            st.metric("Numeric", len(df.select_dtypes(include='number').columns))
+            st.metric("Numeric", len(df.select_dtypes(include="number").columns))
         with col4:
-            st.metric("Text", len(df.select_dtypes(include='object').columns))
+            st.metric("Text", len(df.select_dtypes(include="object").columns))
 
     # Analysis tabs
-    analysis_tab, sentiment_tab, stats_tab, viz_tab, export_tab = st.tabs([
-        "📈 EDA", "💬 Sentiment", "📊 Statistics", "🎨 Visualize", "📝 Export"
-    ])
+    analysis_tab, sentiment_tab, stats_tab, viz_tab, export_tab = st.tabs(
+        ["📈 EDA", "💬 Sentiment", "📊 Statistics", "🎨 Visualize", "📝 Export"]
+    )
 
     with analysis_tab:
         _render_eda_section(df)
@@ -195,6 +204,7 @@ def _render_eda_section(df: pd.DataFrame):
         with st.spinner("Analyzing data..."):
             try:
                 from core.data_lab import DataLab
+
                 lab = DataLab()
                 eda = lab.run_eda(df)
                 st.session_state["data_lab_eda"] = eda
@@ -215,16 +225,18 @@ def _render_eda_section(df: pd.DataFrame):
         with col3:
             missing = overview.get("missing_cells", 0)
             total = overview.get("rows", 1) * overview.get("columns", 1)
-            st.metric("Missing Values", f"{missing:,} ({100*missing/total:.1f}%)" if total > 0 else "0")
+            st.metric(
+                "Missing Values",
+                f"{missing:,} ({100 * missing / total:.1f}%)" if total > 0 else "0",
+            )
 
         # Data types
         st.markdown("#### Column Types")
         dtypes = eda.get("data_types", {})
         if dtypes:
-            dtype_df = pd.DataFrame([
-                {"Column": col, "Type": dtype}
-                for col, dtype in dtypes.items()
-            ])
+            dtype_df = pd.DataFrame(
+                [{"Column": col, "Type": dtype} for col, dtype in dtypes.items()]
+            )
             st.dataframe(dtype_df, use_container_width=True, hide_index=True)
 
         # Numeric summary
@@ -239,10 +251,12 @@ def _render_eda_section(df: pd.DataFrame):
             for col, info in eda["categorical_summary"].items():
                 with st.expander(f"📋 {col} ({info.get('unique', 0)} unique values)"):
                     if info.get("top_values"):
-                        top_df = pd.DataFrame([
-                            {"Value": v, "Count": c}
-                            for v, c in info["top_values"].items()
-                        ])
+                        top_df = pd.DataFrame(
+                            [
+                                {"Value": v, "Count": c}
+                                for v, c in info["top_values"].items()
+                            ]
+                        )
                         st.dataframe(top_df, use_container_width=True, hide_index=True)
 
 
@@ -255,14 +269,16 @@ def _basic_eda(df: pd.DataFrame) -> dict:
             "missing_cells": df.isna().sum().sum(),
         },
         "data_types": df.dtypes.astype(str).to_dict(),
-        "numeric_summary": df.describe().to_dict() if len(df.select_dtypes(include='number').columns) > 0 else {},
+        "numeric_summary": df.describe().to_dict()
+        if len(df.select_dtypes(include="number").columns) > 0
+        else {},
         "categorical_summary": {
             col: {
                 "unique": df[col].nunique(),
-                "top_values": df[col].value_counts().head(5).to_dict()
+                "top_values": df[col].value_counts().head(5).to_dict(),
             }
-            for col in df.select_dtypes(include='object').columns[:5]
-        }
+            for col in df.select_dtypes(include="object").columns[:5]
+        },
     }
 
 
@@ -273,7 +289,7 @@ def _render_sentiment_section(df: pd.DataFrame):
     st.caption("Analyze text columns for sentiment (ideal for review data)")
 
     # Get text columns
-    text_cols = df.select_dtypes(include='object').columns.tolist()
+    text_cols = df.select_dtypes(include="object").columns.tolist()
 
     if not text_cols:
         st.warning("No text columns found in your data.")
@@ -292,11 +308,14 @@ def _render_sentiment_section(df: pd.DataFrame):
         with st.spinner("Analyzing sentiment... (this may take a moment)"):
             try:
                 from core.data_lab import DataLab
+
                 lab = DataLab()
                 result = lab.analyze_sentiment(df, text_col)
                 st.session_state["data_lab_sentiment"] = result
             except ImportError:
-                st.error("DataLab module not available. Please ensure dependencies are installed.")
+                st.error(
+                    "DataLab module not available. Please ensure dependencies are installed."
+                )
                 return
             except Exception as e:
                 st.error(f"Sentiment analysis error: {e}")
@@ -337,10 +356,7 @@ def _render_sentiment_section(df: pd.DataFrame):
             # Download enhanced data
             csv = result_df.to_csv(index=False)
             st.download_button(
-                "📥 Download with Sentiment",
-                csv,
-                "data_with_sentiment.csv",
-                "text/csv"
+                "📥 Download with Sentiment", csv, "data_with_sentiment.csv", "text/csv"
             )
 
 
@@ -351,11 +367,11 @@ def _render_stats_section(df: pd.DataFrame):
 
     test_type = st.selectbox(
         "Select test type",
-        ["t_test", "chi_square", "anova", "mann_whitney", "correlation"]
+        ["t_test", "chi_square", "anova", "mann_whitney", "correlation"],
     )
 
-    numeric_cols = df.select_dtypes(include='number').columns.tolist()
-    categorical_cols = df.select_dtypes(include='object').columns.tolist()
+    numeric_cols = df.select_dtypes(include="number").columns.tolist()
+    categorical_cols = df.select_dtypes(include="object").columns.tolist()
 
     params = {}
 
@@ -373,7 +389,11 @@ def _render_stats_section(df: pd.DataFrame):
             st.warning("Need at least two categorical columns")
             return
         params["column1"] = st.selectbox("First column", categorical_cols)
-        params["column2"] = st.selectbox("Second column", categorical_cols, index=1 if len(categorical_cols) > 1 else 0)
+        params["column2"] = st.selectbox(
+            "Second column",
+            categorical_cols,
+            index=1 if len(categorical_cols) > 1 else 0,
+        )
 
     elif test_type == "anova":
         st.caption("Compare means across multiple groups")
@@ -397,16 +417,21 @@ def _render_stats_section(df: pd.DataFrame):
             st.warning("Need at least two numeric columns")
             return
         params["column1"] = st.selectbox("First column", numeric_cols)
-        params["column2"] = st.selectbox("Second column", numeric_cols, index=1 if len(numeric_cols) > 1 else 0)
+        params["column2"] = st.selectbox(
+            "Second column", numeric_cols, index=1 if len(numeric_cols) > 1 else 0
+        )
 
     if st.button("📊 Run Test", type="primary"):
         with st.spinner("Running statistical test..."):
             try:
                 from core.data_lab import DataLab
+
                 lab = DataLab()
 
                 if test_type == "correlation":
-                    result = lab.correlation_analysis(df, params["column1"], params["column2"])
+                    result = lab.correlation_analysis(
+                        df, params["column1"], params["column2"]
+                    )
                 else:
                     result = lab.significance_test(df, test_type, **params)
 
@@ -450,12 +475,11 @@ def _render_viz_section(df: pd.DataFrame):
     st.markdown("#### Create Visualizations")
 
     viz_type = st.selectbox(
-        "Chart type",
-        ["histogram", "bar_chart", "scatter", "box_plot", "line_chart"]
+        "Chart type", ["histogram", "bar_chart", "scatter", "box_plot", "line_chart"]
     )
 
-    numeric_cols = df.select_dtypes(include='number').columns.tolist()
-    categorical_cols = df.select_dtypes(include='object').columns.tolist()
+    numeric_cols = df.select_dtypes(include="number").columns.tolist()
+    categorical_cols = df.select_dtypes(include="object").columns.tolist()
     all_cols = df.columns.tolist()
 
     if viz_type == "histogram":
@@ -468,6 +492,7 @@ def _render_viz_section(df: pd.DataFrame):
         if st.button("Create Chart"):
             try:
                 from core.data_lab import DataLab
+
                 lab = DataLab()
                 fig = lab.create_visualization(df, "histogram", x_column=col, bins=bins)
                 if fig:
@@ -485,6 +510,7 @@ def _render_viz_section(df: pd.DataFrame):
         if st.button("Create Chart"):
             try:
                 from core.data_lab import DataLab
+
                 lab = DataLab()
                 fig = lab.create_visualization(df, "bar", x_column=col)
                 if fig:
@@ -497,15 +523,20 @@ def _render_viz_section(df: pd.DataFrame):
             st.warning("Need at least two numeric columns")
             return
         x_col = st.selectbox("X axis", numeric_cols)
-        y_col = st.selectbox("Y axis", numeric_cols, index=1 if len(numeric_cols) > 1 else 0)
+        y_col = st.selectbox(
+            "Y axis", numeric_cols, index=1 if len(numeric_cols) > 1 else 0
+        )
         color_col = st.selectbox("Color by (optional)", ["None"] + categorical_cols)
 
         if st.button("Create Chart"):
             try:
                 from core.data_lab import DataLab
+
                 lab = DataLab()
                 color = color_col if color_col != "None" else None
-                fig = lab.create_visualization(df, "scatter", x_column=x_col, y_column=y_col, color_column=color)
+                fig = lab.create_visualization(
+                    df, "scatter", x_column=x_col, y_column=y_col, color_column=color
+                )
                 if fig:
                     st.plotly_chart(fig, use_container_width=True)
             except ImportError:
@@ -521,9 +552,12 @@ def _render_viz_section(df: pd.DataFrame):
         if st.button("Create Chart"):
             try:
                 from core.data_lab import DataLab
+
                 lab = DataLab()
                 group = group_col if group_col != "None" else None
-                fig = lab.create_visualization(df, "box", y_column=value_col, x_column=group)
+                fig = lab.create_visualization(
+                    df, "box", y_column=value_col, x_column=group
+                )
                 if fig:
                     st.plotly_chart(fig, use_container_width=True)
             except ImportError:
@@ -536,8 +570,11 @@ def _render_viz_section(df: pd.DataFrame):
         if st.button("Create Chart"):
             try:
                 from core.data_lab import DataLab
+
                 lab = DataLab()
-                fig = lab.create_visualization(df, "line", x_column=x_col, y_column=y_col)
+                fig = lab.create_visualization(
+                    df, "line", x_column=x_col, y_column=y_col
+                )
                 if fig:
                     st.plotly_chart(fig, use_container_width=True)
             except ImportError:
@@ -553,12 +590,7 @@ def _render_export_section(df: pd.DataFrame):
     col1, col2 = st.columns(2)
     with col1:
         csv = df.to_csv(index=False)
-        st.download_button(
-            "📥 Download CSV",
-            csv,
-            "processed_data.csv",
-            "text/csv"
-        )
+        st.download_button("📥 Download CSV", csv, "processed_data.csv", "text/csv")
 
     with col2:
         try:
@@ -568,7 +600,7 @@ def _render_export_section(df: pd.DataFrame):
                 "📥 Download Excel",
                 buffer.getvalue(),
                 "processed_data.xlsx",
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
         except ImportError:
             st.caption("Install openpyxl for Excel export")
@@ -578,14 +610,13 @@ def _render_export_section(df: pd.DataFrame):
     st.caption("Transform your analysis into thesis-ready prose")
 
     chapter_context = st.selectbox(
-        "Chapter context",
-        ["Methodology", "Findings", "Discussion", "Results"]
+        "Chapter context", ["Methodology", "Findings", "Discussion", "Results"]
     )
 
     focus = st.text_area(
         "Analysis focus",
         placeholder="What aspect of the data should the narrative focus on?\ne.g., 'The sentiment distribution across review platforms' or 'Statistical comparison of ratings by year'",
-        height=100
+        height=100,
     )
 
     if st.button("📝 Generate Narrative", type="primary"):
@@ -596,6 +627,7 @@ def _render_export_section(df: pd.DataFrame):
         with st.spinner("Generating thesis narrative..."):
             try:
                 from core.data_lab import DataLab
+
                 lab = DataLab()
 
                 # Gather available analyses
@@ -603,14 +635,14 @@ def _render_export_section(df: pd.DataFrame):
                 if st.session_state.get("data_lab_eda"):
                     analysis_results["eda"] = st.session_state["data_lab_eda"]
                 if st.session_state.get("data_lab_sentiment"):
-                    analysis_results["sentiment"] = st.session_state["data_lab_sentiment"]
+                    analysis_results["sentiment"] = st.session_state[
+                        "data_lab_sentiment"
+                    ]
                 if st.session_state.get("data_lab_stats"):
                     analysis_results["statistics"] = st.session_state["data_lab_stats"]
 
                 narrative = lab.generate_narrative(
-                    analysis_results,
-                    chapter_context.lower(),
-                    focus
+                    analysis_results, chapter_context.lower(), focus
                 )
 
                 if narrative.get("narrative"):
@@ -621,7 +653,7 @@ def _render_export_section(df: pd.DataFrame):
                         "📥 Download Narrative",
                         narrative["narrative"],
                         f"data_narrative_{chapter_context.lower()}.md",
-                        "text/markdown"
+                        "text/markdown",
                     )
                 else:
                     st.error(narrative.get("error", "Failed to generate narrative"))

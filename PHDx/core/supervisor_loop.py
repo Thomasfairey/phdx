@@ -25,6 +25,7 @@ try:
     from core.secrets_utils import get_secret
 except ImportError:
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from core.ethics_utils import log_ai_usage, scrub_text
     from core.secrets_utils import get_secret
@@ -61,7 +62,7 @@ class SupervisorLoop:
         """Load existing analysis from cache file."""
         if ANALYSIS_OUTPUT.exists():
             try:
-                with open(ANALYSIS_OUTPUT, 'r', encoding='utf-8') as f:
+                with open(ANALYSIS_OUTPUT, "r", encoding="utf-8") as f:
                     return json.load(f)
             except (json.JSONDecodeError, IOError):
                 return {"feedback_items": [], "last_updated": None}
@@ -70,12 +71,12 @@ class SupervisorLoop:
     def _save_analysis_cache(self):
         """Save analysis to cache file."""
         self.analysis_cache["last_updated"] = datetime.now().isoformat()
-        with open(ANALYSIS_OUTPUT, 'w', encoding='utf-8') as f:
+        with open(ANALYSIS_OUTPUT, "w", encoding="utf-8") as f:
             json.dump(self.analysis_cache, f, indent=2, ensure_ascii=False)
 
     def _get_file_hash(self, filepath: Path) -> str:
         """Generate hash for a file to detect changes."""
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             return md5(f.read(), usedforsecurity=False).hexdigest()
 
     def _load_drafts_content(self) -> dict:
@@ -92,16 +93,18 @@ class SupervisorLoop:
 
                 for i, para in enumerate(doc.paragraphs):
                     if para.text.strip():
-                        paragraphs.append({
-                            "index": i,
-                            "text": para.text.strip(),
-                            "word_count": len(para.text.split())
-                        })
+                        paragraphs.append(
+                            {
+                                "index": i,
+                                "text": para.text.strip(),
+                                "word_count": len(para.text.split()),
+                            }
+                        )
 
                 drafts[docx_file.stem] = {
                     "filename": docx_file.name,
                     "paragraphs": paragraphs,
-                    "total_words": sum(p["word_count"] for p in paragraphs)
+                    "total_words": sum(p["word_count"] for p in paragraphs),
                 }
 
             except Exception as e:
@@ -129,30 +132,35 @@ class SupervisorLoop:
 
                 # Check if already processed
                 existing = next(
-                    (f for f in self.analysis_cache.get("feedback_items", [])
-                     if f.get("filename") == filepath.name),
-                    None
+                    (
+                        f
+                        for f in self.analysis_cache.get("feedback_items", [])
+                        if f.get("filename") == filepath.name
+                    ),
+                    None,
                 )
 
                 is_new = existing is None
                 is_modified = existing and existing.get("file_hash") != file_hash
 
-                with open(filepath, 'r', encoding='utf-8') as f:
+                with open(filepath, "r", encoding="utf-8") as f:
                     content = f.read()
 
-                feedback_files.append({
-                    "filename": filepath.name,
-                    "filepath": str(filepath),
-                    "file_hash": file_hash,
-                    "content": content,
-                    "word_count": len(content.split()),
-                    "is_new": is_new,
-                    "is_modified": is_modified,
-                    "needs_analysis": is_new or is_modified,
-                    "modified_time": datetime.fromtimestamp(
-                        filepath.stat().st_mtime
-                    ).isoformat()
-                })
+                feedback_files.append(
+                    {
+                        "filename": filepath.name,
+                        "filepath": str(filepath),
+                        "file_hash": file_hash,
+                        "content": content,
+                        "word_count": len(content.split()),
+                        "is_new": is_new,
+                        "is_modified": is_modified,
+                        "needs_analysis": is_new or is_modified,
+                        "modified_time": datetime.fromtimestamp(
+                            filepath.stat().st_mtime
+                        ).isoformat(),
+                    }
+                )
 
         return feedback_files
 
@@ -192,7 +200,7 @@ class SupervisorLoop:
         """
         feedback_id = md5(
             f"{feedback_text[:100]}{datetime.now().isoformat()}".encode(),
-            usedforsecurity=False
+            usedforsecurity=False,
         ).hexdigest()[:10]
 
         result = {
@@ -204,7 +212,7 @@ class SupervisorLoop:
             "key_themes": [],
             "mapped_suggestions": [],
             "overall_tone": "neutral",
-            "estimated_revision_scope": "moderate"
+            "estimated_revision_scope": "moderate",
         }
 
         if not self.claude_client:
@@ -222,10 +230,14 @@ class SupervisorLoop:
         if drafts:
             drafts_summary = "AVAILABLE THESIS CHAPTERS:\n"
             for chapter_name, chapter_data in drafts.items():
-                drafts_summary += f"\n## {chapter_name} ({chapter_data['total_words']} words)\n"
+                drafts_summary += (
+                    f"\n## {chapter_name} ({chapter_data['total_words']} words)\n"
+                )
                 # Include first few paragraphs as context
-                for para in chapter_data['paragraphs'][:3]:
-                    drafts_summary += f"  - Para {para['index']}: {para['text'][:100]}...\n"
+                for para in chapter_data["paragraphs"][:3]:
+                    drafts_summary += (
+                        f"  - Para {para['index']}: {para['text'][:100]}...\n"
+                    )
 
         # Ethics scrubbing
         scrub_result = scrub_text(feedback_text)
@@ -279,22 +291,22 @@ Be specific and actionable. If the supervisor mentions specific theorists (Bourd
             data_source="feedback_folder",
             prompt=f"Analyzing feedback: {feedback_filename}",
             was_scrubbed=was_scrubbed,
-            redactions_count=scrub_result["total_redactions"]
+            redactions_count=scrub_result["total_redactions"],
         )
 
         try:
             response = self.claude_client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=4096,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             response_text = response.content[0].text.strip()
 
             # Clean markdown wrapping if present
             if response_text.startswith("```"):
-                response_text = re.sub(r'^```(?:json)?\n?', '', response_text)
-                response_text = re.sub(r'\n?```$', '', response_text)
+                response_text = re.sub(r"^```(?:json)?\n?", "", response_text)
+                response_text = re.sub(r"\n?```$", "", response_text)
 
             analysis = json.loads(response_text)
 
@@ -310,7 +322,9 @@ Be specific and actionable. If the supervisor mentions specific theorists (Bourd
 
         except json.JSONDecodeError as e:
             result["error"] = f"Failed to parse AI response: {str(e)}"
-            result["raw_response"] = response_text if 'response_text' in locals() else None
+            result["raw_response"] = (
+                response_text if "response_text" in locals() else None
+            )
 
         except Exception as e:
             result["error"] = f"Analysis failed: {str(e)}"
@@ -337,7 +351,7 @@ Be specific and actionable. If the supervisor mentions specific theorists (Bourd
             "modified_files": [],
             "errors": [],
             "total_suggestions": 0,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
         feedback_files = self.scan_feedback_folder()
@@ -350,27 +364,31 @@ Be specific and actionable. If the supervisor mentions specific theorists (Bourd
 
             try:
                 analysis = self.analyze_feedback(
-                    feedback["content"],
-                    feedback["filename"]
+                    feedback["content"], feedback["filename"]
                 )
 
                 if analysis["status"] == "success":
                     # Update cache
                     existing_idx = next(
-                        (i for i, f in enumerate(self.analysis_cache["feedback_items"])
-                         if f.get("filename") == feedback["filename"]),
-                        None
+                        (
+                            i
+                            for i, f in enumerate(self.analysis_cache["feedback_items"])
+                            if f.get("filename") == feedback["filename"]
+                        ),
+                        None,
                     )
 
                     feedback_entry = {
                         "filename": feedback["filename"],
                         "file_hash": feedback["file_hash"],
                         "modified_time": feedback["modified_time"],
-                        "analysis": analysis
+                        "analysis": analysis,
                     }
 
                     if existing_idx is not None:
-                        self.analysis_cache["feedback_items"][existing_idx] = feedback_entry
+                        self.analysis_cache["feedback_items"][existing_idx] = (
+                            feedback_entry
+                        )
                         report["modified_files"].append(feedback["filename"])
                     else:
                         self.analysis_cache["feedback_items"].append(feedback_entry)
@@ -407,21 +425,23 @@ Be specific and actionable. If the supervisor mentions specific theorists (Bourd
         for feedback_item in self.analysis_cache.get("feedback_items", []):
             analysis = feedback_item.get("analysis", {})
             for suggestion in analysis.get("mapped_suggestions", []):
-                all_suggestions.append({
-                    **suggestion,
-                    "source_file": feedback_item["filename"],
-                    "feedback_date": feedback_item.get("modified_time", ""),
-                    "overall_tone": analysis.get("overall_tone", "neutral")
-                })
+                all_suggestions.append(
+                    {
+                        **suggestion,
+                        "source_file": feedback_item["filename"],
+                        "feedback_date": feedback_item.get("modified_time", ""),
+                        "overall_tone": analysis.get("overall_tone", "neutral"),
+                    }
+                )
 
         # Sort by priority (high first) and then by date
         priority_order = {"high": 0, "medium": 1, "low": 2}
         all_suggestions.sort(
             key=lambda x: (
                 priority_order.get(x.get("priority", "low"), 3),
-                x.get("feedback_date", "")
+                x.get("feedback_date", ""),
             ),
-            reverse=False
+            reverse=False,
         )
 
         return all_suggestions[:limit]
@@ -438,7 +458,8 @@ Be specific and actionable. If the supervisor mentions specific theorists (Bourd
         """
         suggestions = self.get_latest_suggestions(limit=100)
         return [
-            s for s in suggestions
+            s
+            for s in suggestions
             if chapter_name.lower() in s.get("target_chapter", "").lower()
             or s.get("target_chapter", "").lower() == "general"
         ]
@@ -461,7 +482,7 @@ Be specific and actionable. If the supervisor mentions specific theorists (Bourd
                 "key_themes": [],
                 "theoretical_focuses": [],
                 "overall_revision_scope": "none",
-                "last_updated": None
+                "last_updated": None,
             }
 
         all_suggestions = []
@@ -508,7 +529,7 @@ Be specific and actionable. If the supervisor mentions specific theorists (Bourd
             "key_themes": unique_themes,
             "theoretical_focuses": unique_theoretical,
             "overall_revision_scope": overall_scope,
-            "last_updated": self.analysis_cache.get("last_updated")
+            "last_updated": self.analysis_cache.get("last_updated"),
         }
 
     def get_status(self) -> dict:
@@ -521,7 +542,7 @@ Be specific and actionable. If the supervisor mentions specific theorists (Bourd
             "total_feedback_files": len(feedback_files),
             "pending_analysis": sum(1 for f in feedback_files if f["needs_analysis"]),
             "processed_files": len(self.analysis_cache.get("feedback_items", [])),
-            "last_updated": self.analysis_cache.get("last_updated")
+            "last_updated": self.analysis_cache.get("last_updated"),
         }
 
 
@@ -529,7 +550,10 @@ Be specific and actionable. If the supervisor mentions specific theorists (Bourd
 # STREAMLIT WIDGET FOR SIDEBAR
 # =============================================================================
 
-def render_supervisor_notes_widget(supervisor_loop: SupervisorLoop, current_chapter: str = ""):
+
+def render_supervisor_notes_widget(
+    supervisor_loop: SupervisorLoop, current_chapter: str = ""
+):
     """
     Render the Supervisor Notes panel for Streamlit sidebar.
 
@@ -555,7 +579,10 @@ def render_supervisor_notes_widget(supervisor_loop: SupervisorLoop, current_chap
 
     # Process pending feedback
     if status["pending_analysis"] > 0:
-        if st.button(f"🔄 Process {status['pending_analysis']} New Feedback", use_container_width=True):
+        if st.button(
+            f"🔄 Process {status['pending_analysis']} New Feedback",
+            use_container_width=True,
+        ):
             with st.spinner("Analyzing feedback..."):
                 report = supervisor_loop.process_new_feedback()
                 if report["processed_count"] > 0:
@@ -579,7 +606,10 @@ def render_supervisor_notes_widget(supervisor_loop: SupervisorLoop, current_chap
     with col2:
         scope_colors = {"minor": "🟢", "moderate": "🟡", "major": "🔴"}
         scope_icon = scope_colors.get(summary["overall_revision_scope"], "⚪")
-        st.metric("Revision Scope", f"{scope_icon} {summary['overall_revision_scope'].title()}")
+        st.metric(
+            "Revision Scope",
+            f"{scope_icon} {summary['overall_revision_scope'].title()}",
+        )
 
     # Priority breakdown
     st.markdown("**By Priority:**")
@@ -614,7 +644,7 @@ def render_supervisor_notes_widget(supervisor_loop: SupervisorLoop, current_chap
             "revise": "✏️",
             "add": "➕",
             "remove": "➖",
-            "clarify": "💡"
+            "clarify": "💡",
         }.get(suggestion.get("action_type", ""), "📌")
 
         with st.expander(
@@ -622,9 +652,7 @@ def render_supervisor_notes_widget(supervisor_loop: SupervisorLoop, current_chap
         ):
             # Theoretical focus highlight
             if suggestion.get("theoretical_focus"):
-                st.markdown(
-                    f"**📚 Focus on:** `{suggestion['theoretical_focus']}`"
-                )
+                st.markdown(f"**📚 Focus on:** `{suggestion['theoretical_focus']}`")
 
             st.markdown(f"**Suggestion:** {suggestion.get('suggestion_text', '')}")
 
@@ -632,7 +660,7 @@ def render_supervisor_notes_widget(supervisor_loop: SupervisorLoop, current_chap
                 st.markdown(f"**Action:** {suggestion['specific_instruction']}")
 
             if suggestion.get("feedback_quote"):
-                st.caption(f"*\"{suggestion['feedback_quote'][:100]}...\"*")
+                st.caption(f'*"{suggestion["feedback_quote"][:100]}..."*')
 
             st.caption(f"Source: {suggestion.get('source_file', 'unknown')}")
 
@@ -647,6 +675,7 @@ def render_supervisor_notes_widget(supervisor_loop: SupervisorLoop, current_chap
 # =============================================================================
 # STANDALONE FUNCTIONS
 # =============================================================================
+
 
 def process_feedback() -> dict:
     """

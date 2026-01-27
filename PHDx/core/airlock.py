@@ -18,15 +18,15 @@ from googleapiclient.errors import HttpError
 
 # OAuth 2.0 Scopes
 SCOPES = [
-    'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/documents.readonly',
-    'https://www.googleapis.com/auth/spreadsheets.readonly',
+    "https://www.googleapis.com/auth/drive.file",
+    "https://www.googleapis.com/auth/documents.readonly",
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
 ]
 
 # Configuration paths
-CONFIG_DIR = Path(__file__).parent.parent / 'config'
-CLIENT_SECRET_PATH = CONFIG_DIR / 'client_secret.json'
-TOKEN_PATH = CONFIG_DIR / 'token.json'
+CONFIG_DIR = Path(__file__).parent.parent / "config"
+CLIENT_SECRET_PATH = CONFIG_DIR / "client_secret.json"
+TOKEN_PATH = CONFIG_DIR / "token.json"
 
 
 def authenticate_user() -> Credentials:
@@ -70,7 +70,7 @@ def authenticate_user() -> Credentials:
             creds = flow.run_local_server(port=0)
 
         # Save credentials for future use
-        with open(TOKEN_PATH, 'w') as token_file:
+        with open(TOKEN_PATH, "w") as token_file:
             token_file.write(creds.to_json())
 
     return creds
@@ -87,7 +87,7 @@ def list_recent_docs(limit: int = 10) -> list[dict]:
         List of dictionaries with keys: 'name', 'id', 'type'.
     """
     creds = authenticate_user()
-    service = build('drive', 'v3', credentials=creds)
+    service = build("drive", "v3", credentials=creds)
 
     # Query for Google Docs and Sheets, ordered by modified time
     query = (
@@ -96,26 +96,30 @@ def list_recent_docs(limit: int = 10) -> list[dict]:
     )
 
     try:
-        results = service.files().list(
-            q=query,
-            pageSize=limit,
-            orderBy='modifiedTime desc',
-            fields='files(id, name, mimeType)'
-        ).execute()
+        results = (
+            service.files()
+            .list(
+                q=query,
+                pageSize=limit,
+                orderBy="modifiedTime desc",
+                fields="files(id, name, mimeType)",
+            )
+            .execute()
+        )
 
-        files = results.get('files', [])
+        files = results.get("files", [])
 
         # Map MIME types to friendly names
         mime_type_map = {
-            'application/vnd.google-apps.document': 'doc',
-            'application/vnd.google-apps.spreadsheet': 'sheet',
+            "application/vnd.google-apps.document": "doc",
+            "application/vnd.google-apps.spreadsheet": "sheet",
         }
 
         return [
             {
-                'name': f['name'],
-                'id': f['id'],
-                'type': mime_type_map.get(f['mimeType'], 'unknown'),
+                "name": f["name"],
+                "id": f["id"],
+                "type": mime_type_map.get(f["mimeType"], "unknown"),
             }
             for f in files
         ]
@@ -136,7 +140,7 @@ def load_google_doc(doc_id: str) -> str:
         Extracted text content as a string.
     """
     creds = authenticate_user()
-    service = build('docs', 'v1', credentials=creds)
+    service = build("docs", "v1", credentials=creds)
 
     try:
         document = service.documents().get(documentId=doc_id).execute()
@@ -162,33 +166,33 @@ def _extract_text_from_doc(document: dict) -> str:
     """
     text_parts = []
 
-    body = document.get('body', {})
-    content = body.get('content', [])
+    body = document.get("body", {})
+    content = body.get("content", [])
 
     for element in content:
-        if 'paragraph' in element:
-            paragraph = element['paragraph']
-            elements = paragraph.get('elements', [])
+        if "paragraph" in element:
+            paragraph = element["paragraph"]
+            elements = paragraph.get("elements", [])
 
             for elem in elements:
-                if 'textRun' in elem:
-                    text = elem['textRun'].get('content', '')
+                if "textRun" in elem:
+                    text = elem["textRun"].get("content", "")
                     text_parts.append(text)
 
-        elif 'table' in element:
+        elif "table" in element:
             # Handle table content
-            table = element['table']
-            for row in table.get('tableRows', []):
-                for cell in row.get('tableCells', []):
-                    cell_content = cell.get('content', [])
+            table = element["table"]
+            for row in table.get("tableRows", []):
+                for cell in row.get("tableCells", []):
+                    cell_content = cell.get("content", [])
                     for cell_elem in cell_content:
-                        if 'paragraph' in cell_elem:
-                            for p_elem in cell_elem['paragraph'].get('elements', []):
-                                if 'textRun' in p_elem:
-                                    text = p_elem['textRun'].get('content', '')
+                        if "paragraph" in cell_elem:
+                            for p_elem in cell_elem["paragraph"].get("elements", []):
+                                if "textRun" in p_elem:
+                                    text = p_elem["textRun"].get("content", "")
                                     text_parts.append(text)
 
-    return ''.join(text_parts)
+    return "".join(text_parts)
 
 
 def load_local_file(uploaded_file) -> str:
@@ -208,16 +212,15 @@ def load_local_file(uploaded_file) -> str:
     """
     filename = uploaded_file.name.lower()
 
-    if filename.endswith('.docx'):
+    if filename.endswith(".docx"):
         return _load_docx(uploaded_file)
-    elif filename.endswith('.pdf'):
+    elif filename.endswith(".pdf"):
         return _load_pdf(uploaded_file)
-    elif filename.endswith('.txt'):
-        return uploaded_file.read().decode('utf-8')
+    elif filename.endswith(".txt"):
+        return uploaded_file.read().decode("utf-8")
     else:
         raise ValueError(
-            f"Unsupported file type: {filename}. "
-            "Supported formats: .docx, .pdf, .txt"
+            f"Unsupported file type: {filename}. Supported formats: .docx, .pdf, .txt"
         )
 
 
@@ -251,7 +254,7 @@ def _load_docx(uploaded_file) -> str:
                 if cell.text.strip():
                     paragraphs.append(cell.text)
 
-    return '\n\n'.join(paragraphs)
+    return "\n\n".join(paragraphs)
 
 
 def _load_pdf(uploaded_file) -> str:
@@ -278,7 +281,7 @@ def _load_pdf(uploaded_file) -> str:
         if text:
             text_parts.append(text)
 
-    return '\n\n'.join(text_parts)
+    return "\n\n".join(text_parts)
 
 
 # Utility functions for Streamlit integration
@@ -291,37 +294,34 @@ def get_auth_status() -> dict:
     """
     if not CLIENT_SECRET_PATH.exists():
         return {
-            'authenticated': False,
-            'message': 'OAuth not configured. Please add client_secret.json to config/'
+            "authenticated": False,
+            "message": "OAuth not configured. Please add client_secret.json to config/",
         }
 
     if not TOKEN_PATH.exists():
         return {
-            'authenticated': False,
-            'message': 'Not authenticated. Click to sign in with Google.'
+            "authenticated": False,
+            "message": "Not authenticated. Click to sign in with Google.",
         }
 
     try:
         creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
         if creds.valid:
-            return {
-                'authenticated': True,
-                'message': 'Connected to Google Drive'
-            }
+            return {"authenticated": True, "message": "Connected to Google Drive"}
         elif creds.expired and creds.refresh_token:
             return {
-                'authenticated': False,
-                'message': 'Token expired. Click to refresh.'
+                "authenticated": False,
+                "message": "Token expired. Click to refresh.",
             }
         else:
             return {
-                'authenticated': False,
-                'message': 'Invalid credentials. Please re-authenticate.'
+                "authenticated": False,
+                "message": "Invalid credentials. Please re-authenticate.",
             }
     except Exception as e:
         return {
-            'authenticated': False,
-            'message': f'Error checking credentials: {str(e)}'
+            "authenticated": False,
+            "message": f"Error checking credentials: {str(e)}",
         }
 
 
@@ -342,7 +342,7 @@ def get_credentials() -> Optional[Credentials]:
         elif creds.expired and creds.refresh_token:
             creds.refresh(Request())
             # Save refreshed credentials
-            with open(TOKEN_PATH, 'w') as token_file:
+            with open(TOKEN_PATH, "w") as token_file:
                 token_file.write(creds.to_json())
             return creds
     except Exception:
@@ -361,6 +361,7 @@ def clear_credentials() -> None:
 # API COMPATIBILITY FUNCTIONS
 # =============================================================================
 
+
 def get_document_text(doc_id: str) -> dict:
     """
     Get document text content with error handling for API use.
@@ -376,7 +377,11 @@ def get_document_text(doc_id: str) -> dict:
         if text:
             return {"success": True, "text": text}
         else:
-            return {"success": False, "text": "", "error": "Document is empty or could not be read"}
+            return {
+                "success": False,
+                "text": "",
+                "error": "Document is empty or could not be read",
+            }
     except FileNotFoundError as e:
         return {"success": False, "text": "", "error": str(e)}
     except HttpError as e:
@@ -394,13 +399,8 @@ def get_user_info() -> dict:
     """
     status = get_auth_status()
 
-    if not status['authenticated']:
-        return {
-            "email": "",
-            "name": "",
-            "authenticated": False,
-            "mock": None
-        }
+    if not status["authenticated"]:
+        return {"email": "", "name": "", "authenticated": False, "mock": None}
 
     # If authenticated, try to get user info from the API
     try:
@@ -409,20 +409,22 @@ def get_user_info() -> dict:
             # Build People API to get user info
             try:
                 from googleapiclient.discovery import build
-                service = build('people', 'v1', credentials=creds)
-                profile = service.people().get(
-                    resourceName='people/me',
-                    personFields='names,emailAddresses'
-                ).execute()
 
-                names = profile.get('names', [{}])
-                emails = profile.get('emailAddresses', [{}])
+                service = build("people", "v1", credentials=creds)
+                profile = (
+                    service.people()
+                    .get(resourceName="people/me", personFields="names,emailAddresses")
+                    .execute()
+                )
+
+                names = profile.get("names", [{}])
+                emails = profile.get("emailAddresses", [{}])
 
                 return {
-                    "email": emails[0].get('value', '') if emails else '',
-                    "name": names[0].get('displayName', '') if names else '',
+                    "email": emails[0].get("value", "") if emails else "",
+                    "name": names[0].get("displayName", "") if names else "",
                     "authenticated": True,
-                    "mock": False
+                    "mock": False,
                 }
             except Exception:
                 # Fall back to basic authenticated response
@@ -430,20 +432,17 @@ def get_user_info() -> dict:
                     "email": "authenticated@user",
                     "name": "Authenticated User",
                     "authenticated": True,
-                    "mock": False
+                    "mock": False,
                 }
     except Exception:
         pass
 
-    return {
-        "email": "",
-        "name": "",
-        "authenticated": False,
-        "mock": None
-    }
+    return {"email": "", "name": "", "authenticated": False, "mock": None}
 
 
-def update_google_doc(doc_id: str, content: str, section_title: Optional[str] = None) -> dict:
+def update_google_doc(
+    doc_id: str, content: str, section_title: Optional[str] = None
+) -> dict:
     """
     Append content to a Google Doc.
 
@@ -463,20 +462,20 @@ def update_google_doc(doc_id: str, content: str, section_title: Optional[str] = 
             return {
                 "success": False,
                 "doc_url": None,
-                "error": "Not authenticated. Please authenticate first."
+                "error": "Not authenticated. Please authenticate first.",
             }
 
-        service = build('docs', 'v1', credentials=creds)
+        service = build("docs", "v1", credentials=creds)
 
         # Get document to find end index
         doc = service.documents().get(documentId=doc_id).execute()
-        body = doc.get('body', {})
-        doc_content = body.get('content', [])
+        body = doc.get("body", {})
+        doc_content = body.get("content", [])
 
         if not doc_content:
             end_index = 1
         else:
-            end_index = doc_content[-1].get('endIndex', 1) - 1
+            end_index = doc_content[-1].get("endIndex", 1) - 1
 
         # Build content to insert
         content_parts = []
@@ -495,33 +494,19 @@ def update_google_doc(doc_id: str, content: str, section_title: Optional[str] = 
 
         # Create insert request
         requests = [
-            {
-                'insertText': {
-                    'location': {'index': end_index},
-                    'text': full_content
-                }
-            }
+            {"insertText": {"location": {"index": end_index}, "text": full_content}}
         ]
 
         service.documents().batchUpdate(
-            documentId=doc_id,
-            body={'requests': requests}
+            documentId=doc_id, body={"requests": requests}
         ).execute()
 
         return {
             "success": True,
-            "doc_url": f"https://docs.google.com/document/d/{doc_id}/edit"
+            "doc_url": f"https://docs.google.com/document/d/{doc_id}/edit",
         }
 
     except HttpError as e:
-        return {
-            "success": False,
-            "doc_url": None,
-            "error": f"Google API error: {e}"
-        }
+        return {"success": False, "doc_url": None, "error": f"Google API error: {e}"}
     except Exception as e:
-        return {
-            "success": False,
-            "doc_url": None,
-            "error": str(e)
-        }
+        return {"success": False, "doc_url": None, "error": str(e)}

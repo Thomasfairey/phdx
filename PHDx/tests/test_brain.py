@@ -65,24 +65,38 @@ def test_routing_logic():
         ("audit", 1000, "auditor", ""),
         ("critique", 2000, "auditor", ""),
         ("review", 500, "auditor", ""),
-        ("drafting", 50000, "context" if _gemini_available else fallback_model, "heavy lift"),
-        ("audit", 100000, "context" if _gemini_available else fallback_model, "heavy lift"),
+        (
+            "drafting",
+            50000,
+            "context" if _gemini_available else fallback_model,
+            "heavy lift",
+        ),
+        (
+            "audit",
+            100000,
+            "context" if _gemini_available else fallback_model,
+            "heavy lift",
+        ),
         ("unknown", 1000, "writer", "default"),
     ]
 
-    print(f"    {'Task Type':<15} {'Tokens':<10} {'Expected':<10} {'Got':<10} {'Status':<6} {'Note'}")
+    print(
+        f"    {'Task Type':<15} {'Tokens':<10} {'Expected':<10} {'Got':<10} {'Status':<6} {'Note'}"
+    )
     print("    " + "-" * 70)
 
     all_passed = True
     for task_type, token_count, expected, note in test_cases:
         # Pass None for models to test pure routing logic without availability check
         # For heavy lift tests, we simulate having/not having context model
-        mock_models = {'context': True} if _gemini_available else {'context': None}
+        mock_models = {"context": True} if _gemini_available else {"context": None}
         result = _route_task(task_type, token_count, mock_models)
         status = "PASS" if result == expected else "FAIL"
         if result != expected:
             all_passed = False
-        print(f"    {task_type:<15} {token_count:<10} {expected:<10} {result:<10} {status:<6} {note}")
+        print(
+            f"    {task_type:<15} {token_count:<10} {expected:<10} {result:<10} {status:<6} {note}"
+        )
 
     print()
     if all_passed:
@@ -121,8 +135,10 @@ def test_api_call():
     try:
         available = get_available_models()
         print(f"    Available models: {', '.join(available)}")
-        if 'context' not in available:
-            print("    Note: Gemini (context) model not configured - heavy lift will use Claude")
+        if "context" not in available:
+            print(
+                "    Note: Gemini (context) model not configured - heavy lift will use Claude"
+            )
     except Exception as e:
         print(f"    Error initializing models: {e}")
         return False
@@ -144,10 +160,10 @@ def test_api_call():
         print("    Response:")
         print("    " + "-" * 50)
         # Truncate long responses for display
-        content = result['content']
+        content = result["content"]
         if len(content) > 500:
             content = content[:500] + "..."
-        for line in content.split('\n'):
+        for line in content.split("\n"):
             print(f"    {line}")
         print("    " + "-" * 50)
         print()

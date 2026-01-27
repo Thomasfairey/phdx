@@ -15,6 +15,7 @@ from httpx import AsyncClient, ASGITransport
 # Import the FastAPI app
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from api.server import app
@@ -22,15 +23,14 @@ from api.server import app
 
 @pytest.fixture
 def anyio_backend():
-    return 'asyncio'
+    return "asyncio"
 
 
 @pytest.fixture
 async def client():
     """Create async test client."""
     async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test"
+        transport=ASGITransport(app=app), base_url="http://test"
     ) as ac:
         yield ac
 
@@ -38,6 +38,7 @@ async def client():
 # =============================================================================
 # HEALTH & STATUS TESTS
 # =============================================================================
+
 
 class TestHealthEndpoints:
     """Test health check endpoints."""
@@ -77,6 +78,7 @@ class TestHealthEndpoints:
 # AUTHENTICATION TESTS
 # =============================================================================
 
+
 class TestAuthEndpoints:
     """Test authentication endpoints."""
 
@@ -95,6 +97,7 @@ class TestAuthEndpoints:
 # =============================================================================
 # FILES ENDPOINT TESTS
 # =============================================================================
+
 
 class TestFilesEndpoints:
     """Test file listing endpoints."""
@@ -120,6 +123,7 @@ class TestFilesEndpoints:
 # GENERATION ENDPOINT TESTS
 # =============================================================================
 
+
 class TestGenerationEndpoints:
     """Test text generation endpoints."""
 
@@ -132,10 +136,10 @@ class TestGenerationEndpoints:
     @pytest.mark.anyio
     async def test_generate_with_prompt(self, client):
         """Test /generate with valid prompt."""
-        response = await client.post("/generate", json={
-            "prompt": "Test prompt for generation",
-            "model": "claude"
-        })
+        response = await client.post(
+            "/generate",
+            json={"prompt": "Test prompt for generation", "model": "claude"},
+        )
         # May succeed or fail depending on API key availability
         assert response.status_code in [200, 500]
         data = response.json()
@@ -147,10 +151,13 @@ class TestGenerationEndpoints:
     @pytest.mark.anyio
     async def test_generate_with_context(self, client):
         """Test /generate with additional context."""
-        response = await client.post("/generate", json={
-            "prompt": "Summarize the context",
-            "context": "This is some context text for the AI to use."
-        })
+        response = await client.post(
+            "/generate",
+            json={
+                "prompt": "Summarize the context",
+                "context": "This is some context text for the AI to use.",
+            },
+        )
         assert response.status_code in [200, 500]
 
 
@@ -158,15 +165,17 @@ class TestGenerationEndpoints:
 # AIRLOCK (SANITIZATION) TESTS
 # =============================================================================
 
+
 class TestAirlockEndpoints:
     """Test PII sanitization endpoints."""
 
     @pytest.mark.anyio
     async def test_sanitize_text(self, client):
         """Test /airlock/sanitize removes PII."""
-        response = await client.post("/airlock/sanitize", json={
-            "text": "My email is john.doe@example.com and phone is 555-1234."
-        })
+        response = await client.post(
+            "/airlock/sanitize",
+            json={"text": "My email is john.doe@example.com and phone is 555-1234."},
+        )
         assert response.status_code == 200
         data = response.json()
         assert "sanitized_text" in data
@@ -176,18 +185,14 @@ class TestAirlockEndpoints:
     @pytest.mark.anyio
     async def test_sanitize_empty_text_rejected(self, client):
         """Test /airlock/sanitize rejects empty text."""
-        response = await client.post("/airlock/sanitize", json={
-            "text": ""
-        })
+        response = await client.post("/airlock/sanitize", json={"text": ""})
         assert response.status_code == 422  # Validation error
 
     @pytest.mark.anyio
     async def test_sanitize_preserves_non_pii(self, client):
         """Test /airlock/sanitize preserves non-PII content."""
         original_text = "The quick brown fox jumps over the lazy dog."
-        response = await client.post("/airlock/sanitize", json={
-            "text": original_text
-        })
+        response = await client.post("/airlock/sanitize", json={"text": original_text})
         assert response.status_code == 200
         data = response.json()
         # No PII should be found in this text
@@ -197,6 +202,7 @@ class TestAirlockEndpoints:
 # =============================================================================
 # AUDITOR ENDPOINT TESTS
 # =============================================================================
+
 
 class TestAuditorEndpoints:
     """Test Oxford Brookes auditor endpoints."""
@@ -213,9 +219,12 @@ class TestAuditorEndpoints:
     @pytest.mark.anyio
     async def test_evaluate_draft_requires_text(self, client):
         """Test /auditor/evaluate requires sufficient text."""
-        response = await client.post("/auditor/evaluate", json={
-            "text": "Short"  # Too short
-        })
+        response = await client.post(
+            "/auditor/evaluate",
+            json={
+                "text": "Short"  # Too short
+            },
+        )
         assert response.status_code == 422  # Validation error (min_length=100)
 
     @pytest.mark.anyio
@@ -230,16 +239,17 @@ class TestAuditorEndpoints:
         maize production, particularly in regions with limited irrigation
         infrastructure.
         """
-        response = await client.post("/auditor/evaluate", json={
-            "text": sample_text,
-            "chapter_context": "Methodology"
-        })
+        response = await client.post(
+            "/auditor/evaluate",
+            json={"text": sample_text, "chapter_context": "Methodology"},
+        )
         assert response.status_code in [200, 500]
 
 
 # =============================================================================
 # RED THREAD (CONSISTENCY) TESTS
 # =============================================================================
+
 
 class TestRedThreadEndpoints:
     """Test consistency checking endpoints."""
@@ -256,9 +266,12 @@ class TestRedThreadEndpoints:
     @pytest.mark.anyio
     async def test_check_consistency_requires_text(self, client):
         """Test /red-thread/check requires sufficient text."""
-        response = await client.post("/red-thread/check", json={
-            "text": "Short"  # Too short (min_length=50)
-        })
+        response = await client.post(
+            "/red-thread/check",
+            json={
+                "text": "Short"  # Too short (min_length=50)
+            },
+        )
         assert response.status_code == 422
 
     @pytest.mark.anyio
@@ -270,15 +283,14 @@ class TestRedThreadEndpoints:
         theory. This synthesis provides a robust foundation for analyzing the
         data collected through participant observations and interviews.
         """
-        response = await client.post("/red-thread/check", json={
-            "text": sample_text
-        })
+        response = await client.post("/red-thread/check", json={"text": sample_text})
         assert response.status_code in [200, 500]
 
 
 # =============================================================================
 # DNA ENGINE TESTS
 # =============================================================================
+
 
 class TestDNAEngineEndpoints:
     """Test writing style analysis endpoints."""
@@ -306,17 +318,21 @@ class TestDNAEngineEndpoints:
 # SNAPSHOT TESTS
 # =============================================================================
 
+
 class TestSnapshotEndpoints:
     """Test document snapshot endpoints."""
 
     @pytest.mark.anyio
     async def test_save_snapshot(self, client):
         """Test /snapshot saves document backup."""
-        response = await client.post("/snapshot", json={
-            "doc_id": "test-doc-123",
-            "timestamp": "2024-01-25T10:30:00Z",
-            "content": "This is test content for the snapshot."
-        })
+        response = await client.post(
+            "/snapshot",
+            json={
+                "doc_id": "test-doc-123",
+                "timestamp": "2024-01-25T10:30:00Z",
+                "content": "This is test content for the snapshot.",
+            },
+        )
         assert response.status_code == 200
         data = response.json()
         assert "success" in data
@@ -330,16 +346,17 @@ class TestSnapshotEndpoints:
 # GOOGLE SYNC TESTS
 # =============================================================================
 
+
 class TestGoogleSyncEndpoints:
     """Test Google Docs sync endpoints."""
 
     @pytest.mark.anyio
     async def test_sync_to_google(self, client):
         """Test /sync/google syncs content to Google Docs."""
-        response = await client.post("/sync/google", json={
-            "doc_id": "test-doc-id",
-            "content": "Test content to sync."
-        })
+        response = await client.post(
+            "/sync/google",
+            json={"doc_id": "test-doc-id", "content": "Test content to sync."},
+        )
         # Will likely fail without real credentials, but should not crash
         assert response.status_code == 200
         data = response.json()
@@ -349,6 +366,7 @@ class TestGoogleSyncEndpoints:
 # =============================================================================
 # USAGE STATISTICS TESTS
 # =============================================================================
+
 
 class TestUsageStatsEndpoints:
     """Test usage statistics endpoints."""
@@ -365,6 +383,7 @@ class TestUsageStatsEndpoints:
 # =============================================================================
 # ERROR HANDLING TESTS
 # =============================================================================
+
 
 class TestErrorHandling:
     """Test API error handling."""
@@ -384,9 +403,12 @@ class TestErrorHandling:
     @pytest.mark.anyio
     async def test_validation_error_format(self, client):
         """Test validation errors return proper format."""
-        response = await client.post("/generate", json={
-            "prompt": ""  # Empty prompt should fail validation
-        })
+        response = await client.post(
+            "/generate",
+            json={
+                "prompt": ""  # Empty prompt should fail validation
+            },
+        )
         assert response.status_code == 422
         data = response.json()
         assert "detail" in data

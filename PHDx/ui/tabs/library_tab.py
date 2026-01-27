@@ -18,9 +18,8 @@ def render_library_tab():
     _init_session_state()
 
     st.markdown(
-        "<h2 style='font-family:Inter;font-weight:400;color:#9ca3af;'>"
-        "📚 Library</h2>",
-        unsafe_allow_html=True
+        "<h2 style='font-family:Inter;font-weight:400;color:#9ca3af;'>📚 Library</h2>",
+        unsafe_allow_html=True,
     )
     st.caption("Manage citations from your Zotero library")
 
@@ -34,9 +33,9 @@ def render_library_tab():
     st.success(f"Connected to Zotero ({zotero_status.get('item_count', 0):,} items)")
 
     # Sub-tabs
-    browse_tab, search_tab, bib_tab, coverage_tab = st.tabs([
-        "📖 Browse", "🔍 Search", "📋 Bibliography", "📊 Coverage"
-    ])
+    browse_tab, search_tab, bib_tab, coverage_tab = st.tabs(
+        ["📖 Browse", "🔍 Search", "📋 Bibliography", "📊 Coverage"]
+    )
 
     with browse_tab:
         _render_browse_section()
@@ -69,16 +68,14 @@ def _check_zotero_connection() -> dict:
     """Check if Zotero is configured and connected."""
     try:
         from core.services import get_services
+
         services = get_services()
         zotero = services.zotero
 
         # Try a simple operation to verify connection
-        if hasattr(zotero, 'get_library_stats'):
+        if hasattr(zotero, "get_library_stats"):
             stats = zotero.get_library_stats()
-            return {
-                "connected": True,
-                "item_count": stats.get("total_items", 0)
-            }
+            return {"connected": True, "item_count": stats.get("total_items", 0)}
 
         return {"connected": True, "item_count": 0}
 
@@ -103,10 +100,13 @@ def _render_connection_setup():
     4. Add to your `.env` or `secrets.toml` file:
     """)
 
-    st.code("""
+    st.code(
+        """
 ZOTERO_USER_ID=your_user_id
 ZOTERO_API_KEY=your_api_key
-    """, language="toml")
+    """,
+        language="toml",
+    )
 
     st.markdown("After adding credentials, restart the application.")
 
@@ -120,8 +120,7 @@ def _render_browse_section():
     col1, col2 = st.columns([2, 1])
     with col1:
         collection = st.text_input(
-            "Filter by collection (optional)",
-            placeholder="Collection name..."
+            "Filter by collection (optional)", placeholder="Collection name..."
         )
     with col2:
         limit = st.number_input("Items to load", min_value=10, max_value=100, value=25)
@@ -130,6 +129,7 @@ def _render_browse_section():
         with st.spinner("Loading from Zotero..."):
             try:
                 from core.services import get_services
+
                 services = get_services()
 
                 if collection:
@@ -162,18 +162,18 @@ def _render_search_section():
     st.markdown("#### Search Library")
 
     search_query = st.text_input(
-        "Search query",
-        placeholder="Search by title, author, or keywords..."
+        "Search query", placeholder="Search by title, author, or keywords..."
     )
 
     col1, col2 = st.columns(2)
     with col1:
         _ = st.selectbox(  # search_type not yet implemented
-            "Search in",
-            ["All fields", "Title", "Author", "Tags"]
+            "Search in", ["All fields", "Title", "Author", "Tags"]
         )
     with col2:
-        max_results = st.number_input("Max results", min_value=5, max_value=50, value=20)
+        max_results = st.number_input(
+            "Max results", min_value=5, max_value=50, value=20
+        )
 
     if st.button("🔍 Search", type="primary"):
         if not search_query:
@@ -183,6 +183,7 @@ def _render_search_section():
         with st.spinner("Searching..."):
             try:
                 from core.services import get_services
+
                 services = get_services()
 
                 results = services.zotero.search_library(search_query, max_results)
@@ -216,7 +217,7 @@ def _render_bibliography_section():
     method = st.radio(
         "Select items by",
         ["Search and select", "Paste citation keys", "Use selected items"],
-        horizontal=True
+        horizontal=True,
     )
 
     if method == "Search and select":
@@ -225,6 +226,7 @@ def _render_bibliography_section():
         if search:
             try:
                 from core.services import get_services
+
                 services = get_services()
                 results = services.zotero.search_library(search, 10)
 
@@ -248,7 +250,7 @@ def _render_bibliography_section():
         keys_text = st.text_area(
             "Citation keys (one per line)",
             placeholder="ABC123\nDEF456\n...",
-            height=100
+            height=100,
         )
         if keys_text:
             st.session_state["library_selected_items"] = [
@@ -277,11 +279,11 @@ def _render_bibliography_section():
         with st.spinner("Generating bibliography..."):
             try:
                 from core.services import get_services
+
                 services = get_services()
 
                 bib = services.zotero.generate_bibliography(
-                    citation_keys=selected,
-                    sort_by=sort_by
+                    citation_keys=selected, sort_by=sort_by
                 )
                 st.session_state["library_bibliography"] = bib
 
@@ -297,17 +299,11 @@ def _render_bibliography_section():
         st.markdown("*Oxford Brookes Harvard format*")
 
         st.text_area(
-            "Bibliography",
-            value=bib,
-            height=300,
-            label_visibility="collapsed"
+            "Bibliography", value=bib, height=300, label_visibility="collapsed"
         )
 
         st.download_button(
-            "📥 Download Bibliography",
-            bib,
-            "bibliography.txt",
-            "text/plain"
+            "📥 Download Bibliography", bib, "bibliography.txt", "text/plain"
         )
 
 
@@ -320,13 +316,20 @@ def _render_coverage_section():
     draft_text = st.text_area(
         "Draft text to analyze",
         height=200,
-        placeholder="Paste your draft text with in-text citations (Author, Year) format..."
+        placeholder="Paste your draft text with in-text citations (Author, Year) format...",
     )
 
     chapter_type = st.selectbox(
         "Chapter type",
-        ["introduction", "literature_review", "methodology", "findings", "discussion", "conclusion"],
-        format_func=lambda x: x.replace("_", " ").title()
+        [
+            "introduction",
+            "literature_review",
+            "methodology",
+            "findings",
+            "discussion",
+            "conclusion",
+        ],
+        format_func=lambda x: x.replace("_", " ").title(),
     )
 
     if st.button("📊 Analyze Coverage", type="primary"):
@@ -337,11 +340,11 @@ def _render_coverage_section():
         with st.spinner("Analyzing citation coverage..."):
             try:
                 from core.services import get_services
+
                 services = get_services()
 
                 coverage = services.zotero.analyze_citation_coverage(
-                    draft_text,
-                    chapter_type
+                    draft_text, chapter_type
                 )
                 st.session_state["library_coverage"] = coverage
 
@@ -361,31 +364,26 @@ def _render_coverage_section():
         # Metrics
         col1, col2, col3 = st.columns(3)
         with col1:
-            st.metric(
-                "Citations Found",
-                coverage.get("citation_count", 0)
-            )
+            st.metric("Citations Found", coverage.get("citation_count", 0))
         with col2:
             density = coverage.get("citation_density", 0)
-            st.metric(
-                "Citation Density",
-                f"{density:.1f}/1000 words"
-            )
+            st.metric("Citation Density", f"{density:.1f}/1000 words")
         with col3:
             matched = coverage.get("matched_count", 0)
             total = coverage.get("citation_count", 1)
-            st.metric(
-                "Library Match Rate",
-                f"{matched}/{total}"
-            )
+            st.metric("Library Match Rate", f"{matched}/{total}")
 
         # Density assessment
         density = coverage.get("citation_density", 0)
         if chapter_type == "literature_review":
             if density < 5:
-                st.warning("Citation density is low for a literature review (recommended: 8-15 per 1000 words)")
+                st.warning(
+                    "Citation density is low for a literature review (recommended: 8-15 per 1000 words)"
+                )
             elif density > 20:
-                st.info("Citation density is high - ensure your own voice comes through")
+                st.info(
+                    "Citation density is high - ensure your own voice comes through"
+                )
             else:
                 st.success("Citation density is appropriate for a literature review")
         else:
@@ -412,7 +410,9 @@ def _render_coverage_section():
             st.markdown("#### Suggested Additional Citations")
             st.caption("Papers in your library that might be relevant")
             for paper in coverage["suggested_papers"][:5]:
-                st.markdown(f"- {paper.get('title', 'Untitled')} ({paper.get('date', 'n.d.')[:4]})")
+                st.markdown(
+                    f"- {paper.get('title', 'Untitled')} ({paper.get('date', 'n.d.')[:4]})"
+                )
 
 
 def _render_item_card(item: dict, selectable: bool = False):
@@ -448,7 +448,10 @@ def _render_item_card(item: dict, selectable: bool = False):
         with st.expander("Details"):
             if item.get("abstractNote"):
                 st.markdown("**Abstract:**")
-                st.markdown(item["abstractNote"][:500] + ("..." if len(item.get("abstractNote", "")) > 500 else ""))
+                st.markdown(
+                    item["abstractNote"][:500]
+                    + ("..." if len(item.get("abstractNote", "")) > 500 else "")
+                )
 
             if item.get("tags"):
                 tags = ", ".join([t.get("tag", "") for t in item["tags"][:5]])

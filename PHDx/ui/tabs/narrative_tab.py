@@ -21,14 +21,14 @@ def render_narrative_tab():
     st.markdown(
         "<h2 style='font-family:Inter;font-weight:400;color:#9ca3af;'>"
         "🧭 Narrative Intelligence</h2>",
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
     st.caption("Analyze thesis structure, map arguments, and ensure coherence")
 
     # Sub-tabs
-    structure_tab, args_tab, gaps_tab, themes_tab = st.tabs([
-        "📐 Structure", "🗺️ Arguments", "🔍 Gaps", "🎨 Themes"
-    ])
+    structure_tab, args_tab, gaps_tab, themes_tab = st.tabs(
+        ["📐 Structure", "🗺️ Arguments", "🔍 Gaps", "🎨 Themes"]
+    )
 
     with structure_tab:
         _render_structure_section()
@@ -65,6 +65,7 @@ def _render_structure_section():
     # Structure type selection
     try:
         from core.narrative_engine import NarrativeEngine, THESIS_STRUCTURES
+
         engine = NarrativeEngine()
         structure_types = list(THESIS_STRUCTURES.keys())
     except ImportError:
@@ -76,7 +77,7 @@ def _render_structure_section():
         structure_type = st.selectbox(
             "Thesis type",
             structure_types,
-            format_func=lambda x: x.replace("_", " ").title()
+            format_func=lambda x: x.replace("_", " ").title(),
         )
     with col2:
         total_words = st.number_input(
@@ -84,7 +85,7 @@ def _render_structure_section():
             min_value=50000,
             max_value=120000,
             value=80000,
-            step=5000
+            step=5000,
         )
 
     # Show structure template
@@ -92,12 +93,15 @@ def _render_structure_section():
         try:
             if engine:
                 from core.narrative_engine import THESIS_STRUCTURES
+
                 template = THESIS_STRUCTURES.get(structure_type, {})
             else:
                 template = _get_fallback_structure(structure_type)
 
             st.markdown("---")
-            st.markdown(f"#### {structure_type.replace('_', ' ').title()} Thesis Structure")
+            st.markdown(
+                f"#### {structure_type.replace('_', ' ').title()} Thesis Structure"
+            )
 
             chapters = template.get("chapters", [])
             for i, chapter in enumerate(chapters, 1):
@@ -126,7 +130,7 @@ def _render_structure_section():
     thesis_text = st.text_area(
         "Paste your thesis text or chapter summaries",
         height=200,
-        placeholder="Paste your thesis text here for structure analysis...\n\nYou can paste:\n- Full thesis text\n- Chapter summaries\n- Table of contents with descriptions"
+        placeholder="Paste your thesis text here for structure analysis...\n\nYou can paste:\n- Full thesis text\n- Chapter summaries\n- Table of contents with descriptions",
     )
 
     if st.button("🔬 Analyze Structure", type="primary"):
@@ -161,7 +165,7 @@ def _render_arguments_section():
         "Text to analyze",
         height=200,
         placeholder="Paste thesis text to map its argumentative structure...",
-        key="args_text"
+        key="args_text",
     )
 
     if st.button("🗺️ Map Arguments", type="primary"):
@@ -172,6 +176,7 @@ def _render_arguments_section():
         with st.spinner("Mapping arguments..."):
             try:
                 from core.narrative_engine import NarrativeEngine
+
                 engine = NarrativeEngine()
                 result = engine.map_arguments(thesis_text)
                 st.session_state["narrative_arguments"] = result
@@ -211,7 +216,9 @@ def _render_arguments_section():
                         st.markdown(f"**Warrant:** {arg['warrant']}")
 
                     strength = arg.get("strength", "medium")
-                    color = {"strong": "green", "medium": "orange", "weak": "red"}.get(strength, "gray")
+                    color = {"strong": "green", "medium": "orange", "weak": "red"}.get(
+                        strength, "gray"
+                    )
                     st.markdown(f"**Strength:** :{color}[{strength}]")
 
         # Conclusions
@@ -236,16 +243,25 @@ def _render_gaps_section():
     input_type = st.radio(
         "Analysis type",
         ["Single chapter", "Multiple chapters", "Full thesis overview"],
-        horizontal=True
+        horizontal=True,
     )
 
     if input_type == "Single chapter":
         chapter_type = st.selectbox(
             "Chapter type",
-            ["introduction", "literature_review", "methodology", "findings", "discussion", "conclusion"],
-            format_func=lambda x: x.replace("_", " ").title()
+            [
+                "introduction",
+                "literature_review",
+                "methodology",
+                "findings",
+                "discussion",
+                "conclusion",
+            ],
+            format_func=lambda x: x.replace("_", " ").title(),
         )
-        text = st.text_area("Chapter text", height=200, placeholder="Paste chapter text...")
+        text = st.text_area(
+            "Chapter text", height=200, placeholder="Paste chapter text..."
+        )
 
         if st.button("🔍 Analyze Gaps", type="primary"):
             if not text or len(text) < 300:
@@ -255,6 +271,7 @@ def _render_gaps_section():
             with st.spinner("Analyzing gaps..."):
                 try:
                     from core.narrative_engine import NarrativeEngine
+
                     engine = NarrativeEngine()
                     result = engine.identify_gaps(text, chapter_type)
                     st.session_state["narrative_gaps"] = result
@@ -267,11 +284,22 @@ def _render_gaps_section():
         st.markdown("Enter text for each chapter:")
 
         chapters = []
-        for ch_type in ["Introduction", "Literature Review", "Methodology", "Findings", "Discussion", "Conclusion"]:
+        for ch_type in [
+            "Introduction",
+            "Literature Review",
+            "Methodology",
+            "Findings",
+            "Discussion",
+            "Conclusion",
+        ]:
             with st.expander(f"{ch_type}"):
-                ch_text = st.text_area(f"{ch_type} text", height=100, key=f"gap_{ch_type.lower()}")
+                ch_text = st.text_area(
+                    f"{ch_type} text", height=100, key=f"gap_{ch_type.lower()}"
+                )
                 if ch_text:
-                    chapters.append({"type": ch_type.lower().replace(" ", "_"), "text": ch_text})
+                    chapters.append(
+                        {"type": ch_type.lower().replace(" ", "_"), "text": ch_text}
+                    )
 
         if st.button("🔍 Analyze All Chapters", type="primary"):
             if not chapters:
@@ -281,6 +309,7 @@ def _render_gaps_section():
             with st.spinner("Analyzing gaps across chapters..."):
                 try:
                     from core.narrative_engine import NarrativeEngine
+
                     engine = NarrativeEngine()
 
                     all_gaps = []
@@ -297,7 +326,7 @@ def _render_gaps_section():
         text = st.text_area(
             "Thesis overview or abstract",
             height=200,
-            placeholder="Paste thesis overview, abstract, or summary..."
+            placeholder="Paste thesis overview, abstract, or summary...",
         )
 
         if st.button("🔍 Analyze Gaps", type="primary"):
@@ -308,6 +337,7 @@ def _render_gaps_section():
             with st.spinner("Analyzing..."):
                 try:
                     from core.narrative_engine import NarrativeEngine
+
                     engine = NarrativeEngine()
                     result = engine.identify_gaps(text, "overview")
                     st.session_state["narrative_gaps"] = result
@@ -329,19 +359,23 @@ def _render_themes_section():
     st.markdown("Enter key sections from your thesis:")
 
     chapters = []
-    for i, ch_name in enumerate(["Introduction", "Literature Review", "Discussion", "Conclusion"]):
+    for i, ch_name in enumerate(
+        ["Introduction", "Literature Review", "Discussion", "Conclusion"]
+    ):
         text = st.text_area(
             f"{ch_name} key themes/text",
             height=100,
             placeholder=f"Enter key themes or text from {ch_name}...",
-            key=f"theme_{ch_name}"
+            key=f"theme_{ch_name}",
         )
         if text:
-            chapters.append({
-                "name": ch_name,
-                "text": text,
-                "themes": []  # Will be extracted
-            })
+            chapters.append(
+                {
+                    "name": ch_name,
+                    "text": text,
+                    "themes": [],  # Will be extracted
+                }
+            )
 
     if st.button("🎨 Check Thematic Coherence", type="primary"):
         if len(chapters) < 2:
@@ -351,6 +385,7 @@ def _render_themes_section():
         with st.spinner("Analyzing thematic coherence..."):
             try:
                 from core.narrative_engine import NarrativeEngine
+
                 engine = NarrativeEngine()
                 result = engine.check_thematic_consistency(chapters)
                 st.session_state["narrative_themes"] = result
@@ -376,7 +411,7 @@ def _render_themes_section():
             f"<div style='text-align:center;'>"
             f"<h1 style='color:{color};'>{score:.0%}</h1>"
             f"<p>Thematic Coherence</p></div>",
-            unsafe_allow_html=True
+            unsafe_allow_html=True,
         )
 
         # Consistent themes
@@ -431,7 +466,9 @@ def _display_structure_analysis(result: dict):
         st.markdown("#### Chapter Analysis")
 
         for ch in result["chapters"]:
-            with st.expander(f"{ch.get('name', 'Chapter')} ({ch.get('word_count', 0):,} words)"):
+            with st.expander(
+                f"{ch.get('name', 'Chapter')} ({ch.get('word_count', 0):,} words)"
+            ):
                 # Progress toward target
                 actual = ch.get("word_count", 0)
                 target = ch.get("target_words", actual)
@@ -526,43 +563,127 @@ def _get_fallback_structure(structure_type: str) -> dict:
     structures = {
         "empirical": {
             "chapters": [
-                {"name": "Introduction", "target_pct": 8, "key_elements": ["Context", "Problem", "Questions"]},
-                {"name": "Literature Review", "target_pct": 20, "key_elements": ["Theory", "Previous research", "Gaps"]},
-                {"name": "Methodology", "target_pct": 15, "key_elements": ["Design", "Methods", "Ethics"]},
-                {"name": "Findings", "target_pct": 25, "key_elements": ["Results", "Analysis", "Themes"]},
-                {"name": "Discussion", "target_pct": 20, "key_elements": ["Interpretation", "Implications", "Limitations"]},
-                {"name": "Conclusion", "target_pct": 7, "key_elements": ["Summary", "Contributions", "Future work"]},
+                {
+                    "name": "Introduction",
+                    "target_pct": 8,
+                    "key_elements": ["Context", "Problem", "Questions"],
+                },
+                {
+                    "name": "Literature Review",
+                    "target_pct": 20,
+                    "key_elements": ["Theory", "Previous research", "Gaps"],
+                },
+                {
+                    "name": "Methodology",
+                    "target_pct": 15,
+                    "key_elements": ["Design", "Methods", "Ethics"],
+                },
+                {
+                    "name": "Findings",
+                    "target_pct": 25,
+                    "key_elements": ["Results", "Analysis", "Themes"],
+                },
+                {
+                    "name": "Discussion",
+                    "target_pct": 20,
+                    "key_elements": ["Interpretation", "Implications", "Limitations"],
+                },
+                {
+                    "name": "Conclusion",
+                    "target_pct": 7,
+                    "key_elements": ["Summary", "Contributions", "Future work"],
+                },
             ]
         },
         "theoretical": {
             "chapters": [
-                {"name": "Introduction", "target_pct": 10, "key_elements": ["Context", "Argument", "Structure"]},
-                {"name": "Literature Review", "target_pct": 25, "key_elements": ["Theoretical landscape", "Key debates"]},
-                {"name": "Theoretical Framework", "target_pct": 20, "key_elements": ["Framework development", "Key concepts"]},
-                {"name": "Analysis", "target_pct": 25, "key_elements": ["Application", "Critical analysis"]},
-                {"name": "Discussion", "target_pct": 12, "key_elements": ["Implications", "Contributions"]},
-                {"name": "Conclusion", "target_pct": 8, "key_elements": ["Summary", "Future directions"]},
+                {
+                    "name": "Introduction",
+                    "target_pct": 10,
+                    "key_elements": ["Context", "Argument", "Structure"],
+                },
+                {
+                    "name": "Literature Review",
+                    "target_pct": 25,
+                    "key_elements": ["Theoretical landscape", "Key debates"],
+                },
+                {
+                    "name": "Theoretical Framework",
+                    "target_pct": 20,
+                    "key_elements": ["Framework development", "Key concepts"],
+                },
+                {
+                    "name": "Analysis",
+                    "target_pct": 25,
+                    "key_elements": ["Application", "Critical analysis"],
+                },
+                {
+                    "name": "Discussion",
+                    "target_pct": 12,
+                    "key_elements": ["Implications", "Contributions"],
+                },
+                {
+                    "name": "Conclusion",
+                    "target_pct": 8,
+                    "key_elements": ["Summary", "Future directions"],
+                },
             ]
         },
         "papers_based": {
             "chapters": [
-                {"name": "Introduction", "target_pct": 12, "key_elements": ["Overview", "Linking narrative"]},
+                {
+                    "name": "Introduction",
+                    "target_pct": 12,
+                    "key_elements": ["Overview", "Linking narrative"],
+                },
                 {"name": "Paper 1", "target_pct": 22, "key_elements": ["Study 1"]},
                 {"name": "Paper 2", "target_pct": 22, "key_elements": ["Study 2"]},
                 {"name": "Paper 3", "target_pct": 22, "key_elements": ["Study 3"]},
-                {"name": "Discussion", "target_pct": 15, "key_elements": ["Synthesis", "Contributions"]},
-                {"name": "Conclusion", "target_pct": 7, "key_elements": ["Summary", "Implications"]},
+                {
+                    "name": "Discussion",
+                    "target_pct": 15,
+                    "key_elements": ["Synthesis", "Contributions"],
+                },
+                {
+                    "name": "Conclusion",
+                    "target_pct": 7,
+                    "key_elements": ["Summary", "Implications"],
+                },
             ]
         },
         "practice_based": {
             "chapters": [
-                {"name": "Introduction", "target_pct": 10, "key_elements": ["Context", "Practice focus"]},
-                {"name": "Context/Literature", "target_pct": 18, "key_elements": ["Practice context", "Theory"]},
-                {"name": "Methodology", "target_pct": 15, "key_elements": ["Practice-based methods"]},
-                {"name": "Practice Documentation", "target_pct": 25, "key_elements": ["Process", "Artifacts"]},
-                {"name": "Critical Reflection", "target_pct": 20, "key_elements": ["Analysis", "Insights"]},
-                {"name": "Conclusion", "target_pct": 12, "key_elements": ["Contributions", "Future practice"]},
+                {
+                    "name": "Introduction",
+                    "target_pct": 10,
+                    "key_elements": ["Context", "Practice focus"],
+                },
+                {
+                    "name": "Context/Literature",
+                    "target_pct": 18,
+                    "key_elements": ["Practice context", "Theory"],
+                },
+                {
+                    "name": "Methodology",
+                    "target_pct": 15,
+                    "key_elements": ["Practice-based methods"],
+                },
+                {
+                    "name": "Practice Documentation",
+                    "target_pct": 25,
+                    "key_elements": ["Process", "Artifacts"],
+                },
+                {
+                    "name": "Critical Reflection",
+                    "target_pct": 20,
+                    "key_elements": ["Analysis", "Insights"],
+                },
+                {
+                    "name": "Conclusion",
+                    "target_pct": 12,
+                    "key_elements": ["Contributions", "Future practice"],
+                },
             ]
-        }
+        },
     }
     return structures.get(structure_type, structures["empirical"])

@@ -32,7 +32,8 @@ def get_secret(key: str, default: Optional[str] = None) -> Optional[str]:
     # Try Streamlit secrets first (for cloud deployment)
     try:
         import streamlit as st
-        if hasattr(st, 'secrets') and key in st.secrets:
+
+        if hasattr(st, "secrets") and key in st.secrets:
             return st.secrets[key]
     except Exception:
         pass

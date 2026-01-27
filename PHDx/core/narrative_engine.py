@@ -43,9 +43,9 @@ THESIS_STRUCTURES = {
             {"order": 4, "name": "Findings", "target_pct": 25},
             {"order": 5, "name": "Discussion", "target_pct": 20},
             {"order": 6, "name": "Conclusion", "target_pct": 7},
-            {"order": 7, "name": "References", "target_pct": 5}
+            {"order": 7, "name": "References", "target_pct": 5},
         ],
-        "recommended_for": ["quantitative", "mixed methods", "case study"]
+        "recommended_for": ["quantitative", "mixed methods", "case study"],
     },
     "theoretical": {
         "name": "Theoretical/Conceptual Thesis",
@@ -56,9 +56,9 @@ THESIS_STRUCTURES = {
             {"order": 3, "name": "Conceptual Framework Development", "target_pct": 25},
             {"order": 4, "name": "Application/Analysis", "target_pct": 20},
             {"order": 5, "name": "Discussion & Implications", "target_pct": 12},
-            {"order": 6, "name": "Conclusion", "target_pct": 8}
+            {"order": 6, "name": "Conclusion", "target_pct": 8},
         ],
-        "recommended_for": ["philosophical", "conceptual", "theoretical"]
+        "recommended_for": ["philosophical", "conceptual", "theoretical"],
     },
     "papers_based": {
         "name": "Papers-Based Thesis",
@@ -69,9 +69,9 @@ THESIS_STRUCTURES = {
             {"order": 3, "name": "Paper 2", "target_pct": 20},
             {"order": 4, "name": "Paper 3", "target_pct": 20},
             {"order": 5, "name": "Synthesis & Discussion", "target_pct": 15},
-            {"order": 6, "name": "Conclusion", "target_pct": 10}
+            {"order": 6, "name": "Conclusion", "target_pct": 10},
         ],
-        "recommended_for": ["publication-track", "article-based"]
+        "recommended_for": ["publication-track", "article-based"],
     },
     "practice_based": {
         "name": "Practice-Based Research Thesis",
@@ -83,10 +83,10 @@ THESIS_STRUCTURES = {
             {"order": 4, "name": "Practice Documentation", "target_pct": 25},
             {"order": 5, "name": "Critical Reflection", "target_pct": 20},
             {"order": 6, "name": "Conclusion", "target_pct": 10},
-            {"order": 7, "name": "Portfolio/Appendices", "target_pct": 5}
+            {"order": 7, "name": "Portfolio/Appendices", "target_pct": 5},
         ],
-        "recommended_for": ["creative", "professional doctorate", "action research"]
-    }
+        "recommended_for": ["creative", "professional doctorate", "action research"],
+    },
 }
 
 
@@ -109,12 +109,14 @@ class NarrativeEngine:
         """Initialize optional integrations."""
         try:
             from core import llm_gateway
+
             self._llm_gateway = llm_gateway
         except ImportError:
             pass
 
         try:
             from core.vector_store import get_vector_store
+
             self._vector_store = get_vector_store("thesis_narrative")
         except ImportError:
             pass
@@ -127,7 +129,7 @@ class NarrativeEngine:
         self,
         thesis_type: str = "empirical",
         field: str = "",
-        research_approach: str = ""
+        research_approach: str = "",
     ) -> dict:
         """
         Suggest an appropriate thesis structure.
@@ -145,7 +147,9 @@ class NarrativeEngine:
         if not structure:
             # Try to match based on research approach
             for struct_type, struct in THESIS_STRUCTURES.items():
-                if research_approach.lower() in [r.lower() for r in struct.get("recommended_for", [])]:
+                if research_approach.lower() in [
+                    r.lower() for r in struct.get("recommended_for", [])
+                ]:
                     structure = struct
                     thesis_type = struct_type
                     break
@@ -161,7 +165,7 @@ class NarrativeEngine:
             "field": field,
             "research_approach": research_approach,
             "total_chapters": len(structure["chapters"]),
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     def analyze_thesis_structure(self, chapters: list[dict]) -> dict:
@@ -181,15 +185,14 @@ class NarrativeEngine:
 
         analysis = {
             "report_id": hashlib.md5(
-                f"{len(chapters)}_{total_words}".encode(),
-                usedforsecurity=False
+                f"{len(chapters)}_{total_words}".encode(), usedforsecurity=False
             ).hexdigest()[:12],
             "timestamp": datetime.now().isoformat(),
             "total_chapters": len(chapters),
             "total_words": total_words,
             "chapters": [],
             "balance_assessment": {},
-            "recommendations": []
+            "recommendations": [],
         }
 
         # Analyze each chapter
@@ -202,7 +205,7 @@ class NarrativeEngine:
                 "name": name,
                 "word_count": word_count,
                 "percentage": round(percentage, 1),
-                "status": chapter.get("status", "unknown")
+                "status": chapter.get("status", "unknown"),
             }
 
             # Check against typical percentages
@@ -253,7 +256,7 @@ class NarrativeEngine:
             "results": 25,
             "discussion": 20,
             "conclusion": 7,
-            "conclusions": 7
+            "conclusions": 7,
         }
 
         for key, pct in typical.items():
@@ -319,20 +322,19 @@ Return a JSON object with:
                 action_type="argument_mapping",
                 data_source="narrative_engine",
                 prompt=prompt[:200],
-                was_scrubbed=False
+                was_scrubbed=False,
             )
 
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="complex_reasoning"
+                prompt=prompt, task_type="complex_reasoning"
             )
 
             content = result.get("content", "{}")
             try:
                 # Clean markdown if present
                 if "```" in content:
-                    content = re.sub(r'```json\s*', '', content)
-                    content = re.sub(r'```\s*', '', content)
+                    content = re.sub(r"```json\s*", "", content)
+                    content = re.sub(r"```\s*", "", content)
                 argument_map = json.loads(content)
             except json.JSONDecodeError:
                 argument_map = {"raw_analysis": content}
@@ -341,7 +343,7 @@ Return a JSON object with:
                 "status": "success",
                 "argument_map": argument_map,
                 "model_used": result.get("model_used", "unknown"),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -372,22 +374,22 @@ Return a JSON object with:
         # Supporting arguments
         supporting = am.get("supporting_arguments", [])
         for i, arg in enumerate(supporting):
-            arg_text = arg.get("argument", f"Argument {i+1}")[:40]
+            arg_text = arg.get("argument", f"Argument {i + 1}")[:40]
             mermaid.append(f'    SA{i}["{arg_text}..."]')
-            mermaid.append(f'    SA{i} --> MT')
+            mermaid.append(f"    SA{i} --> MT")
 
         # Conclusions
         conclusions = am.get("conclusions", [])
         for i, conc in enumerate(conclusions):
             conc_text = conc[:40] if isinstance(conc, str) else str(conc)[:40]
             mermaid.append(f'    C{i}["{conc_text}..."]')
-            mermaid.append(f'    MT --> C{i}')
+            mermaid.append(f"    MT --> C{i}")
 
         return {
             "status": "success",
             "mermaid_code": "\n".join(mermaid),
             "format": "mermaid",
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
 
     # =========================================================================
@@ -431,15 +433,14 @@ Return a JSON object with "gaps" array."""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="audit"
+                prompt=prompt, task_type="audit"
             )
 
             content = result.get("content", "{}")
             try:
                 if "```" in content:
-                    content = re.sub(r'```json\s*', '', content)
-                    content = re.sub(r'```\s*', '', content)
+                    content = re.sub(r"```json\s*", "", content)
+                    content = re.sub(r"```\s*", "", content)
                 gaps = json.loads(content)
             except json.JSONDecodeError:
                 gaps = {"raw_analysis": content}
@@ -448,7 +449,7 @@ Return a JSON object with "gaps" array."""
                 "status": "success",
                 "gap_analysis": gaps,
                 "model_used": result.get("model_used", "unknown"),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -467,10 +468,12 @@ Return a JSON object with "gaps" array."""
         if not self._llm_gateway:
             return {"status": "error", "error": "LLM gateway not available"}
 
-        chapters_summary = "\n\n".join([
-            f"CHAPTER {i+1}: {c.get('name', 'Unknown')}\n{c.get('summary', c.get('content', ''))[:500]}..."
-            for i, c in enumerate(chapters)
-        ])
+        chapters_summary = "\n\n".join(
+            [
+                f"CHAPTER {i + 1}: {c.get('name', 'Unknown')}\n{c.get('summary', c.get('content', ''))[:500]}..."
+                for i, c in enumerate(chapters)
+            ]
+        )
 
         prompt = f"""Analyze these thesis chapters for narrative connections.
 
@@ -487,15 +490,14 @@ Return a JSON object with "connections" analysis."""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="complex_reasoning"
+                prompt=prompt, task_type="complex_reasoning"
             )
 
             content = result.get("content", "{}")
             try:
                 if "```" in content:
-                    content = re.sub(r'```json\s*', '', content)
-                    content = re.sub(r'```\s*', '', content)
+                    content = re.sub(r"```json\s*", "", content)
+                    content = re.sub(r"```\s*", "", content)
                 connections = json.loads(content)
             except json.JSONDecodeError:
                 connections = {"raw_analysis": content}
@@ -505,7 +507,7 @@ Return a JSON object with "connections" analysis."""
                 "connection_analysis": connections,
                 "chapters_analyzed": len(chapters),
                 "model_used": result.get("model_used", "unknown"),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -544,15 +546,14 @@ Return a JSON object with "themes" array."""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="complex_reasoning"
+                prompt=prompt, task_type="complex_reasoning"
             )
 
             content = result.get("content", "{}")
             try:
                 if "```" in content:
-                    content = re.sub(r'```json\s*', '', content)
-                    content = re.sub(r'```\s*', '', content)
+                    content = re.sub(r"```json\s*", "", content)
+                    content = re.sub(r"```\s*", "", content)
                 themes = json.loads(content)
             except json.JSONDecodeError:
                 themes = {"raw_analysis": content}
@@ -562,7 +563,7 @@ Return a JSON object with "themes" array."""
                 "themes": themes,
                 "n_themes_requested": n_themes,
                 "model_used": result.get("model_used", "unknown"),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -581,10 +582,12 @@ Return a JSON object with "themes" array."""
         if not self._llm_gateway:
             return {"status": "error", "error": "LLM gateway not available"}
 
-        chapters_text = "\n\n---\n\n".join([
-            f"CHAPTER: {c.get('name', 'Unknown')}\n{c.get('content', c.get('summary', ''))[:1000]}"
-            for c in chapters
-        ])
+        chapters_text = "\n\n---\n\n".join(
+            [
+                f"CHAPTER: {c.get('name', 'Unknown')}\n{c.get('content', c.get('summary', ''))[:1000]}"
+                for c in chapters
+            ]
+        )
 
         prompt = f"""Analyze thematic consistency across these thesis chapters.
 
@@ -601,15 +604,14 @@ Return a JSON object with the analysis."""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="audit"
+                prompt=prompt, task_type="audit"
             )
 
             content = result.get("content", "{}")
             try:
                 if "```" in content:
-                    content = re.sub(r'```json\s*', '', content)
-                    content = re.sub(r'```\s*', '', content)
+                    content = re.sub(r"```json\s*", "", content)
+                    content = re.sub(r"```\s*", "", content)
                 consistency = json.loads(content)
             except json.JSONDecodeError:
                 consistency = {"raw_analysis": content}
@@ -619,17 +621,13 @@ Return a JSON object with the analysis."""
                 "thematic_consistency": consistency,
                 "chapters_analyzed": len(chapters),
                 "model_used": result.get("model_used", "unknown"),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
-    def trace_theme_development(
-        self,
-        theme: str,
-        chapters: list[dict]
-    ) -> dict:
+    def trace_theme_development(self, theme: str, chapters: list[dict]) -> dict:
         """
         Trace how a specific theme develops across chapters.
 
@@ -643,10 +641,12 @@ Return a JSON object with the analysis."""
         if not self._llm_gateway:
             return {"status": "error", "error": "LLM gateway not available"}
 
-        chapters_text = "\n\n".join([
-            f"CHAPTER {i+1} ({c.get('name', 'Unknown')}):\n{c.get('content', c.get('summary', ''))[:800]}"
-            for i, c in enumerate(chapters)
-        ])
+        chapters_text = "\n\n".join(
+            [
+                f"CHAPTER {i + 1} ({c.get('name', 'Unknown')}):\n{c.get('content', c.get('summary', ''))[:800]}"
+                for i, c in enumerate(chapters)
+            ]
+        )
 
         prompt = f"""Trace the development of the theme "{theme}" across these chapters.
 
@@ -662,15 +662,14 @@ Return a JSON object with "theme_trace" array (one entry per chapter)."""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="complex_reasoning"
+                prompt=prompt, task_type="complex_reasoning"
             )
 
             content = result.get("content", "{}")
             try:
                 if "```" in content:
-                    content = re.sub(r'```json\s*', '', content)
-                    content = re.sub(r'```\s*', '', content)
+                    content = re.sub(r"```json\s*", "", content)
+                    content = re.sub(r"```\s*", "", content)
                 trace = json.loads(content)
             except json.JSONDecodeError:
                 trace = {"raw_analysis": content}
@@ -681,7 +680,7 @@ Return a JSON object with "theme_trace" array (one entry per chapter)."""
                 "development_trace": trace,
                 "chapters_analyzed": len(chapters),
                 "model_used": result.get("model_used", "unknown"),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -691,11 +690,7 @@ Return a JSON object with "theme_trace" array (one entry per chapter)."""
     # LITERATURE SYNTHESIS
     # =========================================================================
 
-    def suggest_synthesis_points(
-        self,
-        papers: list[dict],
-        topic: str
-    ) -> dict:
+    def suggest_synthesis_points(self, papers: list[dict], topic: str) -> dict:
         """
         Suggest synthesis points for literature review.
 
@@ -709,10 +704,12 @@ Return a JSON object with "theme_trace" array (one entry per chapter)."""
         if not self._llm_gateway:
             return {"status": "error", "error": "LLM gateway not available"}
 
-        papers_summary = "\n\n".join([
-            f"PAPER: {p.get('title', 'Unknown')}\nAuthors: {p.get('authors', 'Unknown')}\nAbstract: {p.get('abstract', '')[:300]}..."
-            for p in papers[:10]  # Limit to 10 papers
-        ])
+        papers_summary = "\n\n".join(
+            [
+                f"PAPER: {p.get('title', 'Unknown')}\nAuthors: {p.get('authors', 'Unknown')}\nAbstract: {p.get('abstract', '')[:300]}..."
+                for p in papers[:10]  # Limit to 10 papers
+            ]
+        )
 
         prompt = f"""Suggest synthesis points for these papers on the topic: "{topic}"
 
@@ -729,15 +726,14 @@ Return a JSON object with the analysis."""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="literature_synthesis"
+                prompt=prompt, task_type="literature_synthesis"
             )
 
             content = result.get("content", "{}")
             try:
                 if "```" in content:
-                    content = re.sub(r'```json\s*', '', content)
-                    content = re.sub(r'```\s*', '', content)
+                    content = re.sub(r"```json\s*", "", content)
+                    content = re.sub(r"```\s*", "", content)
                 synthesis = json.loads(content)
             except json.JSONDecodeError:
                 synthesis = {"raw_analysis": content}
@@ -748,17 +744,13 @@ Return a JSON object with the analysis."""
                 "topic": topic,
                 "papers_analyzed": len(papers),
                 "model_used": result.get("model_used", "unknown"),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
-    def generate_synthesis_paragraph(
-        self,
-        papers: list[dict],
-        focus: str
-    ) -> dict:
+    def generate_synthesis_paragraph(self, papers: list[dict], focus: str) -> dict:
         """
         Generate a synthesis paragraph from multiple papers.
 
@@ -772,10 +764,12 @@ Return a JSON object with the analysis."""
         if not self._llm_gateway:
             return {"status": "error", "error": "LLM gateway not available"}
 
-        papers_info = "\n".join([
-            f"- {p.get('authors', 'Unknown')} ({p.get('year', 'n.d.')}): {p.get('title', 'Unknown')}"
-            for p in papers
-        ])
+        papers_info = "\n".join(
+            [
+                f"- {p.get('authors', 'Unknown')} ({p.get('year', 'n.d.')}): {p.get('title', 'Unknown')}"
+                for p in papers
+            ]
+        )
 
         prompt = f"""Write a synthesis paragraph that brings together these sources on the topic: "{focus}"
 
@@ -793,8 +787,7 @@ SYNTHESIS PARAGRAPH:"""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="drafting"
+                prompt=prompt, task_type="drafting"
             )
 
             return {
@@ -803,7 +796,7 @@ SYNTHESIS PARAGRAPH:"""
                 "focus": focus,
                 "sources_used": len(papers),
                 "model_used": result.get("model_used", "unknown"),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -818,7 +811,7 @@ SYNTHESIS PARAGRAPH:"""
         return {
             "status": "success",
             "structures": THESIS_STRUCTURES,
-            "structure_types": list(THESIS_STRUCTURES.keys())
+            "structure_types": list(THESIS_STRUCTURES.keys()),
         }
 
     def get_status(self) -> dict:
@@ -827,13 +820,14 @@ SYNTHESIS PARAGRAPH:"""
             "llm_available": self._llm_gateway is not None,
             "vector_store_available": self._vector_store is not None,
             "available_structures": list(THESIS_STRUCTURES.keys()),
-            "cache_directory": str(NARRATIVE_CACHE)
+            "cache_directory": str(NARRATIVE_CACHE),
         }
 
 
 # =============================================================================
 # STANDALONE FUNCTIONS
 # =============================================================================
+
 
 def analyze_structure(chapters: list) -> dict:
     """Standalone function to analyze thesis structure."""

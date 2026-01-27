@@ -30,7 +30,8 @@ def get_secret(key: str, default: str = None) -> str:
     # Try Streamlit secrets first (for cloud deployment)
     try:
         import streamlit as st
-        if hasattr(st, 'secrets') and key in st.secrets:
+
+        if hasattr(st, "secrets") and key in st.secrets:
             return st.secrets[key]
     except Exception:
         pass
@@ -49,7 +50,9 @@ class VectorStoreBase(ABC):
     """Abstract base class for vector stores."""
 
     @abstractmethod
-    def upsert(self, ids: list[str], documents: list[str], metadatas: list[dict]) -> int:
+    def upsert(
+        self, ids: list[str], documents: list[str], metadatas: list[dict]
+    ) -> int:
         """Insert or update documents."""
         pass
 
@@ -88,11 +91,13 @@ class ChromaVectorStore(VectorStoreBase):
         self.collection = self.client.get_or_create_collection(
             name=collection_name,
             embedding_function=self.embedding_fn,
-            metadata={"description": "PHDx thesis paragraphs"}
+            metadata={"description": "PHDx thesis paragraphs"},
         )
         self.backend = "chromadb"
 
-    def upsert(self, ids: list[str], documents: list[str], metadatas: list[dict]) -> int:
+    def upsert(
+        self, ids: list[str], documents: list[str], metadatas: list[dict]
+    ) -> int:
         self.collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
         return len(ids)
 
@@ -103,7 +108,7 @@ class ChromaVectorStore(VectorStoreBase):
         return self.collection.query(
             query_texts=[query_text],
             n_results=min(n_results, self.collection.count()),
-            include=["documents", "metadatas", "distances"]
+            include=["documents", "metadatas", "distances"],
         )
 
     def count(self) -> int:
@@ -113,8 +118,7 @@ class ChromaVectorStore(VectorStoreBase):
         # Delete and recreate collection
         self.client.delete_collection(self.collection.name)
         self.collection = self.client.get_or_create_collection(
-            name="thesis_paragraphs",
-            embedding_function=self.embedding_fn
+            name="thesis_paragraphs", embedding_function=self.embedding_fn
         )
 
     def get_stats(self) -> dict:
@@ -122,7 +126,7 @@ class ChromaVectorStore(VectorStoreBase):
             "backend": "chromadb",
             "total_documents": self.collection.count(),
             "storage_path": str(CHROMA_DIR),
-            "collection_name": self.collection.name
+            "collection_name": self.collection.name,
         }
 
 
@@ -141,7 +145,9 @@ class PineconeVectorStore(VectorStoreBase):
 
         self.api_key = get_secret("PINECONE_API_KEY")
         if not self.api_key:
-            raise ValueError("PINECONE_API_KEY not set in environment or Streamlit secrets")
+            raise ValueError(
+                "PINECONE_API_KEY not set in environment or Streamlit secrets"
+            )
 
         self.index_name = index_name or get_secret("PINECONE_INDEX", "phdx-thesis")
         self.backend = "pinecone"
@@ -158,16 +164,13 @@ class PineconeVectorStore(VectorStoreBase):
                 name=self.index_name,
                 dimension=384,  # all-MiniLM-L6-v2 dimension
                 metric="cosine",
-                spec=ServerlessSpec(
-                    cloud="aws",
-                    region="us-east-1"
-                )
+                spec=ServerlessSpec(cloud="aws", region="us-east-1"),
             )
 
         self.index = self.pc.Index(self.index_name)
 
         # Initialize embedding model (same as ChromaDB default)
-        self.encoder = SentenceTransformer('all-MiniLM-L6-v2')
+        self.encoder = SentenceTransformer("all-MiniLM-L6-v2")
 
         # Local metadata cache (Pinecone doesn't store full text)
         self._metadata_cache = {}
@@ -175,28 +178,32 @@ class PineconeVectorStore(VectorStoreBase):
 
     def _generate_id(self, text: str, index: int) -> str:
         """Generate a consistent ID for a document."""
-        return hashlib.md5(f"{text[:100]}_{index}".encode(), usedforsecurity=False).hexdigest()[:16]
+        return hashlib.md5(
+            f"{text[:100]}_{index}".encode(), usedforsecurity=False
+        ).hexdigest()[:16]
 
-    def upsert(self, ids: list[str], documents: list[str], metadatas: list[dict]) -> int:
+    def upsert(
+        self, ids: list[str], documents: list[str], metadatas: list[dict]
+    ) -> int:
         # Generate embeddings
         embeddings = self.encoder.encode(documents).tolist()
 
         # Prepare vectors for Pinecone
         vectors = []
-        for i, (doc_id, doc, meta, emb) in enumerate(zip(ids, documents, metadatas, embeddings)):
+        for i, (doc_id, doc, meta, emb) in enumerate(
+            zip(ids, documents, metadatas, embeddings)
+        ):
             # Store document text in metadata (Pinecone metadata has size limits)
             # Truncate long documents for metadata storage
             meta_with_text = {
                 **meta,
                 "text_preview": doc[:500] if len(doc) > 500 else doc,
-                "text_hash": hashlib.md5(doc.encode(), usedforsecurity=False).hexdigest()
+                "text_hash": hashlib.md5(
+                    doc.encode(), usedforsecurity=False
+                ).hexdigest(),
             }
 
-            vectors.append({
-                "id": doc_id,
-                "values": emb,
-                "metadata": meta_with_text
-            })
+            vectors.append({"id": doc_id, "values": emb, "metadata": meta_with_text})
 
             # Cache full document locally
             self._document_cache[doc_id] = doc
@@ -205,7 +212,7 @@ class PineconeVectorStore(VectorStoreBase):
         # Upsert in batches of 100
         batch_size = 100
         for i in range(0, len(vectors), batch_size):
-            batch = vectors[i:i + batch_size]
+            batch = vectors[i : i + batch_size]
             self.index.upsert(vectors=batch)
 
         return len(vectors)
@@ -216,9 +223,7 @@ class PineconeVectorStore(VectorStoreBase):
 
         # Query Pinecone
         results = self.index.query(
-            vector=query_embedding,
-            top_k=n_results,
-            include_metadata=True
+            vector=query_embedding, top_k=n_results, include_metadata=True
         )
 
         # Format results to match ChromaDB output format
@@ -236,8 +241,11 @@ class PineconeVectorStore(VectorStoreBase):
                 documents.append(match.metadata.get("text_preview", ""))
 
             # Get metadata
-            meta = {k: v for k, v in match.metadata.items()
-                    if k not in ["text_preview", "text_hash"]}
+            meta = {
+                k: v
+                for k, v in match.metadata.items()
+                if k not in ["text_preview", "text_hash"]
+            }
             metadatas.append(meta)
 
             # Convert similarity score to distance (for compatibility)
@@ -247,7 +255,7 @@ class PineconeVectorStore(VectorStoreBase):
         return {
             "documents": [documents],
             "metadatas": [metadatas],
-            "distances": [distances]
+            "distances": [distances],
         }
 
     def count(self) -> int:
@@ -266,7 +274,7 @@ class PineconeVectorStore(VectorStoreBase):
             "total_documents": stats.total_vector_count,
             "index_name": self.index_name,
             "dimension": stats.dimension,
-            "namespaces": dict(stats.namespaces) if stats.namespaces else {}
+            "namespaces": dict(stats.namespaces) if stats.namespaces else {},
         }
 
 
@@ -301,6 +309,7 @@ def get_vector_store(collection_name: str = "thesis_paragraphs") -> VectorStoreB
 # CLI for testing
 # =============================================================================
 
+
 def main():
     """Test vector store functionality."""
     print("=" * 60)
@@ -315,7 +324,7 @@ def main():
     test_docs = [
         "The proliferation of digital surveillance in urban environments.",
         "Foucault's panopticon provides a framework for understanding modern surveillance.",
-        "Smart city initiatives rely heavily on data analytics for governance."
+        "Smart city initiatives rely heavily on data analytics for governance.",
     ]
     test_ids = [f"test_{i}" for i in range(len(test_docs))]
     test_meta = [{"source": "test", "index": i} for i in range(len(test_docs))]
@@ -328,13 +337,11 @@ def main():
     print("\nQuerying for 'surveillance capitalism'...")
     results = store.query("surveillance capitalism", n_results=2)
 
-    for i, (doc, meta, dist) in enumerate(zip(
-        results["documents"][0],
-        results["metadatas"][0],
-        results["distances"][0]
-    )):
+    for i, (doc, meta, dist) in enumerate(
+        zip(results["documents"][0], results["metadatas"][0], results["distances"][0])
+    ):
         similarity = 1 / (1 + dist)
-        print(f"\n  [{i+1}] Similarity: {similarity:.3f}")
+        print(f"\n  [{i + 1}] Similarity: {similarity:.3f}")
         print(f"      {doc[:80]}...")
 
     print("\n" + "=" * 60)

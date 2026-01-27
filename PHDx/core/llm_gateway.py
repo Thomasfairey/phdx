@@ -27,6 +27,7 @@ _ChatGoogleGenerativeAI = None
 
 try:
     from langchain_google_genai import ChatGoogleGenerativeAI
+
     _ChatGoogleGenerativeAI = ChatGoogleGenerativeAI
     _gemini_available = True
 except ImportError:
@@ -34,10 +35,10 @@ except ImportError:
 
 
 # Configuration paths (check multiple locations)
-CONFIG_DIR = Path(__file__).parent.parent / 'config'
-STREAMLIT_DIR = Path(__file__).parent.parent / '.streamlit'
-SECRETS_PATH = CONFIG_DIR / 'secrets.toml'
-STREAMLIT_SECRETS_PATH = STREAMLIT_DIR / 'secrets.toml'
+CONFIG_DIR = Path(__file__).parent.parent / "config"
+STREAMLIT_DIR = Path(__file__).parent.parent / ".streamlit"
+SECRETS_PATH = CONFIG_DIR / "secrets.toml"
+STREAMLIT_SECRETS_PATH = STREAMLIT_DIR / "secrets.toml"
 
 
 def _find_secrets_file() -> Path:
@@ -60,7 +61,6 @@ TASK_MODEL_MAP = {
     "argument_analysis": "opus",
     "deep_analysis": "opus",
     "thesis_structure": "opus",
-
     # Standard drafting -> Writer (Sonnet - good balance)
     "drafting": "writer",
     "synthesis": "writer",
@@ -68,13 +68,11 @@ TASK_MODEL_MAP = {
     "draft": "writer",
     "expansion": "writer",
     "rewrite": "writer",
-
     # Quick tasks -> Quick (Haiku - fast, cheap)
     "classification": "quick",
     "citation_match": "quick",
     "outline_generation": "quick",
     "summarization": "quick",
-
     # Audit tasks -> Auditor (GPT-4o - strict logic)
     "audit": "auditor",
     "critique": "auditor",
@@ -82,7 +80,6 @@ TASK_MODEL_MAP = {
     "check": "auditor",
     "statistical_interpretation": "auditor",
     "logic_check": "auditor",
-
     # Large context -> Context (Gemini 1M tokens)
     "full_thesis_analysis": "context",
     "bulk_processing": "context",
@@ -128,17 +125,17 @@ def init_models() -> dict:
     config = toml.load(secrets_file)
 
     # Extract API keys and model names
-    anthropic_config = config.get('anthropic', {})
-    openai_config = config.get('openai', {})
-    google_config = config.get('google', {})
+    anthropic_config = config.get("anthropic", {})
+    openai_config = config.get("openai", {})
+    google_config = config.get("google", {})
 
     # Get Anthropic API key (shared across all Claude models)
-    anthropic_api_key = anthropic_config.get('api_key')
+    anthropic_api_key = anthropic_config.get("api_key")
 
     # Initialize Opus Model (Claude Opus 4.5) - Best reasoning & prose
     opus_model = ChatAnthropic(
         api_key=anthropic_api_key,
-        model=anthropic_config.get('opus_model', 'claude-opus-4-5-20250101'),
+        model=anthropic_config.get("opus_model", "claude-opus-4-5-20250101"),
         temperature=0.7,
         max_tokens=8192,
     )
@@ -146,14 +143,14 @@ def init_models() -> dict:
     # Initialize Writer Model (Claude Sonnet) - Standard drafting
     writer_model = ChatAnthropic(
         api_key=anthropic_api_key,
-        model=anthropic_config.get('writer_model', 'claude-sonnet-4-20250514'),
+        model=anthropic_config.get("writer_model", "claude-sonnet-4-20250514"),
         temperature=0.7,
         max_tokens=4096,
     )
 
     # Initialize Quick Model (Claude Haiku) - Fast, cost-effective
     quick_model = None
-    haiku_model_name = anthropic_config.get('quick_model', 'claude-3-5-haiku-20241022')
+    haiku_model_name = anthropic_config.get("quick_model", "claude-3-5-haiku-20241022")
     if haiku_model_name:
         try:
             quick_model = ChatAnthropic(
@@ -168,28 +165,28 @@ def init_models() -> dict:
 
     # Initialize Auditor Model (GPT-4o) - Strict logic checking
     auditor_model = ChatOpenAI(
-        api_key=openai_config.get('api_key'),
-        model=openai_config.get('model', 'gpt-4o'),
+        api_key=openai_config.get("api_key"),
+        model=openai_config.get("model", "gpt-4o"),
         temperature=0.3,
         max_tokens=4096,
     )
 
     # Initialize Context Model (Gemini) - Large context window
     context_model = None
-    if _gemini_available and google_config.get('api_key'):
+    if _gemini_available and google_config.get("api_key"):
         context_model = _ChatGoogleGenerativeAI(
-            google_api_key=google_config.get('api_key'),
-            model=google_config.get('model', 'gemini-1.5-pro'),
+            google_api_key=google_config.get("api_key"),
+            model=google_config.get("model", "gemini-1.5-pro"),
             temperature=0.5,
             max_tokens=8192,
         )
 
     _models_cache = {
-        'opus': opus_model,
-        'writer': writer_model,
-        'quick': quick_model,
-        'auditor': auditor_model,
-        'context': context_model,
+        "opus": opus_model,
+        "writer": writer_model,
+        "quick": quick_model,
+        "auditor": auditor_model,
+        "context": context_model,
     }
 
     return _models_cache
@@ -278,17 +275,17 @@ def generate_content(
 
     # Map model keys to friendly names
     model_names = {
-        'opus': 'Claude Opus 4.5 (Complex)',
-        'writer': 'Claude Sonnet (Writer)',
-        'quick': 'Claude Haiku (Quick)',
-        'auditor': 'GPT-4o (Auditor)',
-        'context': 'Gemini 1.5 Pro (Context)',
+        "opus": "Claude Opus 4.5 (Complex)",
+        "writer": "Claude Sonnet (Writer)",
+        "quick": "Claude Haiku (Quick)",
+        "auditor": "GPT-4o (Auditor)",
+        "context": "Gemini 1.5 Pro (Context)",
     }
 
     return {
-        'content': content,
-        'model_used': model_names.get(model_key, model_key),
-        'tokens_estimated': token_estimate,
+        "content": content,
+        "model_used": model_names.get(model_key, model_key),
+        "tokens_estimated": token_estimate,
     }
 
 
@@ -312,70 +309,71 @@ def _route_task(task_type: str, token_count: int, models: dict = None) -> str:
     task_type_lower = task_type.lower().strip()
 
     # Check model availability
-    context_available = models is not None and models.get('context') is not None
-    opus_available = models is not None and models.get('opus') is not None
-    quick_available = models is not None and models.get('quick') is not None
+    context_available = models is not None and models.get("context") is not None
+    opus_available = models is not None and models.get("opus") is not None
+    quick_available = models is not None and models.get("quick") is not None
 
     # Rule A: Heavy Lift - force context model for large inputs
     if token_count > HEAVY_LIFT_THRESHOLD:
         if context_available:
-            return 'context'
+            return "context"
         # Fall back to opus for large contexts if Gemini unavailable
         if opus_available:
-            return 'opus'
-        return 'writer'
+            return "opus"
+        return "writer"
 
     # Rule B: Task-specific routing from TASK_MODEL_MAP
     if task_type_lower in TASK_MODEL_MAP:
         preferred = TASK_MODEL_MAP[task_type_lower]
 
         # Check if preferred model is available
-        if preferred == 'opus' and opus_available:
-            return 'opus'
-        elif preferred == 'quick' and quick_available:
-            return 'quick'
-        elif preferred == 'context' and context_available:
-            return 'context'
-        elif preferred in ('writer', 'auditor'):
+        if preferred == "opus" and opus_available:
+            return "opus"
+        elif preferred == "quick" and quick_available:
+            return "quick"
+        elif preferred == "context" and context_available:
+            return "context"
+        elif preferred in ("writer", "auditor"):
             return preferred
 
         # Fall back based on task category
-        if preferred in ('opus', 'writer', 'quick'):
-            return 'writer'  # Fall back to writer for Claude tasks
-        elif preferred == 'context':
-            return 'opus' if opus_available else 'writer'
+        if preferred in ("opus", "writer", "quick"):
+            return "writer"  # Fall back to writer for Claude tasks
+        elif preferred == "context":
+            return "opus" if opus_available else "writer"
 
     # Rule C: Default to writer for unrecognized task types
-    return 'writer'
+    return "writer"
 
 
 # =============================================================================
 # UTILITY FUNCTIONS FOR DIRECT MODEL ACCESS
 # =============================================================================
 
+
 def get_opus_model():
     """Get the Claude Opus 4.5 model directly (best for complex reasoning)."""
-    return init_models()['opus']
+    return init_models()["opus"]
 
 
 def get_writer_model():
     """Get the Claude Sonnet writer model directly."""
-    return init_models()['writer']
+    return init_models()["writer"]
 
 
 def get_quick_model():
     """Get the Claude Haiku quick model directly (may be None)."""
-    return init_models()['quick']
+    return init_models()["quick"]
 
 
 def get_auditor_model():
     """Get the GPT-4o auditor model directly."""
-    return init_models()['auditor']
+    return init_models()["auditor"]
 
 
 def get_context_model():
     """Get the Gemini context model directly (may be None if not configured)."""
-    return init_models()['context']
+    return init_models()["context"]
 
 
 def clear_model_cache():

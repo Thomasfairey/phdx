@@ -27,12 +27,14 @@ from dotenv import load_dotenv
 # Document parsing libraries
 try:
     from docx import Document as DocxDocument
+
     DOCX_AVAILABLE = True
 except ImportError:
     DOCX_AVAILABLE = False
 
 try:
     import fitz  # PyMuPDF
+
     PDF_AVAILABLE = True
 except ImportError:
     PDF_AVAILABLE = False
@@ -43,17 +45,22 @@ try:
     from core.secrets_utils import get_secret
 except ImportError:
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     try:
         from core.ethics_utils import scrub_text, log_ai_usage
         from core.secrets_utils import get_secret
     except ImportError:
+
         def scrub_text(text):
             return {"scrubbed_text": text, "total_redactions": 0}
+
         def log_ai_usage(*args, **kwargs):
             pass
+
         def get_secret(key, default=None):
             return os.getenv(key, default)
+
 
 load_dotenv()
 
@@ -68,13 +75,15 @@ DNA_PATH = DATA_DIR / "author_dna.json"
 
 class TrafficLight(Enum):
     """Traffic Light categorization for feedback severity."""
-    RED = "red"      # 🔴 Critical structural/theoretical changes
+
+    RED = "red"  # 🔴 Critical structural/theoretical changes
     AMBER = "amber"  # 🟡 Stylistic or citation-related corrections
     GREEN = "green"  # 🟢 Positive reinforcement to be maintained
 
 
 class FeedbackCategory(Enum):
     """Detailed categories for supervisor feedback."""
+
     MAJOR_STRUCTURAL = "major_structural"
     THEORETICAL = "theoretical"
     MINOR_STYLISTIC = "minor_stylistic"
@@ -86,6 +95,7 @@ class FeedbackCategory(Enum):
 @dataclass
 class FeedbackItem:
     """A single piece of categorized feedback with Traffic Light status."""
+
     id: str
     text: str
     category: str
@@ -131,7 +141,7 @@ def load_author_dna() -> Optional[dict]:
     """Load the author's DNA profile for voice matching."""
     if DNA_PATH.exists():
         try:
-            with open(DNA_PATH, 'r', encoding='utf-8') as f:
+            with open(DNA_PATH, "r", encoding="utf-8") as f:
                 return json.load(f)
         except (json.JSONDecodeError, IOError):
             return None
@@ -142,7 +152,7 @@ def suggest_revision(
     feedback_snippet: str,
     original_text: str,
     author_dna: Optional[dict] = None,
-    claude_client: Optional[anthropic.Anthropic] = None
+    claude_client: Optional[anthropic.Anthropic] = None,
 ) -> str:
     """
     Generate a revision suggestion that addresses supervisor feedback
@@ -175,11 +185,11 @@ def suggest_revision(
 
         dna_context = f"""
 AUTHOR'S WRITING DNA (maintain this voice):
-- Average sentence length: {sentence.get('average_length', 20)} words
-- Hedging density: {hedging.get('hedging_density_per_1000_words', 5)} per 1000 words
-- Top hedging phrases: {', '.join(list(hedging.get('phrases_found', {}).keys())[:5])}
-- Preferred transitions: {', '.join(transitions.get('preferred_categories', ['contrast', 'addition'])[:3])}
-- Sentence style: Mix of {sentence.get('length_distribution', {})}
+- Average sentence length: {sentence.get("average_length", 20)} words
+- Hedging density: {hedging.get("hedging_density_per_1000_words", 5)} per 1000 words
+- Top hedging phrases: {", ".join(list(hedging.get("phrases_found", {}).keys())[:5])}
+- Preferred transitions: {", ".join(transitions.get("preferred_categories", ["contrast", "addition"])[:3])}
+- Sentence style: Mix of {sentence.get("length_distribution", {})}
 """
 
     prompt = f"""You are a PhD thesis revision assistant. Your task is to rewrite a section of text to address supervisor feedback while PERFECTLY maintaining the author's unique writing voice.
@@ -195,7 +205,7 @@ ORIGINAL TEXT TO REVISE:
 INSTRUCTIONS:
 1. Address the supervisor's critique directly
 2. Maintain the author's characteristic sentence length and complexity
-3. Use the author's preferred hedging language (e.g., {', '.join(list(author_dna.get('hedging_analysis', {}).get('phrases_found', {'may': 1, 'could': 1}).keys())[:3]) if author_dna else 'may, could, arguably'})
+3. Use the author's preferred hedging language (e.g., {", ".join(list(author_dna.get("hedging_analysis", {}).get("phrases_found", {"may": 1, "could": 1}).keys())[:3]) if author_dna else "may, could, arguably"})
 4. Employ the author's transition vocabulary style
 5. Keep the academic tone consistent with the original
 6. Do NOT add commentary - output ONLY the revised text
@@ -208,14 +218,14 @@ Write the revised passage now:"""
         data_source="feedback_processor",
         prompt=f"Revision for: {feedback_snippet[:100]}...",
         was_scrubbed=False,
-        redactions_count=0
+        redactions_count=0,
     )
 
     try:
         response = claude_client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=2048,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[{"role": "user", "content": prompt}],
         )
         return response.content[0].text.strip()
     except Exception as e:
@@ -249,11 +259,10 @@ class FeedbackProcessor:
         """Load cached feedback analysis."""
         if FEEDBACK_CACHE.exists():
             try:
-                with open(FEEDBACK_CACHE, 'r', encoding='utf-8') as f:
+                with open(FEEDBACK_CACHE, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     self.feedback_items = [
-                        FeedbackItem.from_dict(item)
-                        for item in data.get("items", [])
+                        FeedbackItem.from_dict(item) for item in data.get("items", [])
                     ]
                     self.processed_files = data.get("processed_files", {})
             except (json.JSONDecodeError, IOError):
@@ -262,21 +271,25 @@ class FeedbackProcessor:
     def _save_cache(self):
         """Save feedback analysis to cache."""
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        with open(FEEDBACK_CACHE, 'w', encoding='utf-8') as f:
-            json.dump({
-                "items": [item.to_dict() for item in self.feedback_items],
-                "processed_files": self.processed_files,
-                "last_updated": datetime.now().isoformat()
-            }, f, indent=2)
+        with open(FEEDBACK_CACHE, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "items": [item.to_dict() for item in self.feedback_items],
+                    "processed_files": self.processed_files,
+                    "last_updated": datetime.now().isoformat(),
+                },
+                f,
+                indent=2,
+            )
 
     def _get_file_hash(self, filepath: Path) -> str:
         """Get hash of file for change detection."""
-        with open(filepath, 'rb') as f:
+        with open(filepath, "rb") as f:
             return hashlib.md5(f.read(), usedforsecurity=False).hexdigest()
 
     def _parse_txt(self, filepath: Path) -> str:
         """Parse a text file."""
-        with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
             return f.read()
 
     def _parse_docx(self, filepath: Path) -> str:
@@ -320,11 +333,11 @@ class FeedbackProcessor:
         """
         suffix = filepath.suffix.lower()
 
-        if suffix in ['.txt', '.md']:
+        if suffix in [".txt", ".md"]:
             return self._parse_txt(filepath)
-        elif suffix == '.docx':
+        elif suffix == ".docx":
             return self._parse_docx(filepath)
-        elif suffix == '.pdf':
+        elif suffix == ".pdf":
             return self._parse_pdf(filepath)
         else:
             raise ValueError(f"Unsupported file type: {suffix}")
@@ -346,13 +359,21 @@ class FeedbackProcessor:
                         if para.text.strip():
                             preview.append(para.text.strip()[:200])
 
-                    context_parts.append(f"**{docx_file.name}**:\n" + "\n".join(preview[:5]))
+                    context_parts.append(
+                        f"**{docx_file.name}**:\n" + "\n".join(preview[:5])
+                    )
             except Exception:
                 continue
 
-        return "\n\n---\n\n".join(context_parts) if context_parts else "No drafts available."
+        return (
+            "\n\n---\n\n".join(context_parts)
+            if context_parts
+            else "No drafts available."
+        )
 
-    def categorize_feedback(self, feedback_text: str, source_file: str = "") -> list[FeedbackItem]:
+    def categorize_feedback(
+        self, feedback_text: str, source_file: str = ""
+    ) -> list[FeedbackItem]:
         """
         Use Claude to categorize feedback into structured items with Traffic Light system.
 
@@ -370,19 +391,23 @@ class FeedbackProcessor:
         """
         if not self.claude:
             # Return uncategorized if no Claude available
-            return [FeedbackItem(
-                id=hashlib.md5(feedback_text[:100].encode(), usedforsecurity=False).hexdigest()[:8],
-                text=feedback_text,
-                category=FeedbackCategory.GENERAL.value,
-                traffic_light="amber",
-                priority="medium",
-                chapter="Unknown",
-                section="Unknown",
-                target_paragraph="",
-                action_required="Review feedback",
-                source_file=source_file,
-                created_at=datetime.now().isoformat()
-            )]
+            return [
+                FeedbackItem(
+                    id=hashlib.md5(
+                        feedback_text[:100].encode(), usedforsecurity=False
+                    ).hexdigest()[:8],
+                    text=feedback_text,
+                    category=FeedbackCategory.GENERAL.value,
+                    traffic_light="amber",
+                    priority="medium",
+                    chapter="Unknown",
+                    section="Unknown",
+                    target_paragraph="",
+                    action_required="Review feedback",
+                    source_file=source_file,
+                    created_at=datetime.now().isoformat(),
+                )
+            ]
 
         # Get draft context for mapping
         draft_context = self._get_draft_context()
@@ -458,22 +483,22 @@ Return ONLY valid JSON array, no markdown."""
             data_source="feedback_document",
             prompt=f"Categorizing feedback from: {source_file}",
             was_scrubbed=scrub_result["total_redactions"] > 0,
-            redactions_count=scrub_result["total_redactions"]
+            redactions_count=scrub_result["total_redactions"],
         )
 
         try:
             response = self.claude.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=4096,
-                messages=[{"role": "user", "content": prompt}]
+                messages=[{"role": "user", "content": prompt}],
             )
 
             response_text = response.content[0].text.strip()
 
             # Clean markdown if present
             if response_text.startswith("```"):
-                response_text = re.sub(r'^```(?:json)?\n?', '', response_text)
-                response_text = re.sub(r'\n?```$', '', response_text)
+                response_text = re.sub(r"^```(?:json)?\n?", "", response_text)
+                response_text = re.sub(r"\n?```$", "", response_text)
 
             items_data = json.loads(response_text)
 
@@ -490,37 +515,43 @@ Return ONLY valid JSON array, no markdown."""
                     else:
                         traffic_light = "amber"
 
-                feedback_items.append(FeedbackItem(
-                    id=f"{hashlib.md5(source_file.encode(), usedforsecurity=False).hexdigest()[:4]}_{i:03d}",
-                    text=item.get("text", ""),
-                    category=item.get("category", "general"),
-                    traffic_light=traffic_light,
-                    priority=item.get("priority", "medium"),
-                    chapter=item.get("chapter", "Unknown"),
-                    section=item.get("section", ""),
-                    target_paragraph=item.get("target_paragraph", ""),
-                    action_required=item.get("action_required", ""),
-                    source_file=source_file,
-                    created_at=datetime.now().isoformat()
-                ))
+                feedback_items.append(
+                    FeedbackItem(
+                        id=f"{hashlib.md5(source_file.encode(), usedforsecurity=False).hexdigest()[:4]}_{i:03d}",
+                        text=item.get("text", ""),
+                        category=item.get("category", "general"),
+                        traffic_light=traffic_light,
+                        priority=item.get("priority", "medium"),
+                        chapter=item.get("chapter", "Unknown"),
+                        section=item.get("section", ""),
+                        target_paragraph=item.get("target_paragraph", ""),
+                        action_required=item.get("action_required", ""),
+                        source_file=source_file,
+                        created_at=datetime.now().isoformat(),
+                    )
+                )
 
             return feedback_items
 
         except Exception as e:
             print(f"Error categorizing feedback: {e}")
-            return [FeedbackItem(
-                id=hashlib.md5(feedback_text[:100].encode(), usedforsecurity=False).hexdigest()[:8],
-                text=feedback_text[:500],
-                category=FeedbackCategory.GENERAL.value,
-                traffic_light="amber",
-                priority="medium",
-                chapter="Unknown",
-                section="Unknown",
-                target_paragraph="",
-                action_required="Review feedback manually",
-                source_file=source_file,
-                created_at=datetime.now().isoformat()
-            )]
+            return [
+                FeedbackItem(
+                    id=hashlib.md5(
+                        feedback_text[:100].encode(), usedforsecurity=False
+                    ).hexdigest()[:8],
+                    text=feedback_text[:500],
+                    category=FeedbackCategory.GENERAL.value,
+                    traffic_light="amber",
+                    priority="medium",
+                    chapter="Unknown",
+                    section="Unknown",
+                    target_paragraph="",
+                    action_required="Review feedback manually",
+                    source_file=source_file,
+                    created_at=datetime.now().isoformat(),
+                )
+            ]
 
     def process_feedback_folder(self, force_reprocess: bool = False) -> dict:
         """
@@ -534,22 +565,26 @@ Return ONLY valid JSON array, no markdown."""
         """
         if not FEEDBACK_DIR.exists():
             FEEDBACK_DIR.mkdir(parents=True)
-            return {"status": "created", "message": "Feedback folder created", "items": 0}
+            return {
+                "status": "created",
+                "message": "Feedback folder created",
+                "items": 0,
+            }
 
         results = {
             "files_processed": 0,
             "files_skipped": 0,
             "new_items": 0,
-            "errors": []
+            "errors": [],
         }
 
-        supported_extensions = {'.txt', '.md', '.docx', '.pdf'}
+        supported_extensions = {".txt", ".md", ".docx", ".pdf"}
 
         for filepath in FEEDBACK_DIR.iterdir():
             if filepath.suffix.lower() not in supported_extensions:
                 continue
 
-            if filepath.name.startswith('.'):
+            if filepath.name.startswith("."):
                 continue
 
             try:
@@ -570,7 +605,8 @@ Return ONLY valid JSON array, no markdown."""
 
                 # Remove old items from this file
                 self.feedback_items = [
-                    item for item in self.feedback_items
+                    item
+                    for item in self.feedback_items
                     if item.source_file != filepath.name
                 ]
 
@@ -600,7 +636,7 @@ Return ONLY valid JSON array, no markdown."""
             "minor_stylistic": [],
             "citations_needed": [],
             "positive": [],
-            "general": []
+            "general": [],
         }
 
         for item in self.feedback_items:
@@ -615,9 +651,9 @@ Return ONLY valid JSON array, no markdown."""
     def get_feedback_by_traffic_light(self) -> dict[str, list[FeedbackItem]]:
         """Get feedback items grouped by Traffic Light status."""
         grouped = {
-            "red": [],    # 🔴 Critical
+            "red": [],  # 🔴 Critical
             "amber": [],  # 🟡 Corrections
-            "green": []   # 🟢 Positive
+            "green": [],  # 🟢 Positive
         }
 
         for item in self.feedback_items:
@@ -630,7 +666,9 @@ Return ONLY valid JSON array, no markdown."""
         # Sort each group by priority
         priority_order = {"high": 0, "medium": 1, "low": 2}
         for light in grouped:
-            grouped[light].sort(key=lambda x: (x.resolved, priority_order.get(x.priority, 1)))
+            grouped[light].sort(
+                key=lambda x: (x.resolved, priority_order.get(x.priority, 1))
+            )
 
         return grouped
 
@@ -669,7 +707,7 @@ Return ONLY valid JSON array, no markdown."""
             "minor_stylistic": 0,
             "citations_needed": 0,
             "general": 0,
-            "total": 0
+            "total": 0,
         }
 
         for item in self.feedback_items:
@@ -706,13 +744,14 @@ Return ONLY valid JSON array, no markdown."""
             "files_processed": len(self.processed_files),
             "by_category": {k: len(v) for k, v in by_category.items()},
             "unresolved": unresolved,
-            "resolved": len(self.feedback_items) - unresolved["total"]
+            "resolved": len(self.feedback_items) - unresolved["total"],
         }
 
 
 # =============================================================================
 # STREAMLIT UI COMPONENTS
 # =============================================================================
+
 
 def render_feedback_tab(processor: FeedbackProcessor):
     """
@@ -741,7 +780,9 @@ def render_feedback_tab(processor: FeedbackProcessor):
                     for err in results["errors"]:
                         st.error(err)
 
-                st.success(f"Processed {results['files_processed']} files, {results['new_items']} items found")
+                st.success(
+                    f"Processed {results['files_processed']} files, {results['new_items']} items found"
+                )
                 st.rerun()
 
     with col2:
@@ -756,7 +797,10 @@ def render_feedback_tab(processor: FeedbackProcessor):
 
         if total > 0:
             progress = resolved / total
-            st.progress(progress, text=f"Progress: {resolved}/{total} resolved ({progress*100:.0f}%)")
+            st.progress(
+                progress,
+                text=f"Progress: {resolved}/{total} resolved ({progress * 100:.0f}%)",
+            )
         else:
             st.info("Add .txt or .docx files to /feedback folder")
 
@@ -767,46 +811,58 @@ def render_feedback_tab(processor: FeedbackProcessor):
 
         with col1:
             red_count = tl_stats["unresolved"]["red"]
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="text-align: center; padding: 0.5rem; background: rgba(244, 67, 54, 0.15);
                         border: 1px solid rgba(244, 67, 54, 0.4); border-radius: 8px;">
                 <div style="font-size: 1.5rem;">🔴</div>
                 <div style="font-size: 1.2rem; font-weight: bold; color: #f44336;">{red_count}</div>
                 <div style="font-size: 0.75rem; color: rgba(224, 224, 224, 0.7);">Critical</div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
         with col2:
             amber_count = tl_stats["unresolved"]["amber"]
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="text-align: center; padding: 0.5rem; background: rgba(255, 193, 7, 0.15);
                         border: 1px solid rgba(255, 193, 7, 0.4); border-radius: 8px;">
                 <div style="font-size: 1.5rem;">🟡</div>
                 <div style="font-size: 1.2rem; font-weight: bold; color: #ffc107;">{amber_count}</div>
                 <div style="font-size: 0.75rem; color: rgba(224, 224, 224, 0.7);">Corrections</div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
         with col3:
             green_count = tl_stats["counts"]["green"]
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="text-align: center; padding: 0.5rem; background: rgba(76, 175, 80, 0.15);
                         border: 1px solid rgba(76, 175, 80, 0.4); border-radius: 8px;">
                 <div style="font-size: 1.5rem;">🟢</div>
                 <div style="font-size: 1.2rem; font-weight: bold; color: #4caf50;">{green_count}</div>
                 <div style="font-size: 0.75rem; color: rgba(224, 224, 224, 0.7);">Positive</div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
         with col4:
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="text-align: center; padding: 0.5rem; background: rgba(0, 113, 206, 0.15);
                         border: 1px solid rgba(0, 113, 206, 0.4); border-radius: 8px;">
                 <div style="font-size: 1.5rem;">📊</div>
                 <div style="font-size: 1.2rem; font-weight: bold; color: #0071ce;">{resolved}/{total}</div>
                 <div style="font-size: 0.75rem; color: rgba(224, 224, 224, 0.7);">Resolved</div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
     # Initialize session state
     if "highlight_text" not in st.session_state:
@@ -818,13 +874,16 @@ def render_feedback_tab(processor: FeedbackProcessor):
 
     # Show highlighted text notification
     if st.session_state.highlight_text:
-        st.markdown(f"""
+        st.markdown(
+            f"""
         <div style="background: rgba(0, 113, 206, 0.15); border: 1px solid rgba(0, 113, 206, 0.4);
                     border-radius: 8px; padding: 0.75rem; margin: 1rem 0;">
             <strong>🎯 Highlighting in Drafting Pane:</strong><br>
             <em>"{st.session_state.highlight_text[:100]}..."</em>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
 
         if st.button("Clear Highlight", key="clear_hl_feedback"):
             st.session_state.highlight_text = None
@@ -836,17 +895,19 @@ def render_feedback_tab(processor: FeedbackProcessor):
     # Traffic Light tabs
     feedback_by_tl = processor.get_feedback_by_traffic_light()
 
-    tl_tabs = st.tabs([
-        f"🔴 Critical ({len(feedback_by_tl['red'])})",
-        f"🟡 Corrections ({len(feedback_by_tl['amber'])})",
-        f"🟢 Positive ({len(feedback_by_tl['green'])})"
-    ])
+    tl_tabs = st.tabs(
+        [
+            f"🔴 Critical ({len(feedback_by_tl['red'])})",
+            f"🟡 Corrections ({len(feedback_by_tl['amber'])})",
+            f"🟢 Positive ({len(feedback_by_tl['green'])})",
+        ]
+    )
 
     traffic_light_keys = ["red", "amber", "green"]
     traffic_light_styles = {
         "red": {"bg": "rgba(244, 67, 54, 0.1)", "border": "#f44336", "icon": "🔴"},
         "amber": {"bg": "rgba(255, 193, 7, 0.1)", "border": "#ffc107", "icon": "🟡"},
-        "green": {"bg": "rgba(76, 175, 80, 0.1)", "border": "#4caf50", "icon": "🟢"}
+        "green": {"bg": "rgba(76, 175, 80, 0.1)", "border": "#4caf50", "icon": "🟢"},
     }
     priority_colors = {"high": "#f44336", "medium": "#ffc107", "low": "#4caf50"}
 
@@ -868,10 +929,13 @@ def render_feedback_tab(processor: FeedbackProcessor):
 
                 # Card container
                 resolved_style = "opacity: 0.5;" if item.resolved else ""
-                st.markdown(f"""
-                <div style="background: {style['bg']}; border-left: 4px solid {style['border']};
+                st.markdown(
+                    f"""
+                <div style="background: {style["bg"]}; border-left: 4px solid {style["border"]};
                             border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; {resolved_style}">
-                """, unsafe_allow_html=True)
+                """,
+                    unsafe_allow_html=True,
+                )
 
                 col1, col2, col3 = st.columns([0.5, 4, 1.5])
 
@@ -880,43 +944,52 @@ def render_feedback_tab(processor: FeedbackProcessor):
                         "",
                         value=item.resolved,
                         key=checkbox_key,
-                        label_visibility="collapsed"
+                        label_visibility="collapsed",
                     )
                     if resolved != item.resolved:
                         processor.mark_resolved(item.id, resolved)
                         st.rerun()
 
                 with col2:
-                    text_style = "text-decoration: line-through;" if item.resolved else ""
+                    text_style = (
+                        "text-decoration: line-through;" if item.resolved else ""
+                    )
 
-                    st.markdown(f"""
+                    st.markdown(
+                        f"""
                     <div style="{text_style}">
                         <span style="color: {priority_color}; font-weight: bold; font-size: 0.8rem;">
                             [{item.priority.upper()}]
                         </span>
                         <strong>{item.chapter}</strong>
-                        {f'- {item.section}' if item.section else ''}
+                        {f"- {item.section}" if item.section else ""}
                         <br>
                         <span style="color: rgba(224, 224, 224, 0.9);">
-                            {item.text[:200]}{'...' if len(item.text) > 200 else ''}
+                            {item.text[:200]}{"..." if len(item.text) > 200 else ""}
                         </span>
                         <br>
-                        <span style="color: {style['border']}; font-size: 0.85rem;">
+                        <span style="color: {style["border"]}; font-size: 0.85rem;">
                             ➜ {item.action_required}
                         </span>
                     </div>
-                    """, unsafe_allow_html=True)
+                    """,
+                        unsafe_allow_html=True,
+                    )
 
                 with col3:
                     # Action buttons
                     if not item.resolved and tl_key != "green":
                         if item.target_paragraph:
-                            if st.button("🎯", key=f"hl_{item.id}", help="Highlight in draft"):
+                            if st.button(
+                                "🎯", key=f"hl_{item.id}", help="Highlight in draft"
+                            ):
                                 st.session_state.highlight_text = item.target_paragraph
                                 st.session_state.highlight_chapter = item.chapter
                                 st.rerun()
 
-                        if st.button("✨", key=f"rev_{item.id}", help="Suggest revision"):
+                        if st.button(
+                            "✨", key=f"rev_{item.id}", help="Suggest revision"
+                        ):
                             st.session_state.show_revision = item.id
 
                 st.markdown("</div>", unsafe_allow_html=True)
@@ -931,12 +1004,16 @@ def render_feedback_tab(processor: FeedbackProcessor):
                             st.markdown("**Target text:**")
                             st.code(item.target_paragraph, language=None)
 
-                            if st.button("Generate Revision", key=f"gen_{item.id}", type="primary"):
+                            if st.button(
+                                "Generate Revision",
+                                key=f"gen_{item.id}",
+                                type="primary",
+                            ):
                                 with st.spinner("Generating revision in your voice..."):
                                     revision = suggest_revision(
                                         item.text,
                                         item.target_paragraph,
-                                        load_author_dna()
+                                        load_author_dna(),
                                     )
                                     st.markdown("**Suggested revision:**")
                                     st.success(revision)
@@ -954,8 +1031,12 @@ def render_feedback_tab(processor: FeedbackProcessor):
     if by_chapter:
         for chapter, items in sorted(by_chapter.items()):
             unresolved_count = sum(1 for i in items if not i.resolved)
-            red_count = sum(1 for i in items if i.traffic_light == "red" and not i.resolved)
-            amber_count = sum(1 for i in items if i.traffic_light == "amber" and not i.resolved)
+            red_count = sum(
+                1 for i in items if i.traffic_light == "red" and not i.resolved
+            )
+            amber_count = sum(
+                1 for i in items if i.traffic_light == "amber" and not i.resolved
+            )
             green_count = sum(1 for i in items if i.traffic_light == "green")
 
             if unresolved_count > 0:
@@ -977,18 +1058,21 @@ def get_highlight_text() -> Optional[str]:
     Call this from the drafting tab to check if text should be highlighted.
     """
     import streamlit as st
+
     return st.session_state.get("highlight_text")
 
 
 def get_highlight_chapter() -> Optional[str]:
     """Get the chapter associated with the current highlight."""
     import streamlit as st
+
     return st.session_state.get("highlight_chapter")
 
 
 # =============================================================================
 # CLI
 # =============================================================================
+
 
 def main():
     """CLI for testing feedback processor."""
@@ -1000,7 +1084,9 @@ def main():
 
     print(f"\nFeedback directory: {FEEDBACK_DIR}")
     print(f"PDF support: {'Yes' if PDF_AVAILABLE else 'No (pip install pymupdf)'}")
-    print(f"DOCX support: {'Yes' if DOCX_AVAILABLE else 'No (pip install python-docx)'}")
+    print(
+        f"DOCX support: {'Yes' if DOCX_AVAILABLE else 'No (pip install python-docx)'}"
+    )
     print(f"Claude API: {'Configured' if processor.claude else 'Not configured'}")
 
     # Process feedback folder
@@ -1012,9 +1098,9 @@ def main():
     print(f"  Files skipped: {results['files_skipped']}")
     print(f"  New items: {results['new_items']}")
 
-    if results['errors']:
+    if results["errors"]:
         print("\n  Errors:")
-        for err in results['errors']:
+        for err in results["errors"]:
             print(f"    - {err}")
 
     # Show stats
@@ -1024,7 +1110,7 @@ def main():
     print(f"  Resolved: {stats['resolved']}")
     print(f"  Unresolved: {stats['unresolved']['total']}")
     print("\n  By category:")
-    for cat, count in stats['by_category'].items():
+    for cat, count in stats["by_category"].items():
         print(f"    - {cat}: {count}")
 
     # Show sample items

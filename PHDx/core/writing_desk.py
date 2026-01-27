@@ -40,30 +40,30 @@ CHAPTER_TEMPLATES = {
             {
                 "title": "Research Context",
                 "guidance": "Establish the broader context and significance of your research area",
-                "target_words": 500
+                "target_words": 500,
             },
             {
                 "title": "Problem Statement",
                 "guidance": "Clearly articulate the research problem or gap you are addressing",
-                "target_words": 300
+                "target_words": 300,
             },
             {
                 "title": "Research Questions/Objectives",
                 "guidance": "State your main research questions or objectives",
-                "target_words": 200
+                "target_words": 200,
             },
             {
                 "title": "Contribution and Significance",
                 "guidance": "Explain the expected contribution and significance of your research",
-                "target_words": 300
+                "target_words": 300,
             },
             {
                 "title": "Thesis Structure",
                 "guidance": "Provide an overview of how the thesis is organized",
-                "target_words": 300
-            }
+                "target_words": 300,
+            },
         ],
-        "target_words": 2000
+        "target_words": 2000,
     },
     "literature_review": {
         "title": "Literature Review",
@@ -72,30 +72,30 @@ CHAPTER_TEMPLATES = {
             {
                 "title": "Introduction to the Literature",
                 "guidance": "Overview of the literature landscape and your review approach",
-                "target_words": 400
+                "target_words": 400,
             },
             {
                 "title": "Theoretical Framework",
                 "guidance": "Key theories and concepts underpinning your research",
-                "target_words": 1500
+                "target_words": 1500,
             },
             {
                 "title": "Thematic Analysis",
                 "guidance": "Organized discussion of themes/topics in the literature",
-                "target_words": 3000
+                "target_words": 3000,
             },
             {
                 "title": "Research Gaps",
                 "guidance": "Identify gaps, limitations, and areas for further research",
-                "target_words": 500
+                "target_words": 500,
             },
             {
                 "title": "Chapter Summary",
                 "guidance": "Synthesize key findings and link to your research",
-                "target_words": 300
-            }
+                "target_words": 300,
+            },
         ],
-        "target_words": 8000
+        "target_words": 8000,
     },
     "methodology": {
         "title": "Methodology",
@@ -104,35 +104,35 @@ CHAPTER_TEMPLATES = {
             {
                 "title": "Research Philosophy",
                 "guidance": "Ontological and epistemological positioning",
-                "target_words": 500
+                "target_words": 500,
             },
             {
                 "title": "Research Design",
                 "guidance": "Overall approach (qualitative, quantitative, mixed methods)",
-                "target_words": 600
+                "target_words": 600,
             },
             {
                 "title": "Data Collection",
                 "guidance": "Methods, sampling, and procedures for gathering data",
-                "target_words": 800
+                "target_words": 800,
             },
             {
                 "title": "Data Analysis",
                 "guidance": "Analytical framework and techniques",
-                "target_words": 600
+                "target_words": 600,
             },
             {
                 "title": "Ethical Considerations",
                 "guidance": "Ethical approval, consent, data protection",
-                "target_words": 400
+                "target_words": 400,
             },
             {
                 "title": "Limitations",
                 "guidance": "Methodological limitations and mitigation strategies",
-                "target_words": 300
-            }
+                "target_words": 300,
+            },
         ],
-        "target_words": 4000
+        "target_words": 4000,
     },
     "findings": {
         "title": "Findings",
@@ -141,30 +141,30 @@ CHAPTER_TEMPLATES = {
             {
                 "title": "Introduction",
                 "guidance": "Overview of findings structure",
-                "target_words": 200
+                "target_words": 200,
             },
             {
                 "title": "Theme/Finding 1",
                 "guidance": "First major finding with supporting evidence",
-                "target_words": 1500
+                "target_words": 1500,
             },
             {
                 "title": "Theme/Finding 2",
                 "guidance": "Second major finding with supporting evidence",
-                "target_words": 1500
+                "target_words": 1500,
             },
             {
                 "title": "Theme/Finding 3",
                 "guidance": "Third major finding with supporting evidence",
-                "target_words": 1500
+                "target_words": 1500,
             },
             {
                 "title": "Summary of Findings",
                 "guidance": "Synthesis of key findings",
-                "target_words": 400
-            }
+                "target_words": 400,
+            },
         ],
-        "target_words": 6000
+        "target_words": 6000,
     },
     "discussion": {
         "title": "Discussion",
@@ -173,30 +173,30 @@ CHAPTER_TEMPLATES = {
             {
                 "title": "Introduction",
                 "guidance": "Recap of research aims and key findings",
-                "target_words": 300
+                "target_words": 300,
             },
             {
                 "title": "Interpretation of Findings",
                 "guidance": "What do the findings mean in context?",
-                "target_words": 2000
+                "target_words": 2000,
             },
             {
                 "title": "Relation to Existing Literature",
                 "guidance": "How findings relate to previous research",
-                "target_words": 1500
+                "target_words": 1500,
             },
             {
                 "title": "Theoretical Implications",
                 "guidance": "Contribution to theory development",
-                "target_words": 800
+                "target_words": 800,
             },
             {
                 "title": "Practical Implications",
                 "guidance": "Implications for practice and policy",
-                "target_words": 800
-            }
+                "target_words": 800,
+            },
         ],
-        "target_words": 6000
+        "target_words": 6000,
     },
     "conclusion": {
         "title": "Conclusion",
@@ -205,31 +205,31 @@ CHAPTER_TEMPLATES = {
             {
                 "title": "Summary of the Research",
                 "guidance": "Brief overview of what was done and found",
-                "target_words": 400
+                "target_words": 400,
             },
             {
                 "title": "Key Contributions",
                 "guidance": "Main contributions to knowledge",
-                "target_words": 500
+                "target_words": 500,
             },
             {
                 "title": "Limitations",
                 "guidance": "Acknowledgement of research limitations",
-                "target_words": 300
+                "target_words": 300,
             },
             {
                 "title": "Recommendations for Future Research",
                 "guidance": "Directions for future investigation",
-                "target_words": 400
+                "target_words": 400,
             },
             {
                 "title": "Concluding Remarks",
                 "guidance": "Final reflections",
-                "target_words": 200
-            }
+                "target_words": 200,
+            },
         ],
-        "target_words": 2000
-    }
+        "target_words": 2000,
+    },
 }
 
 
@@ -258,7 +258,7 @@ class WritingDesk:
         """Load author's DNA profile for voice matching."""
         if DNA_PROFILE_PATH.exists():
             try:
-                with open(DNA_PROFILE_PATH, 'r') as f:
+                with open(DNA_PROFILE_PATH, "r") as f:
                     self._dna_profile = json.load(f)
             except (json.JSONDecodeError, IOError):
                 self._dna_profile = None
@@ -268,6 +268,7 @@ class WritingDesk:
         # LLM Gateway
         try:
             from core import llm_gateway
+
             self._llm_gateway = llm_gateway
         except ImportError:
             pass
@@ -275,6 +276,7 @@ class WritingDesk:
         # Zotero Sentinel
         try:
             from core.citations import ZoteroSentinel
+
             self._zotero = ZoteroSentinel()
         except ImportError:
             pass
@@ -282,6 +284,7 @@ class WritingDesk:
         # Red Thread Engine
         try:
             from core.red_thread import RedThreadEngine
+
             self._red_thread = RedThreadEngine()
         except ImportError:
             pass
@@ -305,19 +308,16 @@ class WritingDesk:
             return {
                 "status": "success",
                 "template": template,
-                "chapter_type": chapter_type
+                "chapter_type": chapter_type,
             }
         return {
             "status": "error",
             "error": f"Unknown chapter type: {chapter_type}",
-            "available_types": list(CHAPTER_TEMPLATES.keys())
+            "available_types": list(CHAPTER_TEMPLATES.keys()),
         }
 
     def create_outline(
-        self,
-        chapter_type: str,
-        thesis_topic: str,
-        custom_sections: list = None
+        self, chapter_type: str, thesis_topic: str, custom_sections: list = None
     ) -> dict:
         """
         Create a chapter outline based on template and topic.
@@ -332,14 +332,11 @@ class WritingDesk:
         """
         template = CHAPTER_TEMPLATES.get(chapter_type.lower())
         if not template:
-            return {
-                "status": "error",
-                "error": f"Unknown chapter type: {chapter_type}"
-            }
+            return {"status": "error", "error": f"Unknown chapter type: {chapter_type}"}
 
         outline_id = hashlib.md5(
             f"{chapter_type}_{thesis_topic}_{datetime.now().isoformat()}".encode(),
-            usedforsecurity=False
+            usedforsecurity=False,
         ).hexdigest()[:12]
 
         outline = {
@@ -349,48 +346,48 @@ class WritingDesk:
             "thesis_topic": thesis_topic,
             "created_at": datetime.now().isoformat(),
             "target_words": template["target_words"],
-            "sections": []
+            "sections": [],
         }
 
         # Use template sections or custom
-        sections_to_use = custom_sections if custom_sections else [
-            s["title"] for s in template["sections"]
-        ]
+        sections_to_use = (
+            custom_sections
+            if custom_sections
+            else [s["title"] for s in template["sections"]]
+        )
 
         for i, section_title in enumerate(sections_to_use):
             # Find matching template section for guidance
             template_section = next(
                 (s for s in template["sections"] if s["title"] == section_title),
-                {"guidance": "Write content for this section", "target_words": 500}
+                {"guidance": "Write content for this section", "target_words": 500},
             )
 
-            outline["sections"].append({
-                "order": i + 1,
-                "title": section_title,
-                "guidance": template_section.get("guidance", ""),
-                "target_words": template_section.get("target_words", 500),
-                "content": "",
-                "word_count": 0,
-                "status": "not_started"
-            })
+            outline["sections"].append(
+                {
+                    "order": i + 1,
+                    "title": section_title,
+                    "guidance": template_section.get("guidance", ""),
+                    "target_words": template_section.get("target_words", 500),
+                    "content": "",
+                    "word_count": 0,
+                    "status": "not_started",
+                }
+            )
 
         # Save outline
         outline_path = OUTLINES_DIR / f"outline_{outline_id}.json"
-        with open(outline_path, 'w') as f:
+        with open(outline_path, "w") as f:
             json.dump(outline, f, indent=2)
 
-        return {
-            "status": "success",
-            "outline": outline,
-            "saved_to": str(outline_path)
-        }
+        return {"status": "success", "outline": outline, "saved_to": str(outline_path)}
 
     def expand_section(
         self,
         section_title: str,
         section_guidance: str,
         thesis_context: str,
-        existing_content: str = ""
+        existing_content: str = "",
     ) -> dict:
         """
         Expand an outline section into a draft paragraph.
@@ -433,12 +430,11 @@ Include placeholder citations where evidence would strengthen the argument (use 
                 action_type="section_expansion",
                 data_source="writing_desk",
                 prompt=prompt[:200],
-                was_scrubbed=False
+                was_scrubbed=False,
             )
 
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="drafting"
+                prompt=prompt, task_type="drafting"
             )
 
             return {
@@ -446,7 +442,7 @@ Include placeholder citations where evidence would strengthen the argument (use 
                 "content": result.get("content", ""),
                 "section_title": section_title,
                 "model_used": result.get("model_used", "unknown"),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -457,10 +453,7 @@ Include placeholder citations where evidence would strengthen the argument (use 
     # =========================================================================
 
     def generate_draft(
-        self,
-        prompt: str,
-        section_context: dict = None,
-        use_dna: bool = True
+        self, prompt: str, section_context: dict = None, use_dna: bool = True
     ) -> dict:
         """
         Generate a draft with AI assistance and DNA voice matching.
@@ -477,7 +470,9 @@ Include placeholder citations where evidence would strengthen the argument (use 
             return {"status": "error", "error": "LLM gateway not available"}
 
         # Build system prompt with DNA profile
-        system_prompt = "You are a PhD thesis writing assistant. Write in formal academic prose."
+        system_prompt = (
+            "You are a PhD thesis writing assistant. Write in formal academic prose."
+        )
 
         if use_dna and self._dna_profile:
             dna_instructions = self._format_dna_for_prompt()
@@ -487,9 +482,9 @@ Include placeholder citations where evidence would strengthen the argument (use 
         context_text = ""
         if section_context:
             context_text = f"""
-Chapter: {section_context.get('chapter', 'Unknown')}
-Section: {section_context.get('section', 'Unknown')}
-Previous text: {section_context.get('existing_text', '')[:1000]}
+Chapter: {section_context.get("chapter", "Unknown")}
+Section: {section_context.get("section", "Unknown")}
+Previous text: {section_context.get("existing_text", "")[:1000]}
 """
 
         try:
@@ -497,14 +492,14 @@ Previous text: {section_context.get('existing_text', '')[:1000]}
                 action_type="draft_generation",
                 data_source="writing_desk",
                 prompt=prompt[:200],
-                was_scrubbed=False
+                was_scrubbed=False,
             )
 
             result = self._llm_gateway.generate_content(
                 prompt=prompt,
                 task_type="drafting",
                 context_text=context_text,
-                system_prompt=system_prompt
+                system_prompt=system_prompt,
             )
 
             draft = result.get("content", "")
@@ -524,17 +519,14 @@ Previous text: {section_context.get('existing_text', '')[:1000]}
                 "model_used": result.get("model_used", "unknown"),
                 "dna_applied": use_dna and self._dna_profile is not None,
                 "consistency_check": consistency_check,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
     def continue_draft(
-        self,
-        existing_text: str,
-        direction: str = "forward",
-        target_words: int = 200
+        self, existing_text: str, direction: str = "forward", target_words: int = 200
     ) -> dict:
         """
         Continue writing from existing text.
@@ -569,25 +561,20 @@ EXPANDED VERSION:"""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="drafting"
+                prompt=prompt, task_type="drafting"
             )
 
             return {
                 "status": "success",
                 "continuation": result.get("content", ""),
                 "direction": direction,
-                "model_used": result.get("model_used", "unknown")
+                "model_used": result.get("model_used", "unknown"),
             }
 
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
-    def rewrite_section(
-        self,
-        text: str,
-        instruction: str
-    ) -> dict:
+    def rewrite_section(self, text: str, instruction: str) -> dict:
         """
         Rewrite a section based on specific instructions.
 
@@ -613,8 +600,7 @@ REWRITTEN TEXT:"""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="rewrite"
+                prompt=prompt, task_type="rewrite"
             )
 
             return {
@@ -622,7 +608,7 @@ REWRITTEN TEXT:"""
                 "original": text,
                 "rewritten": result.get("content", ""),
                 "instruction": instruction,
-                "model_used": result.get("model_used", "unknown")
+                "model_used": result.get("model_used", "unknown"),
             }
 
         except Exception as e:
@@ -650,7 +636,9 @@ REWRITTEN TEXT:"""
             ha = self._dna_profile["hedging_analysis"]
             freq = ha.get("hedging_frequency", 0)
             if freq > 0.05:
-                instructions.append("- Use frequent hedging language (suggests, may, potentially)")
+                instructions.append(
+                    "- Use frequent hedging language (suggests, may, potentially)"
+                )
             elif freq > 0.02:
                 instructions.append("- Use moderate hedging language")
 
@@ -683,16 +671,21 @@ REWRITTEN TEXT:"""
         if not self._dna_profile:
             return {
                 "status": "error",
-                "error": "No DNA profile available. Run DNA analysis first."
+                "error": "No DNA profile available. Run DNA analysis first.",
             }
 
         if not self._llm_gateway:
             return {"status": "error", "error": "LLM gateway not available"}
 
-        dna_summary = json.dumps({
-            k: v for k, v in self._dna_profile.items()
-            if k in ["sentence_complexity", "hedging_analysis", "transition_vocabulary"]
-        }, indent=2)
+        dna_summary = json.dumps(
+            {
+                k: v
+                for k, v in self._dna_profile.items()
+                if k
+                in ["sentence_complexity", "hedging_analysis", "transition_vocabulary"]
+            },
+            indent=2,
+        )
 
         prompt = f"""Analyze this draft for voice consistency with the author's profile.
 
@@ -712,8 +705,7 @@ Respond with ONLY valid JSON."""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="audit"
+                prompt=prompt, task_type="audit"
             )
 
             # Parse JSON response
@@ -726,7 +718,7 @@ Respond with ONLY valid JSON."""
             return {
                 "status": "success",
                 "analysis": analysis,
-                "model_used": result.get("model_used", "unknown")
+                "model_used": result.get("model_used", "unknown"),
             }
 
         except Exception as e:
@@ -758,15 +750,14 @@ TRANSFORMED TEXT (matching author's voice):"""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="rewrite"
+                prompt=prompt, task_type="rewrite"
             )
 
             return {
                 "status": "success",
                 "original": draft,
                 "transformed": result.get("content", ""),
-                "model_used": result.get("model_used", "unknown")
+                "model_used": result.get("model_used", "unknown"),
             }
 
         except Exception as e:
@@ -776,11 +767,7 @@ TRANSFORMED TEXT (matching author's voice):"""
     # ARGUMENT DEVELOPMENT
     # =========================================================================
 
-    def identify_gaps(
-        self,
-        draft: str,
-        section_type: str = ""
-    ) -> dict:
+    def identify_gaps(self, draft: str, section_type: str = "") -> dict:
         """
         Identify gaps in the argument or narrative.
 
@@ -817,8 +804,7 @@ Respond with a JSON object containing "gaps" array."""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="audit"
+                prompt=prompt, task_type="audit"
             )
 
             content = result.get("content", "{}")
@@ -830,7 +816,7 @@ Respond with a JSON object containing "gaps" array."""
             return {
                 "status": "success",
                 "gaps": gaps,
-                "model_used": result.get("model_used", "unknown")
+                "model_used": result.get("model_used", "unknown"),
             }
 
         except Exception as e:
@@ -863,8 +849,7 @@ Respond with a JSON object containing "counterarguments" array."""
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="complex_reasoning"
+                prompt=prompt, task_type="complex_reasoning"
             )
 
             content = result.get("content", "{}")
@@ -876,7 +861,7 @@ Respond with a JSON object containing "counterarguments" array."""
             return {
                 "status": "success",
                 "counterarguments": counters,
-                "model_used": result.get("model_used", "unknown")
+                "model_used": result.get("model_used", "unknown"),
             }
 
         except Exception as e:
@@ -909,8 +894,7 @@ Respond with a JSON object containing "analysis", "suggestions", and "strengthen
 
         try:
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="complex_reasoning"
+                prompt=prompt, task_type="complex_reasoning"
             )
 
             content = result.get("content", "{}")
@@ -923,7 +907,7 @@ Respond with a JSON object containing "analysis", "suggestions", and "strengthen
                 "status": "success",
                 "original": paragraph,
                 "analysis": analysis,
-                "model_used": result.get("model_used", "unknown")
+                "model_used": result.get("model_used", "unknown"),
             }
 
         except Exception as e:
@@ -952,20 +936,22 @@ Respond with a JSON object containing "analysis", "suggestions", and "strengthen
 
             suggestions = []
             for paper in papers:
-                suggestions.append({
-                    "title": paper.get("title", ""),
-                    "authors": paper.get("authors", ""),
-                    "year": paper.get("year", ""),
-                    "inline_citation": self._zotero.format_inline_citation(paper),
-                    "full_reference": self._zotero.format_as_brookes_harvard(paper),
-                    "relevance_score": paper.get("relevance_score", 0),
-                    "relevance_reason": paper.get("relevance_reason", "")
-                })
+                suggestions.append(
+                    {
+                        "title": paper.get("title", ""),
+                        "authors": paper.get("authors", ""),
+                        "year": paper.get("year", ""),
+                        "inline_citation": self._zotero.format_inline_citation(paper),
+                        "full_reference": self._zotero.format_as_brookes_harvard(paper),
+                        "relevance_score": paper.get("relevance_score", 0),
+                        "relevance_reason": paper.get("relevance_reason", ""),
+                    }
+                )
 
             return {
                 "status": "success",
                 "suggestions": suggestions,
-                "paragraph_preview": paragraph[:200] + "..."
+                "paragraph_preview": paragraph[:200] + "...",
             }
 
         except Exception as e:
@@ -983,7 +969,7 @@ Respond with a JSON object containing "analysis", "suggestions", and "strengthen
             "zotero_available": self._zotero is not None,
             "red_thread_available": self._red_thread is not None,
             "available_templates": list(CHAPTER_TEMPLATES.keys()),
-            "outlines_directory": str(OUTLINES_DIR)
+            "outlines_directory": str(OUTLINES_DIR),
         }
 
     def has_dna_profile(self) -> bool:
@@ -994,6 +980,7 @@ Respond with a JSON object containing "analysis", "suggestions", and "strengthen
 # =============================================================================
 # STANDALONE FUNCTIONS
 # =============================================================================
+
 
 def get_chapter_templates() -> dict:
     """Get all available chapter templates."""

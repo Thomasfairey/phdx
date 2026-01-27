@@ -25,6 +25,7 @@ import numpy as np
 # Optional imports - graceful degradation if not available
 try:
     from scipy import stats
+
     SCIPY_AVAILABLE = True
 except ImportError:
     SCIPY_AVAILABLE = False
@@ -33,6 +34,7 @@ except ImportError:
 try:
     import plotly.express as px
     import plotly.graph_objects as go
+
     PLOTLY_AVAILABLE = True
 except ImportError:
     PLOTLY_AVAILABLE = False
@@ -41,6 +43,7 @@ except ImportError:
 
 try:
     from transformers import pipeline
+
     TRANSFORMERS_AVAILABLE = True
 except ImportError:
     TRANSFORMERS_AVAILABLE = False
@@ -73,6 +76,7 @@ class DataLab:
         # Check LLM availability for narrative generation
         try:
             from core import llm_gateway
+
             self._llm_gateway = llm_gateway
             self._llm_available = True
         except ImportError:
@@ -103,7 +107,7 @@ class DataLab:
         self,
         file_path: Union[str, Path, io.BytesIO],
         sheet_name: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> dict:
         """
         Load data from an Excel file.
@@ -140,14 +144,9 @@ class DataLab:
             # Get credentials
             creds_path = get_secret("GOOGLE_SERVICE_ACCOUNT_PATH")
             if not creds_path:
-                return {
-                    "status": "error",
-                    "error": "Google credentials not configured"
-                }
+                return {"status": "error", "error": "Google credentials not configured"}
 
-            scopes = [
-                'https://www.googleapis.com/auth/spreadsheets.readonly'
-            ]
+            scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
             creds = Credentials.from_service_account_file(creds_path, scopes=scopes)
             client = gspread.authorize(creds)
 
@@ -161,7 +160,9 @@ class DataLab:
         except Exception as e:
             return {"status": "error", "error": str(e)}
 
-    def _create_load_result(self, df: pd.DataFrame, source_type: str, source: str) -> dict:
+    def _create_load_result(
+        self, df: pd.DataFrame, source_type: str, source: str
+    ) -> dict:
         """Create standardized load result."""
         return {
             "status": "success",
@@ -172,8 +173,8 @@ class DataLab:
                 "rows": len(df),
                 "columns": len(df.columns),
                 "column_names": list(df.columns),
-                "loaded_at": datetime.now().isoformat()
-            }
+                "loaded_at": datetime.now().isoformat(),
+            },
         }
 
     def preview_data(self, df: pd.DataFrame, n_rows: int = 10) -> dict:
@@ -188,11 +189,11 @@ class DataLab:
             dict with preview data and basic stats
         """
         return {
-            "head": df.head(n_rows).to_dict(orient='records'),
+            "head": df.head(n_rows).to_dict(orient="records"),
             "shape": {"rows": len(df), "columns": len(df.columns)},
             "columns": list(df.columns),
             "dtypes": {col: str(dtype) for col, dtype in df.dtypes.items()},
-            "missing": df.isnull().sum().to_dict()
+            "missing": df.isnull().sum().to_dict(),
         }
 
     # =========================================================================
@@ -210,8 +211,7 @@ class DataLab:
             Comprehensive EDA report dict
         """
         report_id = hashlib.md5(
-            f"{len(df)}_{list(df.columns)[:3]}".encode(),
-            usedforsecurity=False
+            f"{len(df)}_{list(df.columns)[:3]}".encode(), usedforsecurity=False
         ).hexdigest()[:12]
 
         eda_report = {
@@ -223,7 +223,7 @@ class DataLab:
             "missing_values": self._analyze_missing(df),
             "numeric_summary": self._summarize_numeric(df),
             "categorical_summary": self._summarize_categorical(df),
-            "correlations": self._analyze_correlations(df)
+            "correlations": self._analyze_correlations(df),
         }
 
         return eda_report
@@ -235,46 +235,54 @@ class DataLab:
             "columns": len(df.columns),
             "total_cells": len(df) * len(df.columns),
             "memory_mb": round(df.memory_usage(deep=True).sum() / 1024 / 1024, 2),
-            "duplicates": df.duplicated().sum()
+            "duplicates": df.duplicated().sum(),
         }
 
     def _analyze_data_types(self, df: pd.DataFrame) -> dict:
         """Analyze column data types."""
         type_mapping = {
-            'int64': 'numeric',
-            'int32': 'numeric',
-            'float64': 'numeric',
-            'float32': 'numeric',
-            'object': 'text',
-            'bool': 'boolean',
-            'datetime64[ns]': 'datetime',
-            'category': 'categorical'
+            "int64": "numeric",
+            "int32": "numeric",
+            "float64": "numeric",
+            "float32": "numeric",
+            "object": "text",
+            "bool": "boolean",
+            "datetime64[ns]": "datetime",
+            "category": "categorical",
         }
 
         columns = {}
         for col in df.columns:
             dtype_str = str(df[col].dtype)
-            inferred_type = type_mapping.get(dtype_str, 'other')
+            inferred_type = type_mapping.get(dtype_str, "other")
 
             # Check if text column might be categorical
-            if inferred_type == 'text' and df[col].nunique() < len(df) * 0.1:
-                inferred_type = 'categorical'
+            if inferred_type == "text" and df[col].nunique() < len(df) * 0.1:
+                inferred_type = "categorical"
 
             columns[col] = {
                 "pandas_dtype": dtype_str,
                 "inferred_type": inferred_type,
                 "unique_values": df[col].nunique(),
-                "sample_values": df[col].dropna().head(3).tolist()
+                "sample_values": df[col].dropna().head(3).tolist(),
             }
 
         return {
             "columns": columns,
             "type_counts": {
-                "numeric": sum(1 for c in columns.values() if c["inferred_type"] == "numeric"),
-                "text": sum(1 for c in columns.values() if c["inferred_type"] == "text"),
-                "categorical": sum(1 for c in columns.values() if c["inferred_type"] == "categorical"),
-                "datetime": sum(1 for c in columns.values() if c["inferred_type"] == "datetime"),
-            }
+                "numeric": sum(
+                    1 for c in columns.values() if c["inferred_type"] == "numeric"
+                ),
+                "text": sum(
+                    1 for c in columns.values() if c["inferred_type"] == "text"
+                ),
+                "categorical": sum(
+                    1 for c in columns.values() if c["inferred_type"] == "categorical"
+                ),
+                "datetime": sum(
+                    1 for c in columns.values() if c["inferred_type"] == "datetime"
+                ),
+            },
         }
 
     def _analyze_missing(self, df: pd.DataFrame) -> dict:
@@ -284,14 +292,14 @@ class DataLab:
 
         return {
             "total_missing": int(missing.sum()),
-            "total_missing_pct": round(missing.sum() / (len(df) * len(df.columns)) * 100, 2),
+            "total_missing_pct": round(
+                missing.sum() / (len(df) * len(df.columns)) * 100, 2
+            ),
             "by_column": {
-                col: {
-                    "count": int(missing[col]),
-                    "percentage": float(missing_pct[col])
-                }
-                for col in df.columns if missing[col] > 0
-            }
+                col: {"count": int(missing[col]), "percentage": float(missing_pct[col])}
+                for col in df.columns
+                if missing[col] > 0
+            },
         }
 
     def _summarize_numeric(self, df: pd.DataFrame) -> dict:
@@ -312,14 +320,14 @@ class DataLab:
                 "50%": float(series.median()),
                 "75%": float(series.quantile(0.75)),
                 "max": float(series.max()),
-                "skewness": round(float(series.skew()), 4) if len(series) > 2 else None
+                "skewness": round(float(series.skew()), 4) if len(series) > 2 else None,
             }
 
         return {"columns": summary}
 
     def _summarize_categorical(self, df: pd.DataFrame) -> dict:
         """Summarize categorical/text columns."""
-        cat_cols = df.select_dtypes(include=['object', 'category']).columns
+        cat_cols = df.select_dtypes(include=["object", "category"]).columns
         if len(cat_cols) == 0:
             return {"columns": {}, "message": "No categorical columns found"}
 
@@ -329,7 +337,9 @@ class DataLab:
             summary[col] = {
                 "unique_values": df[col].nunique(),
                 "most_common": value_counts.head(5).to_dict(),
-                "least_common": value_counts.tail(3).to_dict() if len(value_counts) > 5 else {}
+                "least_common": value_counts.tail(3).to_dict()
+                if len(value_counts) > 5
+                else {},
             }
 
         return {"columns": summary}
@@ -345,19 +355,23 @@ class DataLab:
         # Find strong correlations
         strong_correlations = []
         for i, col1 in enumerate(numeric_cols):
-            for col2 in numeric_cols[i+1:]:
+            for col2 in numeric_cols[i + 1 :]:
                 corr_value = corr_matrix.loc[col1, col2]
                 if abs(corr_value) > 0.5:
-                    strong_correlations.append({
-                        "column_1": col1,
-                        "column_2": col2,
-                        "correlation": round(corr_value, 4),
-                        "strength": "strong" if abs(corr_value) > 0.7 else "moderate"
-                    })
+                    strong_correlations.append(
+                        {
+                            "column_1": col1,
+                            "column_2": col2,
+                            "correlation": round(corr_value, 4),
+                            "strength": "strong"
+                            if abs(corr_value) > 0.7
+                            else "moderate",
+                        }
+                    )
 
         return {
             "matrix": corr_matrix.round(4).to_dict(),
-            "strong_correlations": strong_correlations
+            "strong_correlations": strong_correlations,
         }
 
     # =========================================================================
@@ -371,7 +385,7 @@ class DataLab:
                 self._sentiment_pipeline = pipeline(
                     "sentiment-analysis",
                     model="cardiffnlp/twitter-roberta-base-sentiment-latest",
-                    top_k=None
+                    top_k=None,
                 )
             except Exception:
                 # Fall back to default model
@@ -382,10 +396,7 @@ class DataLab:
         return self._sentiment_pipeline
 
     def analyze_sentiment(
-        self,
-        df: pd.DataFrame,
-        text_column: str,
-        batch_size: int = 32
+        self, df: pd.DataFrame, text_column: str, batch_size: int = 32
     ) -> dict:
         """
         Analyze sentiment of text data (reviews, comments).
@@ -415,7 +426,7 @@ class DataLab:
             # Process in batches
             results = []
             for i in range(0, len(texts), batch_size):
-                batch = texts[i:i + batch_size]
+                batch = texts[i : i + batch_size]
                 # Truncate long texts
                 batch = [t[:512] if len(t) > 512 else t for t in batch]
                 batch_results = sentiment_pipe(batch)
@@ -426,25 +437,24 @@ class DataLab:
             for result in results:
                 if isinstance(result, list):
                     # Multiple labels returned
-                    top_label = max(result, key=lambda x: x['score'])
+                    top_label = max(result, key=lambda x: x["score"])
                 else:
                     top_label = result
 
-                sentiments.append({
-                    "label": top_label['label'],
-                    "score": round(top_label['score'], 4)
-                })
+                sentiments.append(
+                    {"label": top_label["label"], "score": round(top_label["score"], 4)}
+                )
 
             # Calculate distribution
             label_counts = {}
             for s in sentiments:
-                label = s['label'].upper()
-                if 'POS' in label or label == 'POSITIVE':
-                    normalized = 'positive'
-                elif 'NEG' in label or label == 'NEGATIVE':
-                    normalized = 'negative'
+                label = s["label"].upper()
+                if "POS" in label or label == "POSITIVE":
+                    normalized = "positive"
+                elif "NEG" in label or label == "NEGATIVE":
+                    normalized = "negative"
                 else:
-                    normalized = 'neutral'
+                    normalized = "neutral"
 
                 label_counts[normalized] = label_counts.get(normalized, 0) + 1
 
@@ -455,7 +465,7 @@ class DataLab:
             }
 
             # Calculate average sentiment score
-            avg_score = np.mean([s['score'] for s in sentiments])
+            avg_score = np.mean([s["score"] for s in sentiments])
 
             return {
                 "status": "success",
@@ -464,7 +474,7 @@ class DataLab:
                 "distribution": distribution,
                 "average_confidence": round(float(avg_score), 4),
                 "detailed_results": sentiments[:100],  # Limit detailed output
-                "model": "cardiffnlp/twitter-roberta-base-sentiment"
+                "model": "cardiffnlp/twitter-roberta-base-sentiment",
             }
 
         except Exception as e:
@@ -473,14 +483,41 @@ class DataLab:
     def _simple_sentiment_analysis(self, texts: list) -> dict:
         """Simple rule-based sentiment analysis fallback."""
         positive_words = {
-            'good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic',
-            'love', 'best', 'perfect', 'beautiful', 'friendly', 'helpful',
-            'recommend', 'delicious', 'outstanding', 'superb', 'lovely'
+            "good",
+            "great",
+            "excellent",
+            "amazing",
+            "wonderful",
+            "fantastic",
+            "love",
+            "best",
+            "perfect",
+            "beautiful",
+            "friendly",
+            "helpful",
+            "recommend",
+            "delicious",
+            "outstanding",
+            "superb",
+            "lovely",
         }
         negative_words = {
-            'bad', 'terrible', 'awful', 'horrible', 'worst', 'poor',
-            'hate', 'disappointed', 'disgusting', 'rude', 'dirty',
-            'slow', 'cold', 'overpriced', 'avoid', 'never'
+            "bad",
+            "terrible",
+            "awful",
+            "horrible",
+            "worst",
+            "poor",
+            "hate",
+            "disappointed",
+            "disgusting",
+            "rude",
+            "dirty",
+            "slow",
+            "cold",
+            "overpriced",
+            "avoid",
+            "never",
         }
 
         results = []
@@ -490,21 +527,21 @@ class DataLab:
             neg_count = len(words & negative_words)
 
             if pos_count > neg_count:
-                label = 'positive'
+                label = "positive"
                 score = min(0.5 + pos_count * 0.1, 0.95)
             elif neg_count > pos_count:
-                label = 'negative'
+                label = "negative"
                 score = min(0.5 + neg_count * 0.1, 0.95)
             else:
-                label = 'neutral'
+                label = "neutral"
                 score = 0.5
 
             results.append({"label": label, "score": score})
 
         # Calculate distribution
-        label_counts = {'positive': 0, 'negative': 0, 'neutral': 0}
+        label_counts = {"positive": 0, "negative": 0, "neutral": 0}
         for r in results:
-            label_counts[r['label']] += 1
+            label_counts[r["label"]] += 1
 
         total = len(results)
         distribution = {
@@ -517,16 +554,13 @@ class DataLab:
             "timestamp": datetime.now().isoformat(),
             "total_analyzed": total,
             "distribution": distribution,
-            "average_confidence": round(np.mean([r['score'] for r in results]), 4),
+            "average_confidence": round(np.mean([r["score"] for r in results]), 4),
             "detailed_results": results[:100],
-            "model": "rule-based (fallback)"
+            "model": "rule-based (fallback)",
         }
 
     def sentiment_by_category(
-        self,
-        df: pd.DataFrame,
-        text_column: str,
-        category_column: str
+        self, df: pd.DataFrame, text_column: str, category_column: str
     ) -> dict:
         """
         Analyze sentiment grouped by category.
@@ -553,7 +587,7 @@ class DataLab:
                 results[str(cat)] = {
                     "count": len(cat_df),
                     "distribution": sentiment_result.get("distribution", {}),
-                    "avg_confidence": sentiment_result.get("average_confidence", 0)
+                    "avg_confidence": sentiment_result.get("average_confidence", 0),
                 }
 
         return {
@@ -561,18 +595,14 @@ class DataLab:
             "timestamp": datetime.now().isoformat(),
             "category_column": category_column,
             "categories_analyzed": len(results),
-            "results_by_category": results
+            "results_by_category": results,
         }
 
     # =========================================================================
     # STATISTICAL ANALYSIS
     # =========================================================================
 
-    def descriptive_statistics(
-        self,
-        df: pd.DataFrame,
-        columns: list = None
-    ) -> dict:
+    def descriptive_statistics(self, df: pd.DataFrame, columns: list = None) -> dict:
         """
         Calculate descriptive statistics for specified columns.
 
@@ -598,7 +628,9 @@ class DataLab:
                 "n": len(series),
                 "mean": round(float(series.mean()), 4),
                 "median": round(float(series.median()), 4),
-                "mode": float(series.mode().iloc[0]) if len(series.mode()) > 0 else None,
+                "mode": float(series.mode().iloc[0])
+                if len(series.mode()) > 0
+                else None,
                 "std": round(float(series.std()), 4),
                 "variance": round(float(series.var()), 4),
                 "min": float(series.min()),
@@ -608,21 +640,20 @@ class DataLab:
                 "q3": round(float(series.quantile(0.75)), 4),
                 "iqr": round(float(series.quantile(0.75) - series.quantile(0.25)), 4),
                 "skewness": round(float(series.skew()), 4) if len(series) > 2 else None,
-                "kurtosis": round(float(series.kurtosis()), 4) if len(series) > 3 else None
+                "kurtosis": round(float(series.kurtosis()), 4)
+                if len(series) > 3
+                else None,
             }
 
         return {
             "status": "success",
             "timestamp": datetime.now().isoformat(),
             "columns_analyzed": len(cols),
-            "statistics": stats_dict
+            "statistics": stats_dict,
         }
 
     def correlation_analysis(
-        self,
-        df: pd.DataFrame,
-        columns: list = None,
-        method: str = "pearson"
+        self, df: pd.DataFrame, columns: list = None, method: str = "pearson"
     ) -> dict:
         """
         Perform correlation analysis.
@@ -648,16 +679,18 @@ class DataLab:
         # Find significant correlations
         significant = []
         for i, col1 in enumerate(cols):
-            for col2 in cols[i+1:]:
+            for col2 in cols[i + 1 :]:
                 r = corr_matrix.loc[col1, col2]
                 if abs(r) > 0.3:  # Threshold for significance
-                    significant.append({
-                        "var1": col1,
-                        "var2": col2,
-                        "r": round(r, 4),
-                        "r_squared": round(r**2, 4),
-                        "interpretation": self._interpret_correlation(r)
-                    })
+                    significant.append(
+                        {
+                            "var1": col1,
+                            "var2": col2,
+                            "r": round(r, 4),
+                            "r_squared": round(r**2, 4),
+                            "interpretation": self._interpret_correlation(r),
+                        }
+                    )
 
         return {
             "status": "success",
@@ -665,8 +698,8 @@ class DataLab:
             "method": method,
             "matrix": corr_matrix.round(4).to_dict(),
             "significant_correlations": sorted(
-                significant, key=lambda x: abs(x['r']), reverse=True
-            )
+                significant, key=lambda x: abs(x["r"]), reverse=True
+            ),
         }
 
     def _interpret_correlation(self, r: float) -> str:
@@ -685,12 +718,7 @@ class DataLab:
         else:
             return f"very strong {direction}"
 
-    def significance_test(
-        self,
-        df: pd.DataFrame,
-        test_type: str,
-        **kwargs
-    ) -> dict:
+    def significance_test(self, df: pd.DataFrame, test_type: str, **kwargs) -> dict:
         """
         Perform statistical significance tests.
 
@@ -703,7 +731,10 @@ class DataLab:
             dict with test results
         """
         if not SCIPY_AVAILABLE:
-            return {"status": "error", "error": "scipy not available for statistical tests"}
+            return {
+                "status": "error",
+                "error": "scipy not available for statistical tests",
+            }
 
         try:
             if test_type == "t_test":
@@ -725,7 +756,7 @@ class DataLab:
         column: str,
         group_column: str = None,
         value1: float = None,
-        paired: bool = False
+        paired: bool = False,
     ) -> dict:
         """Independent or one-sample t-test."""
         if group_column and group_column in df.columns:
@@ -750,7 +781,7 @@ class DataLab:
                 "t_statistic": round(float(t_stat), 4),
                 "p_value": round(float(p_value), 6),
                 "significant": p_value < 0.05,
-                "interpretation": self._interpret_p_value(p_value)
+                "interpretation": self._interpret_p_value(p_value),
             }
         else:
             # One-sample t-test
@@ -768,15 +799,10 @@ class DataLab:
                 "t_statistic": round(float(t_stat), 4),
                 "p_value": round(float(p_value), 6),
                 "significant": p_value < 0.05,
-                "interpretation": self._interpret_p_value(p_value)
+                "interpretation": self._interpret_p_value(p_value),
             }
 
-    def _chi_square_test(
-        self,
-        df: pd.DataFrame,
-        column1: str,
-        column2: str
-    ) -> dict:
+    def _chi_square_test(self, df: pd.DataFrame, column1: str, column2: str) -> dict:
         """Chi-square test of independence."""
         contingency = pd.crosstab(df[column1], df[column2])
         chi2, p_value, dof, expected = stats.chi2_contingency(contingency)
@@ -790,14 +816,11 @@ class DataLab:
             "degrees_of_freedom": int(dof),
             "significant": p_value < 0.05,
             "interpretation": self._interpret_p_value(p_value),
-            "contingency_table": contingency.to_dict()
+            "contingency_table": contingency.to_dict(),
         }
 
     def _anova_test(
-        self,
-        df: pd.DataFrame,
-        value_column: str,
-        group_column: str
+        self, df: pd.DataFrame, value_column: str, group_column: str
     ) -> dict:
         """One-way ANOVA test."""
         groups = df[group_column].dropna().unique()
@@ -817,14 +840,11 @@ class DataLab:
             "group_means": {
                 str(g): round(float(df[df[group_column] == g][value_column].mean()), 4)
                 for g in groups
-            }
+            },
         }
 
     def _mann_whitney_test(
-        self,
-        df: pd.DataFrame,
-        column: str,
-        group_column: str
+        self, df: pd.DataFrame, column: str, group_column: str
     ) -> dict:
         """Mann-Whitney U test (non-parametric alternative to t-test)."""
         groups = df[group_column].dropna().unique()
@@ -834,7 +854,7 @@ class DataLab:
         group1 = df[df[group_column] == groups[0]][column].dropna()
         group2 = df[df[group_column] == groups[1]][column].dropna()
 
-        u_stat, p_value = stats.mannwhitneyu(group1, group2, alternative='two-sided')
+        u_stat, p_value = stats.mannwhitneyu(group1, group2, alternative="two-sided")
 
         return {
             "status": "success",
@@ -845,7 +865,7 @@ class DataLab:
             "u_statistic": round(float(u_stat), 4),
             "p_value": round(float(p_value), 6),
             "significant": p_value < 0.05,
-            "interpretation": self._interpret_p_value(p_value)
+            "interpretation": self._interpret_p_value(p_value),
         }
 
     def _interpret_p_value(self, p: float) -> str:
@@ -865,12 +885,7 @@ class DataLab:
     # VISUALIZATION
     # =========================================================================
 
-    def generate_chart(
-        self,
-        df: pd.DataFrame,
-        chart_type: str,
-        **kwargs
-    ) -> dict:
+    def generate_chart(self, df: pd.DataFrame, chart_type: str, **kwargs) -> dict:
         """
         Generate a visualization chart.
 
@@ -883,7 +898,10 @@ class DataLab:
             dict with chart figure or error
         """
         if not PLOTLY_AVAILABLE:
-            return {"status": "error", "error": "plotly not available for visualization"}
+            return {
+                "status": "error",
+                "error": "plotly not available for visualization",
+            }
 
         try:
             if chart_type == "histogram":
@@ -896,22 +914,24 @@ class DataLab:
                 fig = px.box(df, **kwargs)
             elif chart_type == "heatmap":
                 # For correlation heatmap
-                x = kwargs.get('x')
-                y = kwargs.get('y')
+                x = kwargs.get("x")
+                y = kwargs.get("y")
                 if x and y:
                     corr = df[[x, y]].corr()
                 else:
                     corr = df.select_dtypes(include=[np.number]).corr()
 
-                fig = go.Figure(data=go.Heatmap(
-                    z=corr.values,
-                    x=corr.columns,
-                    y=corr.index,
-                    colorscale='RdBu_r',
-                    zmin=-1,
-                    zmax=1
-                ))
-                fig.update_layout(title=kwargs.get('title', 'Correlation Heatmap'))
+                fig = go.Figure(
+                    data=go.Heatmap(
+                        z=corr.values,
+                        x=corr.columns,
+                        y=corr.index,
+                        colorscale="RdBu_r",
+                        zmin=-1,
+                        zmax=1,
+                    )
+                )
+                fig.update_layout(title=kwargs.get("title", "Correlation Heatmap"))
             elif chart_type == "pie":
                 fig = px.pie(df, **kwargs)
             elif chart_type == "line":
@@ -921,15 +941,14 @@ class DataLab:
 
             # Apply default styling
             fig.update_layout(
-                template="plotly_white",
-                font=dict(family="Inter, sans-serif")
+                template="plotly_white", font=dict(family="Inter, sans-serif")
             )
 
             return {
                 "status": "success",
                 "chart_type": chart_type,
                 "figure": fig,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -950,33 +969,51 @@ class DataLab:
 
         figures = []
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        categorical_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+        categorical_cols = df.select_dtypes(
+            include=["object", "category"]
+        ).columns.tolist()
 
         # Histograms for numeric columns
         for col in numeric_cols[:3]:
-            result = self.generate_chart(df, "histogram", x=col, title=f"Distribution of {col}")
+            result = self.generate_chart(
+                df, "histogram", x=col, title=f"Distribution of {col}"
+            )
             if result.get("status") == "success":
-                figures.append({"type": "histogram", "column": col, "figure": result["figure"]})
+                figures.append(
+                    {"type": "histogram", "column": col, "figure": result["figure"]}
+                )
 
         # Bar charts for categorical columns
         for col in categorical_cols[:2]:
             if df[col].nunique() <= 20:
                 counts = df[col].value_counts().reset_index()
-                counts.columns = [col, 'count']
-                result = self.generate_chart(counts, "bar", x=col, y='count', title=f"Frequency of {col}")
+                counts.columns = [col, "count"]
+                result = self.generate_chart(
+                    counts, "bar", x=col, y="count", title=f"Frequency of {col}"
+                )
                 if result.get("status") == "success":
-                    figures.append({"type": "bar", "column": col, "figure": result["figure"]})
+                    figures.append(
+                        {"type": "bar", "column": col, "figure": result["figure"]}
+                    )
 
         # Correlation heatmap if enough numeric columns
         if len(numeric_cols) >= 2:
-            result = self.generate_chart(df[numeric_cols], "heatmap", title="Correlation Matrix")
+            result = self.generate_chart(
+                df[numeric_cols], "heatmap", title="Correlation Matrix"
+            )
             if result.get("status") == "success":
-                figures.append({"type": "heatmap", "column": "correlations", "figure": result["figure"]})
+                figures.append(
+                    {
+                        "type": "heatmap",
+                        "column": "correlations",
+                        "figure": result["figure"],
+                    }
+                )
 
         return {
             "status": "success",
             "figures_generated": len(figures),
-            "figures": figures
+            "figures": figures,
         }
 
     # =========================================================================
@@ -984,9 +1021,7 @@ class DataLab:
     # =========================================================================
 
     def generate_analysis_narrative(
-        self,
-        analysis_results: dict,
-        section_type: str = "findings"
+        self, analysis_results: dict, section_type: str = "findings"
     ) -> dict:
         """
         Generate thesis-ready narrative from analysis results.
@@ -1027,12 +1062,11 @@ Write 2-3 paragraphs of thesis-ready text:"""
                 action_type="narrative_generation",
                 data_source="data_lab_analysis",
                 prompt=prompt[:200],
-                was_scrubbed=False
+                was_scrubbed=False,
             )
 
             result = self._llm_gateway.generate_content(
-                prompt=prompt,
-                task_type="drafting"
+                prompt=prompt, task_type="drafting"
             )
 
             return {
@@ -1040,7 +1074,7 @@ Write 2-3 paragraphs of thesis-ready text:"""
                 "narrative": result.get("content", ""),
                 "section_type": section_type,
                 "model_used": result.get("model_used", "unknown"),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -1050,6 +1084,7 @@ Write 2-3 paragraphs of thesis-ready text:"""
 # =============================================================================
 # STANDALONE FUNCTIONS
 # =============================================================================
+
 
 def load_data(source: str, source_type: str = "csv", **kwargs) -> dict:
     """
@@ -1070,7 +1105,9 @@ def load_data(source: str, source_type: str = "csv", **kwargs) -> dict:
         return {"status": "error", "error": f"Unknown source type: {source_type}"}
 
 
-def run_full_analysis(df: pd.DataFrame, include_sentiment: bool = False, text_column: str = None) -> dict:
+def run_full_analysis(
+    df: pd.DataFrame, include_sentiment: bool = False, text_column: str = None
+) -> dict:
     """
     Run comprehensive analysis on a DataFrame.
 
@@ -1083,7 +1120,7 @@ def run_full_analysis(df: pd.DataFrame, include_sentiment: bool = False, text_co
     results = {
         "eda": lab.run_eda(df),
         "descriptive_stats": lab.descriptive_statistics(df),
-        "correlations": lab.correlation_analysis(df)
+        "correlations": lab.correlation_analysis(df),
     }
 
     if include_sentiment and text_column:
@@ -1123,10 +1160,20 @@ if __name__ == "__main__":
             "Okay but overpriced",
             "Very nice atmosphere",
             "Perfect in every way",
-            "Terrible service, avoid"
+            "Terrible service, avoid",
         ],
-        "category": ["Hotel", "Restaurant", "Hotel", "Restaurant", "Hotel",
-                     "Restaurant", "Hotel", "Restaurant", "Hotel", "Restaurant"]
+        "category": [
+            "Hotel",
+            "Restaurant",
+            "Hotel",
+            "Restaurant",
+            "Hotel",
+            "Restaurant",
+            "Hotel",
+            "Restaurant",
+            "Hotel",
+            "Restaurant",
+        ],
     }
 
     df = pd.DataFrame(sample_data)

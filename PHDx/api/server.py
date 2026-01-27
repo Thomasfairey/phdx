@@ -46,6 +46,7 @@ BACKUPS_DIR.mkdir(exist_ok=True)
 # RATE LIMITING
 # =============================================================================
 
+
 class RateLimiter:
     """Simple in-memory rate limiter."""
 
@@ -85,8 +86,7 @@ async def check_rate_limit(request: Request):
     client_ip = request.client.host if request.client else "unknown"
     if not rate_limiter.is_allowed(client_ip):
         raise HTTPException(
-            status_code=429,
-            detail="Rate limit exceeded. Please try again later."
+            status_code=429, detail="Rate limit exceeded. Please try again later."
         )
 
 
@@ -94,8 +94,10 @@ async def check_rate_limit(request: Request):
 # REQUEST/RESPONSE MODELS
 # =============================================================================
 
+
 class GenerateRequest(BaseModel):
     """Request to generate text content."""
+
     doc_id: Optional[str] = None
     prompt: str = Field(..., min_length=1, max_length=50000)
     model: str = "claude"
@@ -104,6 +106,7 @@ class GenerateRequest(BaseModel):
 
 class GenerateResponse(BaseModel):
     """Response from text generation."""
+
     success: bool
     text: str
     model: str
@@ -114,6 +117,7 @@ class GenerateResponse(BaseModel):
 
 class StatusResponse(BaseModel):
     """System status response."""
+
     system: str
     environment: str
     models: List[str]
@@ -122,6 +126,7 @@ class StatusResponse(BaseModel):
 
 class AuthResponse(BaseModel):
     """Authentication response."""
+
     email: str
     name: str
     authenticated: bool
@@ -130,6 +135,7 @@ class AuthResponse(BaseModel):
 
 class FileInfo(BaseModel):
     """File information."""
+
     id: str
     name: str
     type: str
@@ -141,6 +147,7 @@ class FileInfo(BaseModel):
 
 class SnapshotRequest(BaseModel):
     """Request to save a snapshot."""
+
     doc_id: str = Field(..., min_length=1, max_length=500)
     timestamp: str = Field(..., min_length=1, max_length=100)
     content: str = Field(..., min_length=1, max_length=5000000)  # 5MB max
@@ -148,6 +155,7 @@ class SnapshotRequest(BaseModel):
 
 class SnapshotResponse(BaseModel):
     """Response from snapshot save."""
+
     success: bool
     filename: str = ""
     path: str = ""
@@ -157,6 +165,7 @@ class SnapshotResponse(BaseModel):
 
 class SyncRequest(BaseModel):
     """Request to sync to Google Docs."""
+
     doc_id: str = Field(..., min_length=1, max_length=500)
     content: str = Field(..., min_length=1, max_length=5000000)  # 5MB max
     section_title: Optional[str] = Field(None, max_length=500)
@@ -164,6 +173,7 @@ class SyncRequest(BaseModel):
 
 class SyncResponse(BaseModel):
     """Response from Google Docs sync."""
+
     success: bool
     doc_url: Optional[str] = None
     characters_synced: int = 0
@@ -172,11 +182,13 @@ class SyncResponse(BaseModel):
 
 class SanitizeRequest(BaseModel):
     """Request to sanitize text."""
+
     text: str = Field(..., min_length=1, max_length=100000)
 
 
 class SanitizeResponse(BaseModel):
     """Response from text sanitization."""
+
     sanitized_text: str
     pii_found: bool
     redactions_count: int = 0
@@ -184,17 +196,20 @@ class SanitizeResponse(BaseModel):
 
 class AuditRequest(BaseModel):
     """Request to audit text."""
+
     text: str = Field(..., min_length=100, max_length=500000)  # 500KB max
     chapter_context: Optional[str] = Field(None, max_length=10000)
 
 
 class ConsistencyRequest(BaseModel):
     """Request to check consistency."""
+
     text: str = Field(..., min_length=50, max_length=500000)  # 500KB max
 
 
 class ErrorResponse(BaseModel):
     """Standard error response."""
+
     error: str
     detail: Optional[str] = None
     code: str = "UNKNOWN_ERROR"
@@ -203,6 +218,7 @@ class ErrorResponse(BaseModel):
 # =============================================================================
 # APPLICATION SETUP
 # =============================================================================
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -230,7 +246,7 @@ app = FastAPI(
     version="2.0.0",
     docs_url="/docs" if config.debug else None,
     redoc_url="/redoc" if config.debug else None,
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Configure CORS
@@ -251,12 +267,13 @@ app.include_router(data_router.router, prefix="/api/data", tags=["Data Lab"])
 # ERROR HANDLERS
 # =============================================================================
 
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Handle HTTP exceptions."""
     return JSONResponse(
         status_code=exc.status_code,
-        content={"error": exc.detail, "code": f"HTTP_{exc.status_code}"}
+        content={"error": exc.detail, "code": f"HTTP_{exc.status_code}"},
     )
 
 
@@ -269,14 +286,15 @@ async def general_exception_handler(request: Request, exc: Exception):
         content={
             "error": "Internal server error",
             "code": "INTERNAL_ERROR",
-            "detail": str(exc) if config.debug else None
-        }
+            "detail": str(exc) if config.debug else None,
+        },
     )
 
 
 # =============================================================================
 # HEALTH & STATUS ENDPOINTS
 # =============================================================================
+
 
 @app.get("/health")
 async def health_check():
@@ -295,7 +313,7 @@ async def readiness_check():
     return {
         "ready": all_ready,
         "checks": checks,
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -312,13 +330,14 @@ async def get_status():
         system="online",
         environment=config.environment.value,
         models=models,
-        version="2.0.0"
+        version="2.0.0",
     )
 
 
 # =============================================================================
 # AUTHENTICATION ENDPOINTS
 # =============================================================================
+
 
 @app.get("/auth/google", response_model=AuthResponse)
 async def authenticate_google():
@@ -329,24 +348,23 @@ async def authenticate_google():
             email=user.get("email", ""),
             name=user.get("name", ""),
             authenticated=user.get("authenticated", False),
-            mock=user.get("mock")
+            mock=user.get("mock"),
         )
     except Exception as e:
         logger.error(f"Auth error: {e}")
-        return AuthResponse(
-            email="",
-            name="",
-            authenticated=False,
-            mock=None
-        )
+        return AuthResponse(email="", name="", authenticated=False, mock=None)
 
 
 # =============================================================================
 # FILE ENDPOINTS
 # =============================================================================
 
+
 @app.get("/files/recent", response_model=List[FileInfo])
-async def list_recent_files(limit: int = Query(default=10, ge=1, le=100), dependencies=[Depends(check_rate_limit)]):
+async def list_recent_files(
+    limit: int = Query(default=10, ge=1, le=100),
+    dependencies=[Depends(check_rate_limit)],
+):
     """List recent Google Docs and Sheets."""
     try:
         docs = airlock.list_recent_docs(limit=limit)
@@ -355,7 +373,7 @@ async def list_recent_files(limit: int = Query(default=10, ge=1, le=100), depend
                 id=doc["id"],
                 name=doc["name"],
                 type=doc.get("type", "unknown"),
-                source="google_drive"
+                source="google_drive",
             )
             for doc in docs
         ]
@@ -368,7 +386,12 @@ async def list_recent_files(limit: int = Query(default=10, ge=1, le=100), depend
 # GENERATION ENDPOINTS
 # =============================================================================
 
-@app.post("/generate", response_model=GenerateResponse, dependencies=[Depends(check_rate_limit)])
+
+@app.post(
+    "/generate",
+    response_model=GenerateResponse,
+    dependencies=[Depends(check_rate_limit)],
+)
 async def generate_text(request: GenerateRequest):
     """Generate text using LLM with optional document context."""
     context_text = request.context or ""
@@ -379,18 +402,18 @@ async def generate_text(request: GenerateRequest):
         if not doc_result["success"]:
             raise HTTPException(
                 status_code=404,
-                detail=f"Document not found: {doc_result.get('error', 'Unknown error')}"
+                detail=f"Document not found: {doc_result.get('error', 'Unknown error')}",
             )
         context_text = doc_result["text"]
 
     # Map model preference to task type
-    task_type = "drafting" if request.model.lower() in ("claude", "anthropic") else "audit"
+    task_type = (
+        "drafting" if request.model.lower() in ("claude", "anthropic") else "audit"
+    )
 
     try:
         result = llm_gateway.generate_content(
-            prompt=request.prompt,
-            task_type=task_type,
-            context_text=context_text
+            prompt=request.prompt, task_type=task_type, context_text=context_text
         )
         return GenerateResponse(
             success=True,
@@ -398,7 +421,7 @@ async def generate_text(request: GenerateRequest):
             model=result.get("model_used", request.model),
             tokens_used=result.get("tokens_estimated", 0),
             scrubbed=False,
-            error=None
+            error=None,
         )
     except Exception as e:
         logger.error(f"Generation error: {e}")
@@ -408,7 +431,7 @@ async def generate_text(request: GenerateRequest):
             model=request.model,
             tokens_used=0,
             scrubbed=False,
-            error=str(e)
+            error=str(e),
         )
 
 
@@ -416,7 +439,12 @@ async def generate_text(request: GenerateRequest):
 # AIRLOCK (PII SANITIZATION) ENDPOINTS
 # =============================================================================
 
-@app.post("/airlock/sanitize", response_model=SanitizeResponse, dependencies=[Depends(check_rate_limit)])
+
+@app.post(
+    "/airlock/sanitize",
+    response_model=SanitizeResponse,
+    dependencies=[Depends(check_rate_limit)],
+)
 async def sanitize_text(request: SanitizeRequest):
     """Sanitize text by removing PII."""
     try:
@@ -424,7 +452,7 @@ async def sanitize_text(request: SanitizeRequest):
         return SanitizeResponse(
             sanitized_text=result["scrubbed_text"],
             pii_found=result["total_redactions"] > 0,
-            redactions_count=result["total_redactions"]
+            redactions_count=result["total_redactions"],
         )
     except Exception as e:
         logger.error(f"Sanitization error: {e}")
@@ -435,11 +463,13 @@ async def sanitize_text(request: SanitizeRequest):
 # AUDITOR ENDPOINTS
 # =============================================================================
 
+
 @app.post("/auditor/evaluate", dependencies=[Depends(check_rate_limit)])
 async def evaluate_draft(request: AuditRequest):
     """Evaluate draft against Oxford Brookes criteria."""
     try:
         from core.auditor import BrookesAuditor
+
         auditor = BrookesAuditor()
         report = auditor.audit_draft(request.text, request.chapter_context or "")
         return report
@@ -453,6 +483,7 @@ async def get_criteria():
     """Get Oxford Brookes marking criteria."""
     try:
         from core.auditor import get_marking_criteria
+
         return get_marking_criteria()
     except Exception as e:
         logger.error(f"Error getting criteria: {e}")
@@ -463,11 +494,13 @@ async def get_criteria():
 # RED THREAD (CONSISTENCY) ENDPOINTS
 # =============================================================================
 
+
 @app.post("/red-thread/check", dependencies=[Depends(check_rate_limit)])
 async def check_consistency(request: ConsistencyRequest):
     """Check text consistency against indexed thesis content."""
     try:
         from core.red_thread import RedThreadEngine
+
         engine = RedThreadEngine()
         report = engine.get_consistency_report_for_ui(request.text)
         return report
@@ -481,6 +514,7 @@ async def index_chapters():
     """Index thesis chapters for consistency checking."""
     try:
         from core.red_thread import RedThreadEngine
+
         engine = RedThreadEngine()
         result = engine.index_existing_chapters()
         return result
@@ -494,6 +528,7 @@ async def get_index_stats():
     """Get Red Thread index statistics."""
     try:
         from core.red_thread import RedThreadEngine
+
         engine = RedThreadEngine()
         return engine.get_stats()
     except Exception as e:
@@ -505,11 +540,13 @@ async def get_index_stats():
 # DNA ENGINE ENDPOINTS
 # =============================================================================
 
+
 @app.post("/dna/analyze", dependencies=[Depends(check_rate_limit)])
 async def analyze_writing_style():
     """Analyze writing style from drafts folder."""
     try:
         from core.dna_engine import generate_author_dna
+
         profile = generate_author_dna()
         if profile:
             return {"success": True, "profile": profile}
@@ -524,9 +561,10 @@ async def get_dna_profile():
     """Get existing DNA profile if available."""
     try:
         from core.dna_engine import DATA_DIR
+
         profile_path = DATA_DIR / "author_dna.json"
         if profile_path.exists():
-            with open(profile_path, 'r') as f:
+            with open(profile_path, "r") as f:
                 return json.load(f)
         return {"error": "No DNA profile found. Run /dna/analyze first."}
     except Exception as e:
@@ -537,6 +575,7 @@ async def get_dna_profile():
 # =============================================================================
 # SNAPSHOT ENDPOINTS
 # =============================================================================
+
 
 @app.post("/snapshot", response_model=SnapshotResponse)
 async def save_snapshot(request: SnapshotRequest):
@@ -552,18 +591,15 @@ async def save_snapshot(request: SnapshotRequest):
             "timestamp": request.timestamp,
             "content": request.content,
             "saved_at": datetime.now().isoformat(),
-            "word_count": len(request.content.split())
+            "word_count": len(request.content.split()),
         }
 
-        with open(filepath, 'w', encoding='utf-8') as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             json.dump(snapshot_data, f, indent=2, ensure_ascii=False)
 
         file_size = filepath.stat().st_size
         return SnapshotResponse(
-            success=True,
-            filename=filename,
-            path=str(filepath),
-            size_bytes=file_size
+            success=True, filename=filename, path=str(filepath), size_bytes=file_size
         )
     except Exception as e:
         logger.error(f"Snapshot error: {e}")
@@ -574,6 +610,7 @@ async def save_snapshot(request: SnapshotRequest):
 # GOOGLE SYNC ENDPOINTS
 # =============================================================================
 
+
 @app.post("/sync/google", response_model=SyncResponse)
 async def sync_to_google(request: SyncRequest):
     """Sync content to Google Docs."""
@@ -581,13 +618,13 @@ async def sync_to_google(request: SyncRequest):
         result = airlock.update_google_doc(
             doc_id=request.doc_id,
             content=request.content,
-            section_title=request.section_title
+            section_title=request.section_title,
         )
         return SyncResponse(
             success=result.get("success", False),
             doc_url=result.get("doc_url"),
             characters_synced=len(request.content),
-            error=result.get("error")
+            error=result.get("error"),
         )
     except Exception as e:
         logger.error(f"Sync error: {e}")
@@ -597,6 +634,7 @@ async def sync_to_google(request: SyncRequest):
 # =============================================================================
 # USAGE STATISTICS
 # =============================================================================
+
 
 @app.get("/stats/usage")
 async def get_ai_usage_stats():
@@ -621,5 +659,5 @@ if __name__ == "__main__":
         host=config.host,
         port=config.port,
         reload=config.debug,
-        log_level=config.log_level.lower()
+        log_level=config.log_level.lower(),
     )

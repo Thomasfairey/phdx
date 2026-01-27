@@ -21,6 +21,7 @@ try:
 except ImportError:
     # Fallback for direct execution
     import sys
+
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from core.ethics_utils import log_ai_usage, scrub_text
     from core.secrets_utils import get_secret
@@ -69,13 +70,65 @@ HEDGING_PHRASES = [
 
 # Common academic transition words/phrases
 TRANSITION_CATEGORIES = {
-    "addition": ["furthermore", "moreover", "additionally", "in addition", "also", "besides"],
-    "contrast": ["however", "nevertheless", "nonetheless", "conversely", "on the other hand", "whereas", "although", "despite"],
-    "cause_effect": ["therefore", "consequently", "thus", "hence", "as a result", "accordingly"],
-    "sequence": ["firstly", "secondly", "subsequently", "finally", "initially", "previously", "thereafter"],
-    "emphasis": ["indeed", "notably", "significantly", "importantly", "crucially", "particularly"],
-    "example": ["for instance", "for example", "specifically", "namely", "such as", "in particular"],
-    "conclusion": ["in conclusion", "to summarize", "overall", "in summary", "ultimately", "to conclude"],
+    "addition": [
+        "furthermore",
+        "moreover",
+        "additionally",
+        "in addition",
+        "also",
+        "besides",
+    ],
+    "contrast": [
+        "however",
+        "nevertheless",
+        "nonetheless",
+        "conversely",
+        "on the other hand",
+        "whereas",
+        "although",
+        "despite",
+    ],
+    "cause_effect": [
+        "therefore",
+        "consequently",
+        "thus",
+        "hence",
+        "as a result",
+        "accordingly",
+    ],
+    "sequence": [
+        "firstly",
+        "secondly",
+        "subsequently",
+        "finally",
+        "initially",
+        "previously",
+        "thereafter",
+    ],
+    "emphasis": [
+        "indeed",
+        "notably",
+        "significantly",
+        "importantly",
+        "crucially",
+        "particularly",
+    ],
+    "example": [
+        "for instance",
+        "for example",
+        "specifically",
+        "namely",
+        "such as",
+        "in particular",
+    ],
+    "conclusion": [
+        "in conclusion",
+        "to summarize",
+        "overall",
+        "in summary",
+        "ultimately",
+        "to conclude",
+    ],
 }
 
 
@@ -118,10 +171,9 @@ def load_docx_files(drafts_dir: Path = DRAFTS_DIR) -> list[dict]:
                 if paragraph.text.strip():
                     full_text.append(paragraph.text.strip())
 
-            documents.append({
-                "filename": docx_file.name,
-                "content": "\n".join(full_text)
-            })
+            documents.append(
+                {"filename": docx_file.name, "content": "\n".join(full_text)}
+            )
             print(f"Loaded: {docx_file.name}")
 
         except Exception as e:
@@ -138,7 +190,7 @@ def calculate_sentence_complexity(text: str) -> dict:
         Dict with average_length, std_deviation, and length_distribution.
     """
     # Split into sentences (basic approach)
-    sentences = re.split(r'[.!?]+', text)
+    sentences = re.split(r"[.!?]+", text)
     sentences = [s.strip() for s in sentences if s.strip() and len(s.split()) > 2]
 
     if not sentences:
@@ -158,7 +210,7 @@ def calculate_sentence_complexity(text: str) -> dict:
     return {
         "average_length": round(avg_length, 2),
         "total_sentences": len(sentences),
-        "length_distribution": distribution
+        "length_distribution": distribution,
     }
 
 
@@ -188,7 +240,7 @@ def analyze_hedging_frequency(text: str) -> dict:
         "phrases_found": hedging_found,
         "total_hedges": total_hedges,
         "hedging_density_per_1000_words": round(hedging_density, 2),
-        "word_count": word_count
+        "word_count": word_count,
     }
 
 
@@ -217,7 +269,9 @@ def extract_transition_vocabulary(text: str) -> dict:
             transitions_by_category[category] = category_matches
 
     # Calculate transition density
-    transition_density = (total_transitions / word_count * 1000) if word_count > 0 else 0
+    transition_density = (
+        (total_transitions / word_count * 1000) if word_count > 0 else 0
+    )
 
     return {
         "by_category": transitions_by_category,
@@ -226,8 +280,10 @@ def extract_transition_vocabulary(text: str) -> dict:
         "preferred_categories": sorted(
             transitions_by_category.keys(),
             key=lambda c: sum(transitions_by_category[c].values()),
-            reverse=True
-        )[:3] if transitions_by_category else []
+            reverse=True,
+        )[:3]
+        if transitions_by_category
+        else [],
     }
 
 
@@ -249,7 +305,7 @@ def chunk_text_for_analysis(text: str, chunk_size: int = 2000) -> list[str]:
     chunks = []
 
     for i in range(0, len(words), chunk_size):
-        chunk = " ".join(words[i:i + chunk_size])
+        chunk = " ".join(words[i : i + chunk_size])
         chunks.append(chunk)
 
     return chunks
@@ -270,7 +326,9 @@ def analyze_with_claude(combined_text: str, client: anthropic.Anthropic) -> dict
     MAX_WORDS_FOR_SINGLE_ANALYSIS = 8000  # ~10k tokens
 
     if word_count > MAX_WORDS_FOR_SINGLE_ANALYSIS:
-        print(f"  Text too long ({word_count:,} words). Chunking into 2,000-word blocks...")
+        print(
+            f"  Text too long ({word_count:,} words). Chunking into 2,000-word blocks..."
+        )
         chunks = chunk_text_for_analysis(combined_text, chunk_size=2000)
         print(f"  Created {len(chunks)} chunks for analysis")
 
@@ -315,16 +373,14 @@ Respond with ONLY a valid JSON object, no additional text."""
         data_source="drafts_folder",
         prompt=f"Deep linguistic analysis of {len(combined_text)} chars",
         was_scrubbed=was_scrubbed,
-        redactions_count=scrub_result["total_redactions"]
+        redactions_count=scrub_result["total_redactions"],
     )
 
     try:
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
-            messages=[
-                {"role": "user", "content": prompt}
-            ]
+            messages=[{"role": "user", "content": prompt}],
         )
 
         response_text = response.content[0].text
@@ -340,7 +396,9 @@ Respond with ONLY a valid JSON object, no additional text."""
         return {"error": str(e)}
 
 
-def generate_author_dna(drafts_dir: Path = DRAFTS_DIR, output_path: Path = DNA_OUTPUT_PATH) -> Optional[dict]:
+def generate_author_dna(
+    drafts_dir: Path = DRAFTS_DIR, output_path: Path = DNA_OUTPUT_PATH
+) -> Optional[dict]:
     """
     Main function to generate the complete author DNA profile.
 
@@ -362,10 +420,9 @@ def generate_author_dna(drafts_dir: Path = DRAFTS_DIR, output_path: Path = DNA_O
     print(f"Loaded {len(documents)} document(s)")
 
     # Combine all text for analysis
-    combined_text = "\n\n---\n\n".join([
-        f"[{doc['filename']}]\n{doc['content']}"
-        for doc in documents
-    ])
+    combined_text = "\n\n---\n\n".join(
+        [f"[{doc['filename']}]\n{doc['content']}" for doc in documents]
+    )
 
     total_words = len(combined_text.split())
     print(f"Total word count: {total_words:,}")
@@ -378,12 +435,16 @@ def generate_author_dna(drafts_dir: Path = DRAFTS_DIR, output_path: Path = DNA_O
     # Analyze hedging frequency
     print("\n[3/5] Analyzing hedging frequency...")
     hedging_analysis = analyze_hedging_frequency(combined_text)
-    print(f"Hedging density: {hedging_analysis['hedging_density_per_1000_words']} per 1000 words")
+    print(
+        f"Hedging density: {hedging_analysis['hedging_density_per_1000_words']} per 1000 words"
+    )
 
     # Extract transition vocabulary
     print("\n[4/5] Extracting transition vocabulary...")
     transition_analysis = extract_transition_vocabulary(combined_text)
-    print(f"Preferred transition categories: {', '.join(transition_analysis['preferred_categories'])}")
+    print(
+        f"Preferred transition categories: {', '.join(transition_analysis['preferred_categories'])}"
+    )
 
     # Claude deep analysis
     print("\n[5/5] Performing deep linguistic analysis with Claude...")
@@ -402,12 +463,12 @@ def generate_author_dna(drafts_dir: Path = DRAFTS_DIR, output_path: Path = DNA_O
         "metadata": {
             "documents_analyzed": [doc["filename"] for doc in documents],
             "total_word_count": total_words,
-            "analysis_version": "1.0"
+            "analysis_version": "1.0",
         },
         "sentence_complexity": sentence_analysis,
         "hedging_analysis": hedging_analysis,
         "transition_vocabulary": transition_analysis,
-        "claude_deep_analysis": claude_analysis
+        "claude_deep_analysis": claude_analysis,
     }
 
     # Save to file
@@ -433,5 +494,9 @@ if __name__ == "__main__":
         print("\nProfile Summary:")
         print(f"  - Documents: {len(profile['metadata']['documents_analyzed'])}")
         print(f"  - Words: {profile['metadata']['total_word_count']:,}")
-        print(f"  - Avg sentence: {profile['sentence_complexity']['average_length']} words")
-        print(f"  - Hedging density: {profile['hedging_analysis']['hedging_density_per_1000_words']}/1000 words")
+        print(
+            f"  - Avg sentence: {profile['sentence_complexity']['average_length']} words"
+        )
+        print(
+            f"  - Hedging density: {profile['hedging_analysis']['hedging_density_per_1000_words']}/1000 words"
+        )
