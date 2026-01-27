@@ -5,14 +5,16 @@ services:
     region: frankfurt
     plan: free
     rootDir: PHDx
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn api.server:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r requirements.txt && mkdir -p config && echo '[anthropic]\napi_key = "placeholder"' > config/secrets.toml && python -c "from api.server import app; print('Import OK')"
+    startCommand: python -m uvicorn api.server:app --host 0.0.0.0 --port ${PORT:-10000}
     healthCheckPath: /health
     envVars:
       - key: PYTHON_VERSION
         value: "3.11"
       - key: PHDX_ENV
         value: production
+      - key: MOCK_MODE
+        value: "true"
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: OPENAI_API_KEY
