@@ -1,7 +1,16 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useDataStore, Dataset, EDAResult, SentimentResult } from "@/stores/data-store";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { useDataStore } from "@/stores/data-store";
+import { safeUpload, safePost, safeFetch } from "@/lib/api";
+import {
+  DatasetSchema,
+  PreviewResponseSchema,
+  EDAResultSchema,
+  SentimentResultSchema,
+  VisualizationResponseSchema,
+  type Dataset,
+  type EDAResult,
+  type SentimentResult,
+} from "@/lib/schemas";
 
 // Upload file mutation
 export function useUploadFile() {
@@ -16,18 +25,10 @@ export function useUploadFile() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch(`${API_BASE}/api/data/upload`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || "Failed to upload file");
-      }
-
+      setUploadProgress(50);
+      const data = await safeUpload("/api/data/upload", DatasetSchema, formData);
       setUploadProgress(100);
-      return response.json();
+      return data;
     },
     onSuccess: (data) => {
       addDataset(data);
@@ -51,10 +52,10 @@ export function useDatasetPreview(datasetId: string | null) {
     queryFn: async () => {
       if (!datasetId) return null;
 
-      const response = await fetch(`${API_BASE}/api/data/preview/${datasetId}`);
-      if (!response.ok) throw new Error("Failed to get preview");
-
-      const data = await response.json();
+      const data = await safeFetch(
+        `/api/data/preview/${datasetId}`,
+        PreviewResponseSchema
+      );
       setPreviewData(data.rows);
       return data;
     },
@@ -69,13 +70,7 @@ export function useRunEDA() {
   return useMutation({
     mutationFn: async (datasetId: string): Promise<EDAResult> => {
       setIsRunningEda(true);
-
-      const response = await fetch(`${API_BASE}/api/data/eda/${datasetId}`, {
-        method: "POST",
-      });
-
-      if (!response.ok) throw new Error("Failed to run EDA");
-      return response.json();
+      return safePost(`/api/data/eda/${datasetId}`, EDAResultSchema);
     },
     onSuccess: (data) => {
       setEdaResult(data);
@@ -101,15 +96,9 @@ export function useAnalyzeSentiment() {
       textColumn: string;
     }): Promise<SentimentResult> => {
       setIsAnalyzingSentiment(true);
-
-      const response = await fetch(`${API_BASE}/api/data/sentiment/${datasetId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text_column: textColumn }),
+      return safePost(`/api/data/sentiment/${datasetId}`, SentimentResultSchema, {
+        text_column: textColumn,
       });
-
-      if (!response.ok) throw new Error("Failed to analyze sentiment");
-      return response.json();
     },
     onSuccess: (data) => {
       setSentimentResult(data);
@@ -136,18 +125,11 @@ export function useGenerateVisualization() {
       xColumn: string;
       yColumn?: string;
     }) => {
-      const response = await fetch(`${API_BASE}/api/data/visualize/${datasetId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chart_type: chartType,
-          x_column: xColumn,
-          y_column: yColumn,
-        }),
+      return safePost(`/api/data/visualize/${datasetId}`, VisualizationResponseSchema, {
+        chart_type: chartType,
+        x_column: xColumn,
+        y_column: yColumn,
       });
-
-      if (!response.ok) throw new Error("Failed to generate visualization");
-      return response.json();
     },
   });
 }

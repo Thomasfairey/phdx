@@ -2,9 +2,104 @@
  * PHDx API Client Library
  *
  * Type definitions and API client for the PHDx FastAPI backend.
+ * Includes Zod runtime validation for API responses.
  */
 
+import { z } from "zod";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
+// =============================================================================
+// Zod Validation Utilities
+// =============================================================================
+
+export class APIValidationError extends Error {
+  constructor(
+    message: string,
+    public issues: z.ZodIssue[]
+  ) {
+    super(message);
+    this.name = "APIValidationError";
+  }
+}
+
+export class APIError extends Error {
+  constructor(
+    message: string,
+    public status: number
+  ) {
+    super(message);
+    this.name = "APIError";
+  }
+}
+
+/**
+ * Type-safe API fetch wrapper with Zod validation
+ */
+export async function safeFetch<T>(
+  endpoint: string,
+  schema: z.ZodSchema<T>,
+  options?: RequestInit
+): Promise<T> {
+  const url = endpoint.startsWith("http") ? endpoint : `${API_URL}${endpoint}`;
+
+  const response = await fetch(url, options);
+
+  if (!response.ok) {
+    let errorMessage = `API error: ${response.status}`;
+    try {
+      const errorBody = await response.json();
+      if (errorBody.detail) {
+        errorMessage = errorBody.detail;
+      }
+    } catch {
+      // Ignore JSON parse errors
+    }
+    throw new APIError(errorMessage, response.status);
+  }
+
+  const data = await response.json();
+
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    console.error("API response validation failed:", result.error.issues);
+    throw new APIValidationError(
+      `API response validation failed: ${result.error.issues.map((i) => i.message).join(", ")}`,
+      result.error.issues
+    );
+  }
+
+  return result.data;
+}
+
+/**
+ * Convenience wrapper for POST with JSON body and Zod validation
+ */
+export async function safePost<T>(
+  endpoint: string,
+  schema: z.ZodSchema<T>,
+  body?: unknown
+): Promise<T> {
+  return safeFetch(endpoint, schema, {
+    method: "POST",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+}
+
+/**
+ * Wrapper for file uploads (FormData) with Zod validation
+ */
+export async function safeUpload<T>(
+  endpoint: string,
+  schema: z.ZodSchema<T>,
+  formData: FormData
+): Promise<T> {
+  return safeFetch(endpoint, schema, {
+    method: "POST",
+    body: formData,
+  });
+}
 
 // =============================================================================
 // API Response Types

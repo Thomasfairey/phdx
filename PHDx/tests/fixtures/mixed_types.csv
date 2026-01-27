@@ -1,0 +1,6 @@
+id,name,value,active,date
+1,Alice,100.5,true,2024-01-01
+2,Bob,200.75,false,2024-01-02
+3,Charlie,NaN,true,2024-01-03
+4,Diana,,false,
+5,Eve,500.0,true,2024-01-05
