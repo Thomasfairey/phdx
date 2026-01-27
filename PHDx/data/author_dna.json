@@ -1,12 +1,12 @@
 {
   "metadata": {
     "documents_analyzed": [
-      "mock_intro.docx",
-      "synthetic_methodology.docx",
       "mock_methodology.docx",
-      "synthetic_lit_review.docx",
       "mock_lit_review.docx",
-      "synthetic_intro.docx"
+      "synthetic_lit_review.docx",
+      "synthetic_intro.docx",
+      "mock_intro.docx",
+      "synthetic_methodology.docx"
     ],
     "total_word_count": 4099,
     "analysis_version": "1.0"

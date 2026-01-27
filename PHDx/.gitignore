@@ -1,12 +1,22 @@
 # Environment variables (contains credentials)
 .env
+.env.local
 .streamlit/secrets.toml
+config/secrets.toml
+
+# Python virtual environment
+.venv/
+venv/
+env/
 
 # Python cache
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Data and cache files
 data/zotero_cache.json
@@ -14,6 +24,13 @@ data/supervisor_analysis.json
 data/ai_usage_log.csv
 data/local_cache/
 data/chroma_db/
+backups/
+
+# Node.js
+node_modules/
+web_client/node_modules/
+.next/
+web_client/.next/
 
 # IDE
 .idea/
