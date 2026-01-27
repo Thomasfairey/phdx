@@ -335,12 +335,17 @@ textarea.input {
  * ========================================================================= */
 
 .sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: var(--sidebar-width);
+  height: 100vh;
   background: var(--bg-primary);
   border-right: 1px solid var(--border-default);
   display: flex;
   flex-direction: column;
   transition: width var(--transition-default);
+  z-index: 40;
 }
 
 .sidebar.collapsed {
