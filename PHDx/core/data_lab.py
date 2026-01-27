@@ -14,7 +14,6 @@ Designed for desk research analyzing review site data.
 
 import hashlib
 import json
-import re
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Union
@@ -49,7 +48,7 @@ except ImportError:
 
 # Local imports
 from core.secrets_utils import get_secret
-from core.ethics_utils import scrub_text, log_ai_usage
+from core.ethics_utils import log_ai_usage
 
 # Paths
 ROOT_DIR = Path(__file__).parent.parent
@@ -1142,7 +1141,7 @@ if __name__ == "__main__":
     # Run sentiment analysis
     sentiment = lab.analyze_sentiment(df, "review")
     if sentiment.get("status") == "success":
-        print(f"\nSentiment Analysis:")
+        print("\nSentiment Analysis:")
         for label, data in sentiment.get("distribution", {}).items():
             print(f"  - {label}: {data['percentage']}%")
 

@@ -26,7 +26,6 @@ def main():
     )
 
     from ui.styles import load_css
-    from core import airlock
 
     load_css()
 
@@ -244,7 +243,7 @@ def _render_fallback_narrative():
 def _render_fallback_auditor():
     """Fallback Auditor - uses core auditor directly."""
     try:
-        from core.auditor import BrookesAuditor, get_marking_criteria
+        from core.auditor import BrookesAuditor
         auditor = BrookesAuditor()
 
         st.markdown("### 🔬 Brookes Auditor")

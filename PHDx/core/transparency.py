@@ -563,7 +563,7 @@ I hereby declare that:
         try:
             from fpdf import FPDF
 
-            declaration_md = self.generate_brookes_declaration(final_word_count)
+            self.generate_brookes_declaration(final_word_count)  # Generate but not used in PDF
             stats = self.get_summary_stats()
             meta = self.metadata
 

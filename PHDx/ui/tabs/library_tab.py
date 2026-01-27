@@ -9,7 +9,6 @@ Features:
 """
 
 import streamlit as st
-from typing import Optional
 
 
 def render_library_tab():
@@ -169,7 +168,7 @@ def _render_search_section():
 
     col1, col2 = st.columns(2)
     with col1:
-        search_type = st.selectbox(
+        _ = st.selectbox(  # search_type not yet implemented
             "Search in",
             ["All fields", "Title", "Author", "Tags"]
         )

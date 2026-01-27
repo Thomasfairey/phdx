@@ -10,7 +10,6 @@ Features:
 """
 
 import streamlit as st
-from typing import Optional
 
 
 def render_writing_desk_tab():

@@ -16,11 +16,9 @@ import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 # Local imports
-from core.secrets_utils import get_secret
-from core.ethics_utils import scrub_text, log_ai_usage
+from core.ethics_utils import log_ai_usage
 
 # Paths
 ROOT_DIR = Path(__file__).parent.parent

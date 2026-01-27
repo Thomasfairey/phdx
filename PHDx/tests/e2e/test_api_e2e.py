@@ -11,7 +11,6 @@ Prerequisites:
 
 import pytest
 from httpx import AsyncClient, ASGITransport
-import asyncio
 
 # Import the FastAPI app
 import sys

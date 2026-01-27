@@ -12,7 +12,6 @@ Endpoints for AI-assisted thesis writing:
 import sys
 from pathlib import Path
 from typing import Optional, List
-from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse

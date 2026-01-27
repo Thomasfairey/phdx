@@ -25,7 +25,6 @@ from core.llm_gateway import (
     _route_task,
     get_available_models,
     SECRETS_PATH,
-    HEAVY_LIFT_THRESHOLD,
     _gemini_available,
 )
 

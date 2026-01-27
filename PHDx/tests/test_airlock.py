@@ -22,7 +22,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.airlock import (
     authenticate_user,
     list_recent_docs,
-    load_google_doc,
     get_auth_status,
     CLIENT_SECRET_PATH,
     TOKEN_PATH,
@@ -62,7 +61,7 @@ def main():
     # Attempt authentication
     print("[2] Authenticating with Google...")
     try:
-        creds = authenticate_user()
+        authenticate_user()  # Test auth works
         print("    Authentication successful!")
         print()
     except Exception as e:
@@ -99,7 +98,7 @@ def main():
     if docs:
         print()
         print("To test loading a document, you can run:")
-        print(f"    from core.airlock import load_google_doc")
+        print("    from core.airlock import load_google_doc")
         print(f"    text = load_google_doc('{docs[0]['id']}')")
         print()
 

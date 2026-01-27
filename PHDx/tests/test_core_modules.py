@@ -5,9 +5,7 @@ These tests use mocking to avoid dependencies on external APIs.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
-import json
+from unittest.mock import Mock, patch
 
 
 # =============================================================================
