@@ -116,7 +116,8 @@ class AppConfig:
             cors_origins = os.getenv("CORS_ORIGINS", "").split(",")
             cors_origins = [o.strip() for o in cors_origins if o.strip()]
             if not cors_origins:
-                cors_origins = ["https://phdx.ai", "https://www.phdx.ai"]
+                # Allow all origins for personal project - tighten for public deployment
+                cors_origins = ["*"]
         elif environment == Environment.STAGING:
             cors_origins = ["https://staging.phdx.ai", "http://localhost:3000"]
         else:
@@ -180,8 +181,8 @@ class AppConfig:
         if self.environment == Environment.PRODUCTION:
             if not self.llm.anthropic_api_key:
                 issues.append("ANTHROPIC_API_KEY is required in production")
-            if not self.cors.allowed_origins:
-                issues.append("CORS_ORIGINS must be set in production")
+            # CORS is now permissive by default for personal project
+            pass
             if self.debug:
                 issues.append("DEBUG should be False in production")
 
